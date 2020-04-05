@@ -9,37 +9,53 @@
         <p>{{ result.name }}</p>
         <img v-bind:src='getImage(result.poster_path)'>
       </div>
+
+      <div v-if='pager.pages && pager.pages.length' class='pagination'>
+        <button v-on:click='getResult (query, 1)'>First</button>
+        <button v-on:click='getResult (query, pager.currentPage - 1)'>Previous</button>
+
+        <button v-for="page in pager.pages" :key="page" :class="{'active':page === pager.currentPage}"
+          v-on:click='getResult (query, page)'>{{ page }}</button>
+
+        <button v-on:click='getResult (query, pager.currentPage + 1)'>Next</button>
+        <button v-on:click='getResult (query, pager.totalPages)'>Last</button>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
 import { theMovieDb } from '../util/tmdb'
+import paginate from 'jw-paginate'
 
 export default {
   name: 'searchtvshow',
   data () {
     return {
       query: '',
-      results: []
+      results: [],
+      pager: {}
     }
   },
   methods: {
-    async getResult (query) {
+    async getResult (query, page = 1) {
       this.results = []
+      this.pager = {}
 
       if (!query || query.length === 0) {
         return
       }
 
       const params = {
-        query: query
+        query: query,
+        page: page
       }
 
       try {
         const { response } = await theMovieDb.search.getTv(params)
 
         this.results = response.results
+        this.pager = paginate(response.total_results, page, 20)
       } catch (error) {
         console.log(error.response)
         alert('Error: ' + error.status + '\n ' +

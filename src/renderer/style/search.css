@@ -1,0 +1,22 @@
+.search {
+  text-align: -webkit-center;
+}
+
+.card {
+  display: inline-grid; 
+  width: 230px;
+  border-style: groove;
+  border-color: hsla(0, 0, 0, 0.1);
+  height: 300px;
+  margin: 5px;
+  box-shadow: 10px -5px 13px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(var(--lightGrey), 1);
+}
+
+.card:hover {
+  transform: scale(1.1);
+}
+
+.card img {
+  width: 150px;
+}

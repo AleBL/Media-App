@@ -1,15 +1,19 @@
 <template>
   <div class='search'>
     <h1>Search TV Show List</h1>
-    <input type='text' v-model='query' @keyup='getResult(query)'/>
-    <div v-for='result in results' :key='result.id'>
-      <p>{{ result.name }}</p>
-      <img v-bind:src='getImage(result.poster_path)' width='100px'>
+    <input type='text' v-model='query'
+      @keyup='getResult(query)' placeholder='Search title..'/>
+
+    <div>
+      <div v-for='result in results' :key='result.id' class='card'>
+        <p>{{ result.name }}</p>
+        <img v-bind:src='getImage(result.poster_path)'>
+      </div>
     </div>
   </div>
 </template>
-<script>
 
+<script>
 import { theMovieDb } from '../util/tmdb'
 
 export default {
@@ -17,17 +21,25 @@ export default {
   data () {
     return {
       query: '',
-      results: ''
+      results: []
     }
   },
   methods: {
     async getResult (query) {
-      const params = { query: query }
+      this.results = []
+
+      if (!query || query.length === 0) {
+        return
+      }
+
+      const params = {
+        query: query
+      }
 
       try {
-        const request = await theMovieDb.search.getTv(params)
+        const { response } = await theMovieDb.search.getTv(params)
 
-        this.results = request.response.results
+        this.results = response.results
       } catch (error) {
         console.log(error.response)
         alert('Error: ' + error.status + '\n ' +
@@ -42,3 +54,7 @@ export default {
   }
 }
 </script>
+
+<style>
+  @import '../style/search.css';
+</style>

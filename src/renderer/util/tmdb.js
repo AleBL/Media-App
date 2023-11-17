@@ -14,7 +14,7 @@ theMovieDb.common = {
   base_uri: 'http://api.themoviedb.org/3/',
   images_uri: 'http://image.tmdb.org/t/p/',
   timeout: 5000,
-  language: 'en-US',
+  language: 'pt-BR',
   generateQuery: function (options) {
     'use strict'
     const myOptions = options || {}
@@ -199,16 +199,16 @@ theMovieDb.account = {
     theMovieDb.common.validateRequired(arguments, 0, options, ['session_id', 'id', 'media_type', 'media_id', 'favorite'])
 
     const body = {
-      'media_type': options.media_type,
-      'media_id': options.media_id,
-      'favorite': options.favorite
+      media_type: options.media_type,
+      media_id: options.media_id,
+      favorite: options.favorite
     }
 
     return theMovieDb.common.client({
       url: 'account/' + options.id + '/favorite' + theMovieDb.common.generateQuery(options),
       status: 201,
       method: 'POST',
-      body: body
+      body
     })
   },
   getRatedMovies: function (options) {
@@ -262,16 +262,16 @@ theMovieDb.account = {
     theMovieDb.common.validateRequired(arguments, 1, options, ['session_id', 'id', 'media_type', 'media_id', 'watchlist'])
 
     const body = {
-      'media_type': options.media_type,
-      'media_id': options.media_id,
-      'watchlist': options.watchlist
+      media_type: options.media_type,
+      media_id: options.media_id,
+      watchlist: options.watchlist
     }
 
     return theMovieDb.common.client({
       url: 'account/' + options.id + '/watchlist' + theMovieDb.common.generateQuery(options),
       method: 'POST',
       status: 201,
-      body: body
+      body
     })
   }
 }
@@ -576,8 +576,8 @@ theMovieDb.lists = {
     theMovieDb.common.validateRequired(arguments, 1, options, ['session_id', 'name', 'description'])
 
     const body = {
-      'name': options.name,
-      'description': options.description
+      name: options.name,
+      description: options.description
     }
 
     delete options.name
@@ -593,7 +593,7 @@ theMovieDb.lists = {
       method: 'POST',
       status: 201,
       url: 'list' + theMovieDb.common.generateQuery(options),
-      body: body
+      body
     })
   },
   addItem: function (options) {
@@ -602,14 +602,14 @@ theMovieDb.lists = {
     theMovieDb.common.validateRequired(arguments, 1, options, ['session_id', 'id', 'media_id'])
 
     const body = {
-      'media_id': options.media_id
+      media_id: options.media_id
     }
 
     return theMovieDb.common.client({
       method: 'POST',
       status: 201,
       url: 'list/' + options.id + '/add_item' + theMovieDb.common.generateQuery(options),
-      body: body
+      body
     })
   },
   removeItem: function (options) {
@@ -618,14 +618,14 @@ theMovieDb.lists = {
     theMovieDb.common.validateRequired(arguments, 1, options, ['session_id', 'id', 'media_id'])
 
     const body = {
-      'media_id': options.media_id
+      media_id: options.media_id
     }
 
     return theMovieDb.common.client({
       method: 'POST',
       status: 201,
       url: 'list/' + options.id + '/remove_item' + theMovieDb.common.generateQuery(options),
-      body: body
+      body
     })
   },
   removeList: function (options) {
@@ -853,7 +853,7 @@ theMovieDb.movies = {
       status: 201,
       url: 'movie/' + options.id + '/rating' + theMovieDb.common.generateQuery(options),
       body: {
-        'value': rate
+        value: rate
       }
     })
   },
@@ -867,7 +867,7 @@ theMovieDb.movies = {
       status: 201,
       url: 'movie/' + options.id + '/rating' + theMovieDb.common.generateQuery(options),
       body: {
-        'value': rate
+        value: rate
       }
     })
   },
@@ -1287,7 +1287,7 @@ theMovieDb.tv = {
       status: 201,
       url: 'tv/' + options.id + '/rating' + theMovieDb.common.generateQuery(options),
       body: {
-        'value': rate
+        value: rate
       }
     })
   },
@@ -1301,7 +1301,7 @@ theMovieDb.tv = {
       status: 201,
       url: 'tv/' + options.id + '/rating' + theMovieDb.common.generateQuery(options),
       body: {
-        'value': rate
+        value: rate
       }
     })
   },
@@ -1487,7 +1487,7 @@ theMovieDb.tvEpisodes = {
       status: 201,
       url: 'tv/' + options.id + '/season/' + options.season_number + '/episode/' + options.episode_number + '/rating' + theMovieDb.common.generateQuery(options),
       body: {
-        'value': rate
+        value: rate
       }
     })
   },
@@ -1501,7 +1501,7 @@ theMovieDb.tvEpisodes = {
       status: 201,
       url: 'tv/' + options.id + '/season/' + options.season_number + '/episode/' + options.episode_number + '/rating' + theMovieDb.common.generateQuery(options),
       body: {
-        'value': rate
+        value: rate
       }
     })
   },

@@ -1,33 +1,31 @@
-import Vue from 'vue'
-import Router from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
+import Login from '../components/Login.vue';
+import SearchMovie from '../components/SearchMovie.vue';
+import SearchTVShow from '../components/SearchTVShow.vue';
+import LandingPage from '../components/LandingPage.vue';
 
-Vue.use(Router)
-
-export default new Router({
+export default createRouter({
+  history: createWebHashHistory(),
   routes: [
     {
       path: '/login',
       name: 'login',
-      component: require('@/components/Login').default
+      component: Login
     },
     {
       path: '/searchmovie',
       name: 'searchmovie',
-      component: require('@/components/SearchMovie').default
+      component: SearchMovie
     },
     {
       path: '/searchtvshow',
       name: 'searchtv',
-      component: require('@/components/SearchTVShow').default
+      component: SearchTVShow
     },
     {
       path: '/',
       name: 'landing-page',
-      component: require('@/components/LandingPage').default
-    },
-    {
-      path: '*',
-      redirect: '/'
+      component: LandingPage
     }
   ]
 })

@@ -2,36 +2,27 @@
   <div id="app">
     <div class="navbar">
       <div class="colum">
-        <router-link :to="{ name: 'landing-page' }">
-          <h4> Informations </h4>
-        </router-link>
+        <RouterLink :to="{ name: 'landing-page' }">
+          <h4>Information</h4>
+        </RouterLink>
 
-        <router-link :to="{ name: 'searchmovie' }">
+        <RouterLink :to="{ name: 'searchmovie' }">
           <h4> Search Movie </h4>
-        </router-link>
+        </RouterLink>
 
-        <router-link :to="{ name: 'searchtv' }">
+        <RouterLink :to="{ name: 'searchtv' }">
           <h4> Search TV Show </h4>
-        </router-link>
+        </RouterLink>
 
-        <router-link v-if="!logged" :to="{ name: 'login' }">
+        <RouterLink v-if="!false" :to="{ name: 'login' }">
           <h4> Login </h4>
-        </router-link>
+        </RouterLink>
       </div>
     </div>
 
-    <router-view></router-view>
+    <RouterView />
   </div>
 </template>
-
-<script>
-  export default {
-    name: 'media-app',
-    data: {
-      logged: false
-    }
-  }
-</script>
 
 <style>
   .navbar{

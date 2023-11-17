@@ -25,7 +25,7 @@
 </template>
 
 <script>
-import { theMovieDb } from '../util/tmdb'
+import { theMovieDb } from '../util/tmdb.js'
 import paginate from 'jw-paginate'
 
 export default {

@@ -1,6 +1,6 @@
 <template>
   <div id="wrapper">
-    <img id="logo" src="~@/assets/logo.png" alt="electron-vue">
+    <img id="logo" src="../assets/logo.png" alt="electron-vue">
     <main>
       <div class="left-side">
         <span class="title">
@@ -30,7 +30,7 @@
 </template>
 
 <script>
-  import SystemInformation from './LandingPage/SystemInformation'
+  import SystemInformation from './LandingPage/SystemInformation.vue'
 
   export default {
     name: 'landing-page',

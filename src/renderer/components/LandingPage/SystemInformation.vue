@@ -31,15 +31,17 @@
 </template>
 
 <script>
+    // TODO
+
   export default {
     data () {
       return {
-        electron: process.versions.electron,
-        name: this.$route.name,
-        node: process.versions.node,
-        path: this.$route.path,
-        platform: require('os').platform(),
-        vue: require('vue/package.json').version
+        electron: 1,
+        name: 1,
+        node: 1,
+        path: 1,
+        platform: 1,
+        vue: 1
       }
     }
   }

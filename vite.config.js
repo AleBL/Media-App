@@ -18,6 +18,7 @@ const config = defineConfig({
         emptyOutDir: true,
     },
     plugins: [vuePlugin()],
+    assetsInclude: ['**/*.jpg'],
 });
 
 module.exports = config;

@@ -26,6 +26,8 @@
 
 <script>
 import { theMovieDb } from '../util/tmdb'
+import { GENRES } from '../util/constants'
+
 import paginate from 'jw-paginate'
 
 export default {
@@ -97,6 +99,9 @@ export default {
       const params = { file: path }
 
       return theMovieDb.common.getImage(params)
+    },
+    getGenres(genres_ids) {
+      return GENRES.getGenreNames(genres_ids, theMovieDb.common.language)
     }
   }
 }

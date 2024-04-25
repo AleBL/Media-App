@@ -14,7 +14,7 @@ theMovieDb.common = {
   base_uri: 'http://api.themoviedb.org/3/',
   images_uri: 'http://image.tmdb.org/t/p/',
   timeout: 5000,
-  language: 'pt-BR',
+  language: 'pt',
   generateQuery: function (options) {
     'use strict'
     const myOptions = options || {}
@@ -473,8 +473,6 @@ theMovieDb.genres = {
   getMovieList: function (options) {
     'use strict'
 
-    theMovieDb.common.validateRequired(arguments, 1, '', '', true)
-
     return theMovieDb.common.client({
       url: 'genre/movie/list' + theMovieDb.common.generateQuery(options)
     })
@@ -490,8 +488,6 @@ theMovieDb.genres = {
   },
   getTvList: function (options) {
     'use strict'
-
-    theMovieDb.common.validateRequired(arguments, 1, '', '', true)
 
     return theMovieDb.common.client({
       url: 'genre/tv/list' + theMovieDb.common.generateQuery(options)

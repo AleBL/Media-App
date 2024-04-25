@@ -24,11 +24,13 @@
     "electron-builder": "^24.2.1",
     "eslint": "^8.57.0",
     "eslint-plugin-vue": "^9.24.0",
+    "esm": "^3.2.25",
     "typescript": "^4.8.4",
     "vite": "^4.1.1"
   },
   "dependencies": {
     "axios": "^1.6.0",
+    "fs-extra": "^11.2.0",
     "jw-paginate": "^1.0.4",
     "vue": "^3.2.47",
     "vue-router": "^4.2.5",

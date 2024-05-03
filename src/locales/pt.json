@@ -1,0 +1,29 @@
+{
+  "common": {
+    "light": "Claro",
+    "dark": "Escuro",
+    "theme": "Tema",
+    "language": "Idioma"
+  },
+
+  "pageTitles": {
+    "home": "Pagina Inicial",
+    "about": "Sobre"
+  },
+
+  "homepage": {
+    "goToHome": "Ir para página inicial",
+    "recommendedIdeSetup": "Configuração IDE recomendada",
+    "seeForMoreInfo": "Leia <code>README.md</code> para mais informações.",
+    "countIs": "Contador é",
+    "toTestHotModule": "Editar <code>components/HelloWorld.vue</code> to test hot module replacement"
+  },
+
+  "aboutPage": {
+    "goToAbout": "Ir para Sobre"
+  },
+
+  "footer": {
+    "placeStaticFiles": "Coloque os arquivos estáticos na pasta <code>/public</code>"
+  }
+}

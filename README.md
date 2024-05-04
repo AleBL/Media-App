@@ -1,68 +1,112 @@
-<div align="center">
+# Electron-Vite-TS-Stackter
 
-# Media App (TMDB)
+An Electron + Vue 3 starter project setup with Vite, Typescript, Vue-Router, Pinia, Eslint, Prettier, Tailwind CSS, and some custom preferences.
 
-A simple starter template for a **Vue3** + **Electron** TypeScript based application, including **ViteJS** and **Electron Builder**.
+This repository is an extended version of [the simple one](https://github.com/electron-vite/electron-vite-vue).
 
-An application that organizes and manages watched series and movies through TMDB. This application is built with **TypeScript**, utilizing **Vue3**, **Electron**, **ViteJS**, and **Electron Builder**.
-</div>
+![electron-vite-vue.gif](/public/electron-stackter.gif)
 
-## About
+## Features
 
-This application utilizes [ViteJS](https://vitejs.dev) for building and serving your (Vue powered) front-end process, it provides Hot Reloads (HMR) to make development fast and easy.
+📦 Out of the box
 
-Building the Electron (main) process is done with [Electron Builder](https://www.electron.build/), which makes this application easily distributable and supports cross-platform compilation.
+🎯 Based on the official [template-vue-ts](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-vue-ts), less invasive
 
-## Getting started
+🌱 Extensible, really simple directory structure
 
-Packages needed in linux:
-```bash
-sudo apt-get install -yq --no-install-recommends libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 libnss3 libgbm-dev
-```
+💪 Support using Node.js API in Electron-Renderer
 
-***Installed versions:***
-```bash
-node -v # 20.9.0
-yarn -v # 1.22.22
-npm -v # 10.1.0
-```
+🔩 Support C/C++ native addons
 
-### Install dependencies ⏬
-```bash
-npm install
-# OR
-yarn install
-```
+🖥 It's easy to implement multiple windows
 
-### Start developing ⚒️
+🚀 configured with Eslint & Prettier
 
-```bash
-# starts application with hot reload
-npm run dev
-# OR
-yarn dev
-```
+🚀 Vue router support
 
-## Additional Commands
+🚀 Pinia state management
+
+🚀 TailwindCSS (Dark mode support)
+
+🚀 VueUse
+
+🚀 Easy dependency update with taze
+
+🚀 I18n support - multiple locales
+
+## Get Started
+
+### 1. Install packages
 
 ```bash
-npm run build # builds application, distributable files can be found in "dist" folder
-# OR
-npm run build:win # uses windows as build target
-npm run build:mac # uses mac as build target
-npm run build:linux # uses linux as build target
-# OR
-yarn build:win # uses windows as build target
-yarn build:mac # uses mac as build target
-yarn build:linux # uses linux as build target
+npm i
+or,
+pnpm i --shamefully-hoist
 ```
-Optional configuration options can be found in the [Electron Builder CLI docs](https://www.electron.build/cli.html).
 
-## Project Structure
+### 2. Run
+
+In development mode,
 
 ```bash
-- scripts/ # all the scripts used to build or serve your application, change as you like.
-- src/
-- main/ # Main thread (Electron application source)
-- renderer/ # Renderer thread (VueJS application source)
+npm run app:dev
+or,
+pnpm run app:dev
 ```
+
+In preview mode,
+
+```bash
+npm run app:preview
+or,
+pnpm run app:preview
+```
+
+To build for production,
+
+```bash
+npm run app:build
+or,
+pnpm run app:build
+```
+
+## Debug
+
+![electron-vite-react-debug.gif](https://github.com/electron-vite/electron-vite-react/blob/main/public/electron-vite-react-debug.gif?raw=true)
+
+## Directory
+
+```diff
++ ├─┬ electron
++ │ ├─┬ main
++ │ │ └── index.ts    entry of Electron-Main
++ │ └─┬ preload
++ │   └── index.ts    entry of Preload-Scripts
+  ├─┬ src
+  │ └── main.ts       entry of Electron-Renderer
+  ├── index.html
+  ├── package.json
+  └── vite.config.ts
+```
+
+## Be aware
+
+🚨 By default, this template integrates Node.js in the Renderer process. If you don't need it, you just remove the option below. [Because it will modify the default config of Vite](https://github.com/electron-vite/vite-plugin-electron-renderer#config-presets-opinionated).
+
+```diff
+# vite.config.ts
+
+export default {
+  plugins: [
+-   // Use Node.js API in the Renderer-process
+-   renderer({
+-     nodeIntegration: true,
+-   }),
+  ],
+}
+```
+
+## FAQ
+
+- [dependencies vs devDependencies](https://github.com/electron-vite/vite-plugin-electron-renderer#dependencies-vs-devdependencies)
+- [C/C++ addons, Node.js modules - Pre-Bundling](https://github.com/electron-vite/vite-plugin-electron-renderer#dependency-pre-bundling)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import HelloWorld from '../components/HelloWorld.vue';
+  import HelloWorld from '../components/HelloWorld.vue';
 
-const { t } = useI18n();
+  const { t } = useI18n();
 </script>
 
 <template>

@@ -34,6 +34,8 @@
     "deps:update": "taze major -I"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.8.0",
+    "@typescript-eslint/parser": "^7.8.0",
     "@vitejs/plugin-vue": "^4.0.0",
     "@vue/eslint-config-typescript": "^11.0.2",
     "@vueuse/core": "^9.10.0",
@@ -43,7 +45,7 @@
     "eslint": "^8.31.0",
     "eslint-config-prettier": "^8.6.0",
     "eslint-plugin-prettier": "^4.2.1",
-    "eslint-plugin-vue": "^9.8.0",
+    "eslint-plugin-vue": "^9.25.0",
     "pinia": "^2.0.28",
     "postcss": "^8.4.21",
     "prettier": "^2.8.2",

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-const props = defineProps<{
-  href: string;
-  imgSrc: string;
-  imgAlt: string;
-}>();
+  const props = defineProps<{
+    href: string;
+    imgSrc: string;
+    imgAlt: string;
+  }>();
 
-const imageUrl = new URL(`/src/assets/${props.imgSrc}`, import.meta.url).href;
+  const imageUrl = new URL(`/src/assets/${props.imgSrc}`, import.meta.url).href;
 </script>
 
 <template>

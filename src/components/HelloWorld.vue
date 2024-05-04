@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { useCounterStore } from '../stores/counter.store';
+  import { useCounterStore } from '../stores/counter.store';
 
-defineProps<{ msg: string }>();
+  defineProps<{ msg: string }>();
 
-const counterStore = useCounterStore();
+  const counterStore = useCounterStore();
 
-const { t } = useI18n();
+  const { t } = useI18n();
 </script>
 
 <template>

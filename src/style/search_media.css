@@ -1,0 +1,35 @@
+@tailwind components;
+
+@layer components {
+    .card-border {
+        @apply p-4 border dark:border-surface-700 bg-surface-0 dark:bg-surface-900 rounded-md flex flex-col
+    }
+
+    .dataview-cards {
+        @apply flex flex-wrap
+    }
+
+    .card {
+        @apply w-full sm:w-2/6 md:w-2/6 xl:w-1/4 2xl:w-1/5
+    }
+
+    .card-border div {
+        @apply flex justify-center rounded-md p-3
+    }
+
+    .poster {
+        @apply rounded-md w-full
+    }
+}
+
+.poster {
+    max-width: 400px
+}
+
+.text {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 60px;
+    margin: -10px;
+}

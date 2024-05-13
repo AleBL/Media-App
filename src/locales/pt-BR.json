@@ -1,0 +1,15 @@
+{
+  "pageTitles": {
+    "home": "Página Inicial",
+    "about": "Sobre",
+    "search": "Procurar",
+    "movie": "Filme",
+    "tvShow": "Série"
+  },
+
+  "theme": {
+    "text": "Tema",
+    "light": "Claro",
+    "dark": "Escuro"
+  }
+}

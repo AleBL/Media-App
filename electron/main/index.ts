@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, nativeTheme } from 'electron';
 import { release } from 'node:os';
 import { join } from 'node:path';
 
@@ -20,7 +20,6 @@ process.env.PUBLIC = process.env.VITE_DEV_SERVER_URL
 
 // Disable GPU Acceleration for Windows 7
 if (release().startsWith('6.1')) app.disableHardwareAcceleration();
-app.disableHardwareAcceleration();
 
 // Set application name for Windows 10+ notifications
 if (process.platform === 'win32') app.setAppUserModelId(app.getName());
@@ -47,6 +46,8 @@ async function createWindow() {
     icon: join(process.env.PUBLIC, 'favicon.ico'),
     width: 1600,
     height: 900,
+    minWidth: 765,
+    minHeight: 630,
     webPreferences: {
       preload,
       // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production
@@ -76,6 +77,8 @@ async function createWindow() {
     if (url.startsWith('https:')) shell.openExternal(url);
     return { action: 'deny' };
   });
+
+  nativeTheme.themeSource = 'dark';
 }
 
 app.whenReady().then(createWindow);

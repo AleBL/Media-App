@@ -39,3 +39,8 @@
   --surface-900: 15 23 42;
   --surface-950: 3 6 23;
 }
+
+.card {
+  background: var(--card-bg);
+  border: var(--card-border);
+}

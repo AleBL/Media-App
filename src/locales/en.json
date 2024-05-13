@@ -1,29 +1,15 @@
 {
-  "common": {
-    "light": "Light",
-    "dark": "Dark",
-    "theme": "Theme",
-    "language": "Language"
-  },
-
   "pageTitles": {
     "home": "Home Page",
-    "about": "About Page"
+    "about": "About Page",
+    "search": "Search",
+    "movie": "Movie",
+    "tvShow": "TV Show"
   },
 
-  "homepage": {
-    "goToHome": "Go to Home",
-    "recommendedIdeSetup": "Recommended IDE setup",
-    "seeForMoreInfo": "See <code>README.md</code> for more information.",
-    "countIs": "count is",
-    "toTestHotModule": "Edit <code>components/HelloWorld.vue</code> to test hot module replacement"
-  },
-
-  "aboutPage": {
-    "goToAbout": "Go to About"
-  },
-
-  "footer": {
-    "placeStaticFiles": "Place static files into the <code>/public</code> folder"
+  "theme": {
+    "text": "Theme",
+    "light": "Light",
+    "dark": "Dark"
   }
 }

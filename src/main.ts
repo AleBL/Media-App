@@ -8,6 +8,7 @@ import PrimeVue from 'primevue/config';
 import Ripple from 'primevue/ripple';
 import Wind from '@/presets/wind.d';
 import i18n, { defaultLocale } from '@/plugins/i18n';
+import { theMovieDb } from '@/util/tmdb';
 
 const app = createApp(App);
 
@@ -19,6 +20,8 @@ app.use(PrimeVue, {
   pt: Wind,
   ripple: true
 });
+
+theMovieDb.common.language = defaultLocale.value;
 
 app.directive('ripple', Ripple);
 

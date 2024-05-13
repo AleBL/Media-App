@@ -11,8 +11,14 @@
     "esModuleInterop": true,
     "lib": ["ESNext", "DOM"],
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "noImplicitAny": false,
+    "baseUrl": "src/",
+    "paths": {
+      "@/*": ["*"],
+      "~/*": ["*"]
+    }
   },
   "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "references": [{ "path": "./tsconfig.node.json" }],
 }

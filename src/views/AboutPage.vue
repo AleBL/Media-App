@@ -1,56 +1,23 @@
 <script setup lang="ts">
-  import LogoViewLink from '../components/LogoViewLink.vue';
+  import LogoItem from '@/components/About/LogoItem.vue';
+  import { VERSIONS } from '@/util/constants';
 
-  const { t } = useI18n();
+  const items = [
+    { href: 'https://www.electronjs.org/', imgSrc: 'electron.svg', imgAlt: 'Electron logo', version: VERSIONS.ELECTRON },
+    { href: 'https://vitejs.dev/', imgSrc: 'vite.svg', imgAlt: 'Vite logo', version: VERSIONS.VITE },
+    { href: 'https://vuejs.org/', imgSrc: 'vue.svg', imgAlt: 'Vue logo', version: VERSIONS.VUE },
+    { href: 'https://pinia.vuejs.org/', imgSrc: 'pinia.svg', imgAlt: 'Pinia logo', version: VERSIONS.PINIA },
+    { href: 'https://tailwindcss.com/', imgSrc: 'tailwindcss.png', imgAlt: 'Tailwind CSS logo', version: VERSIONS.TAILWINDCSS },
+    { href: 'https://eslint.org/', imgSrc: 'eslint.png', imgAlt: 'Eslint logo', version: VERSIONS.ESLINT },
+    { href: 'https://prettier.io/', imgSrc: 'prettier.png', imgAlt: 'Prettier logo', version: VERSIONS.PRETTIER },
+    { href: 'https://vueuse.org/', imgSrc: 'vueuse.svg', imgAlt: 'VueUse logo', version: VERSIONS.VUEUSE },
+    { href: 'https://nodejs.org/', imgSrc: 'node.svg', imgAlt: 'NodeJS logo', version: VERSIONS.NODE },
+    { href: 'https://primevue.org/', imgSrc: 'prime.svg', imgAlt: 'Prime logo', version: VERSIONS.PRIMEVUE }
+  ];
 </script>
 
 <template>
-  <div class="flex flex-wrap gap-5 items-center justify-center">
-    <LogoViewLink
-      href="https://www.electronjs.org/"
-      img-src="electron.svg"
-      img-alt="Electron logo"
-    />
-    <LogoViewLink
-      href="https://vitejs.dev/"
-      img-src="vite.svg"
-      img-alt="Vite logo"
-    />
-    <LogoViewLink
-      href="https://vuejs.org/"
-      img-src="vue.svg"
-      img-alt="Vue logo"
-    />
-    <LogoViewLink
-      href="https://pinia.vuejs.org/"
-      img-src="pinia.svg"
-      img-alt="Pinia logo"
-    />
-    <LogoViewLink
-      href="https://tailwindcss.com/"
-      img-src="tailwindcss.png"
-      img-alt="Tailwind CSS logo"
-    />
-    <LogoViewLink
-      href="https://eslint.org/"
-      img-src="eslint.png"
-      img-alt="Eslint logo"
-    />
-    <LogoViewLink
-      href="https://prettier.io/"
-      img-src="prettier.png"
-      img-alt="Prettier logo"
-    />
-    <LogoViewLink
-      href="https://vueuse.org/"
-      img-src="vueuse.svg"
-      img-alt="VueUse logo"
-    />
-  </div>
-
-  <div class="text-center">
-    <h1 class="text-2xl">
-      {{ t('pageTitles.about') }}
-    </h1>
+  <div class="gap-5 items-center justify-center" style="padding-top: 5%;display: grid; grid-template-columns: 20% 20%;">
+    <LogoItem v-for="(item, index) in items" :key="index" :item="item" />
   </div>
 </template>

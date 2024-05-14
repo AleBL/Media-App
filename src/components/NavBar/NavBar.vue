@@ -18,14 +18,9 @@
       route: '/home'
     },
     {
-      label: computed(() => { return `${t('pageTitles.search')} ${t('pageTitles.movie')}`; }),
+      label: computed(() => { return `${t('pageTitles.search')}`; }),
       icon: 'pi pi-search',
-      route: '/searchmovie'
-    },
-    {
-      label: computed(() => { return `${t('pageTitles.search')} ${t('pageTitles.tvShow')}`; }),
-      icon: 'pi pi-search',
-      route: '/searchtvshow'
+      route: '/search'
     },
     themeItem.getThemes(),
     languageItem.getLanguages(),

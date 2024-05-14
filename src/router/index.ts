@@ -1,8 +1,7 @@
 import { createWebHistory, createRouter, RouteRecordRaw } from 'vue-router';
 import HomePage from '../views/HomePage.vue';
 import AboutPage from '../views/AboutPage.vue';
-import SearchMovie from '../views/Search/SearchMovie.vue';
-import SearchTVShow from '../views/Search/SearchTVShow.vue';
+import SearchPage from '../views/Search/SearchPage.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -16,14 +15,9 @@ const routes: RouteRecordRaw[] = [
     component: HomePage,
   },
   {
-    path: '/searchmovie',
-    name: 'searchmovie',
-    component: SearchMovie,
-  },
-  {
-    path: '/searchtvshow',
-    name: 'searchtvshow',
-    component: SearchTVShow,
+    path: '/search',
+    name: 'search',
+    component: SearchPage,
   },
   {
     path: '/about',

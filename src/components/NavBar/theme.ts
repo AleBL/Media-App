@@ -6,13 +6,18 @@ const toggleDark = useToggle(isDark);
 export class ThemeItem {
   private translate: Function;
 
-  constructor (translate: Function) {
+  constructor(translate: Function) {
     this.translate = translate;
   }
 
-  public getThemes (): {} {
+  public getThemes(): {} {
     const themeLabel = computed(() => {
-      return this.translate('theme.text') + (isDark.value ? ` ${this.translate('theme.dark')}` : ` ${this.translate('theme.light')}`);
+      return (
+        this.translate('theme.text') +
+        (isDark.value
+          ? ` ${this.translate('theme.dark')}`
+          : ` ${this.translate('theme.light')}`)
+      );
     });
 
     const themeIcon = computed(() => {
@@ -21,8 +26,8 @@ export class ThemeItem {
 
     return {
       label: themeLabel,
-      icon:  themeIcon,
-      command: () => toggleDark()
+      icon: themeIcon,
+      command: () => toggleDark(),
     };
   }
 }

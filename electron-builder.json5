@@ -22,6 +22,9 @@
     ],
     artifactName: '${productName}_${version}.${ext}',
   },
+  linux: {
+    "target": ["snap"],
+  },
   nsis: {
     oneClick: false,
     perMachine: false,

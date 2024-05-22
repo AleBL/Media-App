@@ -10,7 +10,7 @@
 export const theMovieDb = {}
 
 theMovieDb.common = {
-  api_key: '67b028d3837541f10fbe8a700775f54c',
+  api_key: '<ADD TMDB API KEY HERE>',
   base_uri: 'http://api.themoviedb.org/3/',
   images_uri: 'http://image.tmdb.org/t/p/',
   timeout: 5000,

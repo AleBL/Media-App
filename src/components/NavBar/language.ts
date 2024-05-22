@@ -1,12 +1,12 @@
-import { theMovieDb } from '../../util/tmdb';
-import { defaultLocale } from '../../plugins/i18n';
+import { theMovieDb } from '@/util/tmdb';
+import { defaultLocale } from '@/plugins/i18n';
 
 export class LanguageItem {
   private availableLocales: string[];
   private locale: object;
   private icons: {};
 
-  constructor (availableLocales: string[], locale: object) {
+  constructor(availableLocales: string[], locale: object) {
     this.availableLocales = availableLocales;
     this.locale = locale;
 
@@ -18,41 +18,42 @@ export class LanguageItem {
       })
     ).reduce((acc, [key, value]) => {
       const matchedKey = key.match(regex)?.join();
-      return matchedKey !== undefined ? { ...acc, [key.match(regex)!.join()]: value.default } : acc
+      return matchedKey !== undefined
+        ? { ...acc, [key.match(regex)!.join()]: value.default }
+        : acc;
     }, {});
   }
 
-  private getImageURL (lang: string): string {
+  private getImageURL(lang: string): string {
     return this.icons[lang];
   }
 
-  private getLocales (): {}{
+  private getLocales(): {} {
     return this.availableLocales.map((lang) => {
       return {
         label: lang,
         imageURL: this.getImageURL(lang),
-        // hasImage: true,
-        command: () => this.toggleLocale(lang)
+        command: () => this.toggleLocale(lang),
       };
     });
   }
 
-  public toggleLocale (lang: string) {
+  public toggleLocale(lang: string) {
     // @ts-expect-error Value will always exist
     this.locale.value = lang;
     theMovieDb.common.language = lang;
     defaultLocale.value = lang;
   }
 
-  public getLanguages (): {} {
+  public getLanguages(): {} {
     return {
       icon: 'pi pi-language',
       showBand: true,
-      items: this.getLocales()
+      items: this.getLocales(),
     };
   }
 
-  public getCurrentLocaleIcon (): string {
+  public getCurrentLocaleIcon(): string {
     // @ts-expect-error Value will always exist
     return this.getImageURL(this.locale.value);
   }

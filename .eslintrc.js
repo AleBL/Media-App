@@ -12,50 +12,71 @@ module.exports = {
     'public/',
     '**/*.min.js',
     '**/*.d.ts',
-    'src/presets/'
+    'src/presets/',
+    'src/util/tmdb.js',
   ],
   extends: [
     'eslint:recommended',
     'plugin:vue/vue3-recommended',
     '@vue/eslint-config-typescript/recommended',
     'eslint-config-prettier',
+    'prettier',
   ],
-  "plugins": ['@typescript-eslint'],
+  plugins: ['@typescript-eslint', 'prettier'],
   rules: {
+    'prettier/prettier': ['error', { vueIndentScriptAndStyle: true }],
     'vue/singleline-html-element-content-newline': 0,
     'vue/component-name-in-template-casing': ['error', 'PascalCase'],
     'vue/no-v-model-argument': 0,
     '@typescript-eslint/no-var-requires': 0,
     'vue/no-v-html': 0,
     'vue/html-indent': ['error', 2],
-    'vue/script-indent': ['error', 2, {
-      'baseIndent': 1,
-      'switchCase': 1,
-      'ignores': []
-    }],
-    "@typescript-eslint/ban-types": [
-      "error",
+    'no-tabs': ['error', { allowIndentationTabs: false }],
+    'vue/script-indent': [
+      'error',
+      2,
       {
-        "extendDefaults": true,
-        "types": {
-          "{}": false,
-          "Function": false
-        }
-      }
+        baseIndent: 1,
+        switchCase: 1,
+        ignores: [],
+      },
     ],
-    // "indent": ["error", 2],
-    "space-before-function-paren": ["error", "always"],
+    '@typescript-eslint/ban-types': [
+      'error',
+      {
+        extendDefaults: true,
+        types: {
+          '{}': false,
+          Function: false,
+        },
+      },
+    ],
+    'vue/html-self-closing': [
+      'error',
+      {
+        html: {
+          void: 'always',
+          normal: 'always',
+          component: 'always',
+        },
+        svg: 'always',
+        math: 'always',
+      },
+    ],
+    semi: ['error', 'always'],
+    'eol-last': ['error', 'always'],
+    quotes: ['error', 'single'],
   },
   overrides: [
     {
       files: ['*.ts'],
       rules: {
-        "indent": ["error", 2]
-      }
-    }
+        indent: ['error', 2, { SwitchCase: 1 }],
+      },
+    },
   ],
   globals: {
     _: true,
-    t: true
+    t: true,
   },
 };

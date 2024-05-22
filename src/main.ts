@@ -18,7 +18,7 @@ app.use(router);
 app.use(PrimeVue, {
   unstyled: true,
   pt: Wind,
-  ripple: true
+  ripple: true,
 });
 
 theMovieDb.common.language = defaultLocale.value;

@@ -12,14 +12,14 @@
   <a :href="props.href" target="_blank">
     <img
       :src="imageUrl"
-      class="h-16 p-1.5 will-change-[filter] transition-[filter] duration-300 logo"
+      class="logo h-16 p-1.5 transition-[filter] duration-300 will-change-[filter]"
       :alt="props.imgAlt"
     />
   </a>
 </template>
 
 <style scoped>
-.logo:hover {
-  filter: drop-shadow(0 0 10px gray);
-}
+  .logo:hover {
+    filter: drop-shadow(0 0 10px gray);
+  }
 </style>

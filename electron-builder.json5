@@ -23,7 +23,7 @@
     artifactName: '${productName}_${version}.${ext}',
   },
   linux: {
-    "target": ["snap"],
+    target: ['snap'],
   },
   nsis: {
     oneClick: false,

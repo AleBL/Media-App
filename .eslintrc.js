@@ -24,7 +24,6 @@ module.exports = {
   ],
   plugins: ['@typescript-eslint', 'prettier'],
   rules: {
-    'prettier/prettier': ['error', { vueIndentScriptAndStyle: true }],
     'vue/singleline-html-element-content-newline': 0,
     'vue/component-name-in-template-casing': ['error', 'PascalCase'],
     'vue/no-v-model-argument': 0,

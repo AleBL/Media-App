@@ -1,67 +1,67 @@
 <script setup lang="ts">
   import LogoItem from '@/components/About/LogoItem.vue';
-  import { VERSIONS } from '@/util/constants';
+  import { DEPENDENCIES } from '@/util/constants';
 
   const items = [
     {
-      href: 'https://www.electronjs.org/',
-      imgSrc: 'electron.svg',
+      href: DEPENDENCIES.ELECTRON.LINK,
+      imgSrc: DEPENDENCIES.ELECTRON.LOGO,
       imgAlt: 'Electron logo',
-      version: VERSIONS.ELECTRON,
+      version: DEPENDENCIES.ELECTRON.VERSION,
     },
     {
-      href: 'https://vitejs.dev/',
-      imgSrc: 'vite.svg',
+      href: DEPENDENCIES.VITE.LINK,
+      imgSrc: DEPENDENCIES.VITE.LOGO,
       imgAlt: 'Vite logo',
-      version: VERSIONS.VITE,
+      version: DEPENDENCIES.VITE.VERSION,
     },
     {
-      href: 'https://vuejs.org/',
-      imgSrc: 'vue.svg',
+      href: DEPENDENCIES.VUE.LINK,
+      imgSrc: DEPENDENCIES.VUE.LOGO,
       imgAlt: 'Vue logo',
-      version: VERSIONS.VUE,
+      version: DEPENDENCIES.VUE.VERSION,
     },
     {
-      href: 'https://pinia.vuejs.org/',
-      imgSrc: 'pinia.svg',
+      href: DEPENDENCIES.PINIA.LINK,
+      imgSrc: DEPENDENCIES.PINIA.LOGO,
       imgAlt: 'Pinia logo',
-      version: VERSIONS.PINIA,
+      version: DEPENDENCIES.PINIA.VERSION,
     },
     {
-      href: 'https://tailwindcss.com/',
-      imgSrc: 'tailwindcss.png',
+      href: DEPENDENCIES.TAILWINDCSS.LINK,
+      imgSrc: DEPENDENCIES.TAILWINDCSS.LOGO,
       imgAlt: 'Tailwind CSS logo',
-      version: VERSIONS.TAILWINDCSS,
+      version: DEPENDENCIES.TAILWINDCSS.VERSION,
     },
     {
-      href: 'https://eslint.org/',
-      imgSrc: 'eslint.png',
+      href: DEPENDENCIES.ESLINT.LINK,
+      imgSrc: DEPENDENCIES.ESLINT.LOGO,
       imgAlt: 'Eslint logo',
-      version: VERSIONS.ESLINT,
+      version: DEPENDENCIES.ESLINT.VERSION,
     },
     {
-      href: 'https://prettier.io/',
-      imgSrc: 'prettier.png',
+      href: DEPENDENCIES.PRETTIER.LINK,
+      imgSrc: DEPENDENCIES.PRETTIER.LOGO,
       imgAlt: 'Prettier logo',
-      version: VERSIONS.PRETTIER,
+      version: DEPENDENCIES.PRETTIER.VERSION,
     },
     {
-      href: 'https://vueuse.org/',
-      imgSrc: 'vueuse.svg',
+      href: DEPENDENCIES.VUEUSE.LINK,
+      imgSrc: DEPENDENCIES.VUEUSE.LOGO,
       imgAlt: 'VueUse logo',
-      version: VERSIONS.VUEUSE,
+      version: DEPENDENCIES.VUEUSE.VERSION,
     },
     {
-      href: 'https://nodejs.org/',
-      imgSrc: 'node.svg',
+      href: DEPENDENCIES.NODE.LINK,
+      imgSrc: DEPENDENCIES.NODE.LOGO,
       imgAlt: 'NodeJS logo',
-      version: VERSIONS.NODE,
+      version: DEPENDENCIES.NODE.VERSION,
     },
     {
-      href: 'https://primevue.org/',
-      imgSrc: 'prime.svg',
+      href: DEPENDENCIES.PRIMEVUE.LINK,
+      imgSrc: DEPENDENCIES.PRIMEVUE.LOGO,
       imgAlt: 'Prime logo',
-      version: VERSIONS.PRIMEVUE,
+      version: DEPENDENCIES.PRIMEVUE.VERSION,
     },
   ];
 </script>

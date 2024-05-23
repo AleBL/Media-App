@@ -1,112 +1,144 @@
-# Electron-Vite-TS-Stackter
+<div align="center">
+# Media App (TMDB)
 
-An Electron + Vue 3 starter project setup with Vite, Typescript, Vue-Router, Pinia, Eslint, Prettier, Tailwind CSS, and some custom preferences.
+An application that organizes and manages watched series and movies through [TMDB](https://www.themoviedb.org/). This application is built with **TypeScript**, utilizing **Vue3**, **Electron**, **ViteJS**, and **Electron Builder**.
+</div>
 
-This repository is an extended version of [the simple one](https://github.com/electron-vite/electron-vite-vue).
+## About
 
-![electron-vite-vue.gif](/public/electron-stackter.gif)
+This application utilizes [ViteJS](https://vitejs.dev) for building and serving your (Vue powered) front-end process, it provides Hot Reloads (HMR) to make development fast and easy.
 
-## Features
+Building the Electron (main) process is done with [Electron Builder](https://www.electron.build/), which makes this application easily distributable and supports cross-platform compilation.
 
-📦 Out of the box
+ ### Built With
 
-🎯 Based on the official [template-vue-ts](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-vue-ts), less invasive
+* [![Vue][Vue.js]][Vue-url]
+* [![Vite][Vite.js]][Vite-url]
+* [![NodeJS][NodeJS]][Node-url]
+* [![TypeScript][TypeScript]][TypeScript-url]
+* [![Electron][Electron.js]][Electron-url]
+* [![TailwindCSS][TailwindCSS]][TailwindCSS-url]
+* [![ESLint][ESLint]][ESLint-url]
+* [![Bootstrap][Bootstrap]][Bootstrap-url]
 
-🌱 Extensible, really simple directory structure
+<!-- MARKDOWN LINKS & IMAGES -->
+<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
+[Vue.js]: https://img.shields.io/badge/Vue.js-35495E?style=for-the-badge&logo=vuedotjs&logoColor=4FC08D
+[Vue-url]: https://vuejs.org/
+[Vite.js]: https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white
+[Vite-url]: https://vitejs.dev
+[NodeJS]: https://img.shields.io/badge/node.js-6DA55F?style=for-the-badge&logo=node.js&logoColor=white
+[Node-url]: https://nodejs.org/
+[TypeScript]: https://img.shields.io/badge/typescript-%23007ACC.svg?style=for-the-badge&logo=typescript&logoColor=white
+[TypeScript-url]: https://www.typescriptlang.org/
+[Electron.js]: https://img.shields.io/badge/Electron-191970?style=for-the-badge&logo=Electron&logoColor=white
+[Electron-url]: https://www.electronjs.org/
+[TailwindCSS]: https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white
+[TailwindCSS-url]: https://tailwindcss.com/
+[ESLint]: https://img.shields.io/badge/ESLint-4B3263?style=for-the-badge&logo=eslint&logoColor=white
+[ESLint-url]: https://eslint.org/
+[Bootstrap]: https://img.shields.io/badge/bootstrap-%238511FA.svg?style=for-the-badge&logo=bootstrap&logoColor=white
+[Bootstrap-url]: https://getbootstrap.com/
 
-💪 Support using Node.js API in Electron-Renderer
+## Getting started
 
-🔩 Support C/C++ native addons
-
-🖥 It's easy to implement multiple windows
-
-🚀 configured with Eslint & Prettier
-
-🚀 Vue router support
-
-🚀 Pinia state management
-
-🚀 TailwindCSS (Dark mode support)
-
-🚀 VueUse
-
-🚀 Easy dependency update with taze
-
-🚀 I18n support - multiple locales
-
-## Get Started
-
-### 1. Install packages
-
-```bash
-npm i
-or,
-pnpm i --shamefully-hoist
-```
-
-### 2. Run
-
-In development mode,
+Packages needed in linux:
 
 ```bash
-npm run app:dev
-or,
-pnpm run app:dev
+sudo apt-get install -yq --no-install-recommends libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 libnss3 libgbm-dev
 ```
 
-In preview mode,
+***Installed versions:***
 
 ```bash
-npm run app:preview
-or,
-pnpm run app:preview
-```
+node -v  # 20.9.0
+yarn -v  # 1.22.22
+npm  -v   # 10.1.0
+``` 
 
-To build for production,
+### Install dependencies ⏬
 
 ```bash
-npm run app:build
-or,
-pnpm run app:build
+npm install
+# OR
+yarn install
 ```
 
-## Debug
+### Start developing ⚒️
 
-![electron-vite-react-debug.gif](https://github.com/electron-vite/electron-vite-react/blob/main/public/electron-vite-react-debug.gif?raw=true)
+```bash
+# starts application with hot reload
+npm run dev
 
-## Directory
+# OR
 
-```diff
-+ ├─┬ electron
-+ │ ├─┬ main
-+ │ │ └── index.ts    entry of Electron-Main
-+ │ └─┬ preload
-+ │   └── index.ts    entry of Preload-Scripts
-  ├─┬ src
-  │ └── main.ts       entry of Electron-Renderer
-  ├── index.html
-  ├── package.json
-  └── vite.config.ts
+yarn dev
 ```
 
-## Be aware
+### Additional Commands
+#### Build
+```bash
+npm run build # builds application, distributable files can be found in "release" folder
 
-🚨 By default, this template integrates Node.js in the Renderer process. If you don't need it, you just remove the option below. [Because it will modify the default config of Vite](https://github.com/electron-vite/vite-plugin-electron-renderer#config-presets-opinionated).
+# OR
 
-```diff
-# vite.config.ts
+npm run build:win   # uses windows as build target
+npm run build:mac   # uses mac as build target
+npm run build:linux # uses linux as build target
 
-export default {
-  plugins: [
--   // Use Node.js API in the Renderer-process
--   renderer({
--     nodeIntegration: true,
--   }),
-  ],
-}
+# OR
+
+yarn build:win   # uses windows as build target
+yarn build:mac   # uses mac as build target
+yarn build:linux # uses linux as build target
 ```
 
-## FAQ
+Optional configuration options can be found in the [Electron Builder CLI docs](https://www.electron.build/cli.html).
 
-- [dependencies vs devDependencies](https://github.com/electron-vite/vite-plugin-electron-renderer#dependencies-vs-devdependencies)
-- [C/C++ addons, Node.js modules - Pre-Bundling](https://github.com/electron-vite/vite-plugin-electron-renderer#dependency-pre-bundling)
+#### Lint and Prettier
+```bash
+npm run lint # run eslint and prettier
+# OR
+yarn lint # run eslint and prettier
+```
+
+#### Taze
+```bash
+npm run deps:update # run taze major -I
+# OR
+yarn deps:update # run taze major -I
+```
+
+## Project Structure
+
+```bash
+📦electron
+ ┗ 📜index.ts # entry of Electron-Main
+📦src
+ ┣ 📦assets
+ ┣ 📦components
+ ┣ 📦locales
+ ┣ 📦plugins
+ ┣ 📦presets # PrimeVue Components Styled with Tailwind CSS - https://github.com/primefaces/primevue-tailwind
+ ┣ 📦router
+ ┣ 📦services
+ ┣ 📦stores
+ ┣ 📦styles
+ ┣ 📦types
+ ┣ 📦util
+ 	 ┗ 📜tmdb.js
+ ┗ 📦views
+```
+
+## Contributing
+
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
+Don't forget to give the project a star! Thanks again!
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request

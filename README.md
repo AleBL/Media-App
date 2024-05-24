@@ -1,5 +1,5 @@
 <div align="center">
-# Media App (TMDB)
+<h1>Media App (TMDB)</h1>
 
 An application that organizes and manages watched series and movies through [TMDB](https://www.themoviedb.org/). This application is built with **TypeScript**, utilizing **Vue3**, **Electron**, **ViteJS**, and **Electron Builder**.
 </div>
@@ -51,9 +51,9 @@ sudo apt-get install -yq --no-install-recommends libasound2 libatk1.0-0 libc6 li
 ***Installed versions:***
 
 ```bash
-node -v  # 20.9.0
-yarn -v  # 1.22.22
-npm  -v   # 10.1.0
+node -v # 20.9.0
+yarn -v # 1.22.22
+npm  -v # 10.1.0
 ``` 
 
 ### Install dependencies ⏬
@@ -77,6 +77,7 @@ yarn dev
 
 ### Additional Commands
 #### Build
+
 ```bash
 npm run build # builds application, distributable files can be found in "release" folder
 
@@ -126,7 +127,7 @@ yarn deps:update # run taze major -I
  ┣ 📦styles
  ┣ 📦types
  ┣ 📦util
- 	 ┗ 📜tmdb.js
+    ┗ 📜tmdb.js
  ┗ 📦views
 ```
 

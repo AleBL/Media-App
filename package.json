@@ -34,6 +34,9 @@
     "deps:update": "taze major -I"
   },
   "devDependencies": {
+    "@types/minimatch": "^5.1.2",
+    "@types/yargs": "^17.0.32",
+    "@types/yargs-parser": "^21.0.3",
     "@typescript-eslint/eslint-plugin": "^7.10.0",
     "@typescript-eslint/parser": "^7.10.0",
     "@vitejs/plugin-vue": "^5.0.4",

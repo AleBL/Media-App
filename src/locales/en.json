@@ -1,0 +1,19 @@
+{
+  "pageTitles": {
+    "home": "Home Page",
+    "about": "About Page",
+    "search": "Search",
+    "movie": "Movie",
+    "tvShow": "TV Show"
+  },
+
+  "theme": {
+    "text": "Theme",
+    "light": "Light",
+    "dark": "Dark"
+  },
+
+  "search": {
+    "notFound": "No records found"
+  }
+}

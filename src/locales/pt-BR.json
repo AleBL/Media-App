@@ -11,5 +11,9 @@
     "text": "Tema",
     "light": "Claro",
     "dark": "Escuro"
+  },
+
+  "search": {
+    "notFound": "Nenhum registro foi encontrado"
   }
 }

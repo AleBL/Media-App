@@ -1,4 +1,8 @@
 {
+  "common": {
+    "clickHere": "Clique aqui"
+  },
+
   "pageTitles": {
     "home": "Página Inicial",
     "about": "Sobre",
@@ -11,6 +15,14 @@
     "text": "Tema",
     "light": "Claro",
     "dark": "Escuro"
+  },
+
+  "homePage": {
+    "descriptionInput": "Para poder usar o aplicativo é necessário seguir os passos abaixo:",
+    "stepOne": "para acessar o site do TMDB.",
+    "stepTwo": "Crie a sua chave da api, caso ainda não tenha uma.",
+    "stepThree": "Insira ela no campo abaixo e salve.",
+    "stepFour": "Caso queira excluir a chave é só apertar em deletar."
   },
 
   "search": {

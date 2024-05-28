@@ -15,6 +15,7 @@
     return `${spans.join('')}`;
   }
 </script>
+
 <template>
   <div style="align-items: center; display: flex">
     <LogoViewLink

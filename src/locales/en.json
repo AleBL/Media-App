@@ -1,4 +1,8 @@
 {
+  "common": {
+    "clickHere": "Click here"
+  },
+
   "pageTitles": {
     "home": "Home Page",
     "about": "About Page",
@@ -11,6 +15,14 @@
     "text": "Theme",
     "light": "Light",
     "dark": "Dark"
+  },
+
+  "homePage": {
+    "descriptionInput": "To be able to use the application you need to follow the steps below:",
+    "stepOne": "to access the TMDB website.",
+    "stepTwo": "Generate your api key if you don't already have one.",
+    "stepThree": "Enter it in the field below and save.",
+    "stepFour": "If you want to delete the key, just press delete."
   },
 
   "search": {

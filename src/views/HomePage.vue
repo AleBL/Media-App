@@ -1,4 +1,6 @@
 <script setup lang="ts">
+  import TokenInput from '@/components/Home/TokenInput.vue';
+
   const { t } = useI18n();
 </script>
 
@@ -16,7 +18,9 @@
       <li>{{ t('homePage.stepThree') }}</li>
       <li>{{ t('homePage.stepFour') }}</li>
     </ol>
-    Electron + Vite + Vue + Pinia + Vue-Router + Tailwind CSS + Eslint + Prettier
+  </div>
 
+  <div class="flex justify-center items-center gap-3">
+    <TokenInput />
   </div>
 </template>

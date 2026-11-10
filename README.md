@@ -114,20 +114,22 @@ yarn deps:update # run taze major -I
 
 ```bash
 📦electron
- ┗ 📜index.ts # entry of Electron-Main
+ ┣ 📦main
+ ┃ ┗ 📜index.ts # entry of Electron-Main
+ ┗ 📦preload
+   ┗ 📜index.ts # preload script (loading screen)
 📦src
  ┣ 📦assets
  ┣ 📦components
- ┣ 📦locales
+ ┣ 📦locales # i18n messages (en, es, pt-BR)
  ┣ 📦plugins
  ┣ 📦presets # PrimeVue Components Styled with Tailwind CSS - https://github.com/primefaces/primevue-tailwind
  ┣ 📦router
  ┣ 📦services
- ┣ 📦stores
- ┣ 📦styles
+ ┣ 📦style
  ┣ 📦types
  ┣ 📦util
-    ┗ 📜tmdb.js
+ ┃ ┗ 📜tmdb.js
  ┗ 📦views
 ```
 

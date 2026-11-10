@@ -48,20 +48,17 @@ Packages needed in linux:
 sudo apt-get install -yq --no-install-recommends libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 libnss3 libgbm-dev
 ```
 
-***Installed versions:***
+***Requirements:***
 
 ```bash
-node -v # 20.9.0
-yarn -v # 1.22.22
-npm  -v # 10.1.0
-``` 
+node -v # >= 22.12.0
+npm  -v # >= 11 (this project uses npm only; do not use yarn or pnpm)
+```
 
 ### Install dependencies ⏬
 
 ```bash
-npm install
-# OR
-yarn install
+npm ci
 ```
 
 ### Start developing ⚒️
@@ -69,10 +66,6 @@ yarn install
 ```bash
 # starts application with hot reload
 npm run dev
-
-# OR
-
-yarn dev
 ```
 
 ### Additional Commands
@@ -86,12 +79,6 @@ npm run build # builds application, distributable files can be found in "release
 npm run build:win   # uses windows as build target
 npm run build:mac   # uses mac as build target
 npm run build:linux # uses linux as build target
-
-# OR
-
-yarn build:win   # uses windows as build target
-yarn build:mac   # uses mac as build target
-yarn build:linux # uses linux as build target
 ```
 
 Optional configuration options can be found in the [Electron Builder CLI docs](https://www.electron.build/cli.html).
@@ -99,15 +86,11 @@ Optional configuration options can be found in the [Electron Builder CLI docs](h
 #### Lint and Prettier
 ```bash
 npm run lint # run eslint and prettier
-# OR
-yarn lint # run eslint and prettier
 ```
 
 #### Taze
 ```bash
 npm run deps:update # run taze major -I
-# OR
-yarn deps:update # run taze major -I
 ```
 
 ## Project Structure

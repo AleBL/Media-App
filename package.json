@@ -10,6 +10,10 @@
   },
   "license": "MIT",
   "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "npm@11.12.1",
   "main": "dist-electron/main/index.js",
   "keywords": [
     "electron",
@@ -73,7 +77,6 @@
     "@popperjs/core": "^2.11.8",
     "bootstrap": "^5.3.3",
     "primeicons": "^7.0.0",
-    "primevue": "^3.52.0",
-    "yarn": "^1.22.22"
+    "primevue": "^3.52.0"
   }
 }

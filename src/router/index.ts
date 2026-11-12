@@ -1,8 +1,4 @@
-import {
-  createWebHashHistory,
-  createRouter,
-  RouteRecordRaw,
-} from 'vue-router';
+import { createWebHashHistory, createRouter, RouteRecordRaw } from 'vue-router';
 import HomePage from '@/views/HomePage.vue';
 import AboutPage from '@/views/AboutPage.vue';
 import SearchPage from '@/views/Search/SearchPage.vue';

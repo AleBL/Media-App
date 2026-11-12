@@ -73,7 +73,7 @@ export async function getResult(type: number = mediaType.value, page = 1) {
     currentPage.value = response.page;
     totalResults.value = Math.min(
       response.total_results,
-      MAX_PAGES * PAGE_SIZE
+      MAX_PAGES * PAGE_SIZE,
     );
     searched.value = true;
   } catch (error) {

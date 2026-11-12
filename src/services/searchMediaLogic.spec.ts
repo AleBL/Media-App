@@ -63,7 +63,7 @@ describe('getResult', () => {
 
   it('caps the total at the last page TMDB accepts', async () => {
     vi.spyOn(theMovieDb.search, 'getMovie').mockResolvedValue(
-      tmdbPage({ total_pages: 900, total_results: 18000 })
+      tmdbPage({ total_pages: 900, total_results: 18000 }),
     );
 
     await getResult(MEDIA_TYPES.MOVIE);
@@ -102,7 +102,7 @@ describe('getResult', () => {
     vi.spyOn(theMovieDb.search, 'getMovie')
       .mockReturnValueOnce(new Promise((resolve) => (answerSlow = resolve)))
       .mockResolvedValueOnce(
-        tmdbPage({ results: [{ id: 2, title: 'The Matrix Reloaded' }] })
+        tmdbPage({ results: [{ id: 2, title: 'The Matrix Reloaded' }] }),
       );
 
     searchText.value = 'matri';
@@ -120,7 +120,7 @@ describe('getResult', () => {
   it('flags loading only while the request is in flight', async () => {
     let answer: (value: unknown) => void = () => {};
     vi.spyOn(theMovieDb.search, 'getMovie').mockReturnValue(
-      new Promise((resolve) => (answer = resolve))
+      new Promise((resolve) => (answer = resolve)),
     );
 
     const pending = getResult(MEDIA_TYPES.MOVIE);
@@ -197,13 +197,13 @@ describe('getMediaAttributesByType', () => {
 describe('getImage', () => {
   it('builds a TMDB url sized for the result cards', () => {
     expect(getImage('/poster.jpg')).toBe(
-      'https://image.tmdb.org/t/p/w500/poster.jpg'
+      'https://image.tmdb.org/t/p/w500/poster.jpg',
     );
   });
 
   it('accepts another image size', () => {
     expect(getImage('/poster.jpg', 'original')).toBe(
-      'https://image.tmdb.org/t/p/original/poster.jpg'
+      'https://image.tmdb.org/t/p/original/poster.jpg',
     );
   });
 

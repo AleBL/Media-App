@@ -35,7 +35,7 @@ describe('SearchItemCard', () => {
 
     const img = wrapper.get('img');
     expect(img.attributes('src')).toBe(
-      'https://image.tmdb.org/t/p/w500/matrix.jpg'
+      'https://image.tmdb.org/t/p/w500/matrix.jpg',
     );
     expect(img.attributes('alt')).toBe('The Matrix');
     expect(img.attributes('loading')).toBe('lazy');
@@ -74,7 +74,7 @@ describe('SearchItemCard', () => {
     const wrapper = mountCard({ ...movie, poster_path: null });
 
     expect(wrapper.get('img').attributes('src')).toContain(
-      'default_search.jpg'
+      'default_search.jpg',
     );
   });
 

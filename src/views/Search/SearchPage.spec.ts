@@ -79,7 +79,7 @@ describe('SearchPage', () => {
 
     expect(wrapper.findAll('img.poster')).toHaveLength(PAGE_SIZE);
     expect(
-      wrapper.findAll('[data-pc-section="pagebutton"]').map((b) => b.text())
+      wrapper.findAll('[data-pc-section="pagebutton"]').map((b) => b.text()),
     ).toEqual(['1', '2', '3']);
   });
 

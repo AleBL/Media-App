@@ -12,56 +12,58 @@ const versions = __DEPENDENCY_VERSIONS__;
 const runtime: Partial<Record<string, string>> =
   globalThis.process?.versions ?? {};
 
-export const DEPENDENCIES: { [key: string]: { VERSION: string, LINK: string, LOGO: string } } = {
+export const DEPENDENCIES: {
+  [key: string]: { VERSION: string; LINK: string; LOGO: string };
+} = {
   ELECTRON: {
     VERSION: runtime.electron ?? versions.electron,
     LINK: 'https://www.electronjs.org/',
-    LOGO: 'electron.svg'
+    LOGO: 'electron.svg',
   },
   NODE: {
     VERSION: runtime.node ?? versions.node,
     LINK: 'https://nodejs.org/',
-    LOGO: 'node.svg'
+    LOGO: 'node.svg',
   },
   VUE: {
     VERSION: versions.vue,
     LINK: 'https://vuejs.org/',
-    LOGO: 'vue.svg'
+    LOGO: 'vue.svg',
   },
   VUEUSE: {
     VERSION: versions.vueuse,
     LINK: 'https://vueuse.org/',
-    LOGO: 'vueuse.svg'
+    LOGO: 'vueuse.svg',
   },
   VITE: {
     VERSION: versions.vite,
     LINK: 'https://vitejs.dev/',
-    LOGO: 'vite.svg'
+    LOGO: 'vite.svg',
   },
   PRETTIER: {
     VERSION: versions.prettier,
     LINK: 'https://prettier.io/',
-    LOGO: 'prettier.png'
+    LOGO: 'prettier.png',
   },
   PINIA: {
     VERSION: versions.pinia,
     LINK: 'https://pinia.vuejs.org/',
-    LOGO: 'pinia.svg'
+    LOGO: 'pinia.svg',
   },
   TAILWINDCSS: {
     VERSION: versions.tailwindcss,
     LINK: 'https://tailwindcss.com/',
-    LOGO: 'tailwindcss.png'
+    LOGO: 'tailwindcss.png',
   },
   ESLINT: {
     VERSION: versions.eslint,
     LINK: 'https://eslint.org/',
-    LOGO: 'eslint.png'
+    LOGO: 'eslint.png',
   },
   PRIMEVUE: {
     VERSION: versions.primevue,
     LINK: 'https://primevue.org/',
-    LOGO: 'prime.svg'
+    LOGO: 'prime.svg',
   },
 };
 

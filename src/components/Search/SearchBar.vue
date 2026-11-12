@@ -1,8 +1,11 @@
 <script setup lang="ts">
+  import { watch } from 'vue';
+  import { watchDebounced } from '@vueuse/core';
   import {
     mediaType,
     getResult,
     searchText,
+    SEARCH_DEBOUNCE_MS,
   } from '@/services/searchMediaLogic';
   import IconField from 'primevue/iconfield';
   import InputIcon from 'primevue/inputicon';
@@ -11,6 +14,13 @@
   import { MEDIA_TYPES } from '@/util/constants';
 
   const { t } = useI18n();
+
+  // One request after the user stops typing instead of one per key press.
+  watchDebounced(searchText, () => getResult(mediaType.value), {
+    debounce: SEARCH_DEBOUNCE_MS,
+  });
+
+  watch(mediaType, (type) => getResult(type));
 </script>
 
 <template>
@@ -22,7 +32,7 @@
       <InputText
         v-model="searchText"
         :placeholder="t('pageTitles.search')"
-        @keyup="getResult(mediaType)"
+        :aria-label="t('pageTitles.search')"
       />
     </IconField>
 
@@ -30,9 +40,8 @@
       <RadioButton
         v-model="mediaType"
         input-id="mediaTypeMovie"
-        :name="t('pageTitles.movie')"
+        name="mediaType"
         :value="MEDIA_TYPES.MOVIE"
-        @change="getResult(mediaType)"
       />
       <label for="mediaTypeMovie" class="ml-2">{{
         t('pageTitles.movie')
@@ -43,9 +52,8 @@
       <RadioButton
         v-model="mediaType"
         input-id="mediaTypeTVShow"
-        :name="t('pageTitles.tvShow')"
+        name="mediaType"
         :value="MEDIA_TYPES.TV_SHOW"
-        @change="getResult(mediaType)"
       />
       <label for="mediaTypeTVShow" class="ml-2">{{
         t('pageTitles.tvShow')

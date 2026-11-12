@@ -6,8 +6,11 @@ import {
   getImage,
   getMediaAttributesByType,
   getResult,
+  loading,
   results,
+  searchError,
   searchText,
+  searched,
   totalResults,
 } from '@/services/searchMediaLogic';
 import { MEDIA_TYPES } from '@/util/constants';
@@ -31,6 +34,9 @@ describe('getResult', () => {
     results.value = [];
     totalResults.value = 0;
     currentPage.value = 1;
+    loading.value = false;
+    searched.value = false;
+    searchError.value = null;
   });
 
   it('stores the total number of results, not the number of pages', async () => {
@@ -62,6 +68,95 @@ describe('getResult', () => {
     await getResult(MEDIA_TYPES.MOVIE);
 
     expect(totalResults.value).toBe(MAX_PAGES * PAGE_SIZE);
+  });
+
+  it('does not call the API for a query shorter than two characters', async () => {
+    const getMovie = vi.spyOn(theMovieDb.search, 'getMovie');
+    results.value = [{ id: 1 }];
+    searchText.value = ' m ';
+
+    await getResult(MEDIA_TYPES.MOVIE);
+
+    expect(getMovie).not.toHaveBeenCalled();
+    expect(results.value).toEqual([]);
+    expect(searched.value).toBe(false);
+  });
+
+  it('trims and url-encodes the query', async () => {
+    const getMovie = vi
+      .spyOn(theMovieDb.search, 'getMovie')
+      .mockResolvedValue(tmdbPage());
+    searchText.value = '  tom & jerry ';
+
+    await getResult(MEDIA_TYPES.MOVIE);
+
+    expect(getMovie).toHaveBeenCalledWith({
+      query: 'tom%20%26%20jerry',
+      page: 1,
+    });
+  });
+
+  it('ignores a slow response to an older request', async () => {
+    let answerSlow: (value: unknown) => void = () => {};
+    vi.spyOn(theMovieDb.search, 'getMovie')
+      .mockReturnValueOnce(new Promise((resolve) => (answerSlow = resolve)))
+      .mockResolvedValueOnce(
+        tmdbPage({ results: [{ id: 2, title: 'The Matrix Reloaded' }] })
+      );
+
+    searchText.value = 'matri';
+    const older = getResult(MEDIA_TYPES.MOVIE);
+    searchText.value = 'matrix reloaded';
+    await getResult(MEDIA_TYPES.MOVIE);
+
+    answerSlow(tmdbPage({ results: [{ id: 1, title: 'Stale result' }] }));
+    await older;
+
+    expect(results.value).toEqual([{ id: 2, title: 'The Matrix Reloaded' }]);
+    expect(loading.value).toBe(false);
+  });
+
+  it('flags loading only while the request is in flight', async () => {
+    let answer: (value: unknown) => void = () => {};
+    vi.spyOn(theMovieDb.search, 'getMovie').mockReturnValue(
+      new Promise((resolve) => (answer = resolve))
+    );
+
+    const pending = getResult(MEDIA_TYPES.MOVIE);
+    expect(loading.value).toBe(true);
+    expect(searched.value).toBe(false);
+
+    answer(tmdbPage());
+    await pending;
+
+    expect(loading.value).toBe(false);
+    expect(searched.value).toBe(true);
+  });
+
+  it('exposes the failure and clears the results when the request fails', async () => {
+    vi.spyOn(theMovieDb.search, 'getMovie').mockRejectedValue({
+      status: 401,
+      response: { status_message: 'Invalid API key' },
+    });
+    results.value = [{ id: 1 }];
+
+    await getResult(MEDIA_TYPES.MOVIE);
+
+    expect(searchError.value).toEqual({
+      status: 401,
+      message: 'Invalid API key',
+    });
+    expect(results.value).toEqual([]);
+    expect(loading.value).toBe(false);
+  });
+
+  it('clears a previous error when a new search starts', async () => {
+    vi.spyOn(theMovieDb.search, 'getMovie').mockResolvedValue(tmdbPage());
+    searchError.value = { status: 500 };
+
+    await getResult(MEDIA_TYPES.MOVIE);
+
+    expect(searchError.value).toBeNull();
   });
 });
 

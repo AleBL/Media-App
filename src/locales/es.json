@@ -26,6 +26,10 @@
   },
 
   "search": {
-    "notFound": "No se encontraron registros"
+    "notFound": "No se encontraron registros",
+    "loading": "Buscando...",
+    "error": "La búsqueda falló. Comprueba tu conexión e inténtalo de nuevo.",
+    "errorUnauthorized": "Falta la clave de la API de TMDB o no es válida.",
+    "configureKey": "Configura la clave en la página de inicio"
   }
 }

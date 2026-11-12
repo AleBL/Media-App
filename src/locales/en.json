@@ -26,6 +26,10 @@
   },
 
   "search": {
-    "notFound": "No records found"
+    "notFound": "No records found",
+    "loading": "Searching...",
+    "error": "The search failed. Check your connection and try again.",
+    "errorUnauthorized": "The TMDB API key is missing or invalid.",
+    "configureKey": "Set the key on the home page"
   }
 }

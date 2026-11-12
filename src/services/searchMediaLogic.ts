@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { theMovieDb } from '@/util/tmdb';
 import { MEDIA_TYPES } from '@/util/constants';
+import defaultPoster from '@/assets/default_search.jpg';
 
 export const searchText = ref('');
 export const mediaType = ref(MEDIA_TYPES.MOVIE);
@@ -39,7 +40,7 @@ export async function getResult(mediaType, page = 1) {
 
 export function getImage(path: string = '') {
   if (!path) {
-    return '/src/assets/default_search.jpg';
+    return defaultPoster;
   }
 
   const params = { file: path };

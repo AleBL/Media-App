@@ -1,4 +1,8 @@
-import { createWebHistory, createRouter, RouteRecordRaw } from 'vue-router';
+import {
+  createWebHashHistory,
+  createRouter,
+  RouteRecordRaw,
+} from 'vue-router';
 import HomePage from '@/views/HomePage.vue';
 import AboutPage from '@/views/AboutPage.vue';
 import SearchPage from '@/views/Search/SearchPage.vue';
@@ -27,7 +31,9 @@ const routes: RouteRecordRaw[] = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  // The packaged app is loaded with file://, where HTML5 history cannot
+  // match any route. Hash history works in both dev and packaged builds.
+  history: createWebHashHistory(),
   routes,
 });
 

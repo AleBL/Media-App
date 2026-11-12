@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: staging
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dev-minor-and-patch:
+        dependency-type: development
+        update-types: [minor, patch]
+    # Major upgrades are migrated by hand (phase 2 of the improvement plan).
+    # Remove this block once the stack is on current majors.
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: staging
+    schedule:
+      interval: weekly

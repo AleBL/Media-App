@@ -85,7 +85,15 @@ Optional configuration options can be found in the [Electron Builder CLI docs](h
 
 #### Lint and Prettier
 ```bash
-npm run lint # run eslint and prettier
+npm run lint       # run eslint and prettier, fixing what it can
+npm run lint:check # run eslint without changing files (used by CI)
+npm run typecheck  # run vue-tsc
+```
+
+#### Tests
+```bash
+npm test           # run unit tests once (vitest)
+npm run test:watch # run unit tests in watch mode
 ```
 
 #### Taze

@@ -10,19 +10,20 @@ This application utilizes [ViteJS](https://vitejs.dev) for building and serving 
 
 Building the Electron (main) process is done with [Electron Builder](https://www.electron.build/), which makes this application easily distributable and supports cross-platform compilation.
 
- ### Built With
+### Built With
 
-* [![Vue][Vue.js]][Vue-url]
-* [![Vite][Vite.js]][Vite-url]
-* [![NodeJS][NodeJS]][Node-url]
-* [![TypeScript][TypeScript]][TypeScript-url]
-* [![Electron][Electron.js]][Electron-url]
-* [![TailwindCSS][TailwindCSS]][TailwindCSS-url]
-* [![ESLint][ESLint]][ESLint-url]
-* [![Bootstrap][Bootstrap]][Bootstrap-url]
+- [![Vue][Vue.js]][Vue-url]
+- [![Vite][Vite.js]][Vite-url]
+- [![NodeJS][NodeJS]][Node-url]
+- [![TypeScript][TypeScript]][TypeScript-url]
+- [![Electron][Electron.js]][Electron-url]
+- [![TailwindCSS][TailwindCSS]][TailwindCSS-url]
+- [![ESLint][ESLint]][ESLint-url]
+- [![Bootstrap][Bootstrap]][Bootstrap-url]
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
+
 [Vue.js]: https://img.shields.io/badge/Vue.js-35495E?style=for-the-badge&logo=vuedotjs&logoColor=4FC08D
 [Vue-url]: https://vuejs.org/
 [Vite.js]: https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white
@@ -48,7 +49,7 @@ Packages needed in linux:
 sudo apt-get install -yq --no-install-recommends libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 libnss3 libgbm-dev
 ```
 
-***Requirements:***
+_**Requirements:**_
 
 ```bash
 node -v # >= 22.12.0
@@ -69,6 +70,7 @@ npm run dev
 ```
 
 ### Additional Commands
+
 #### Build
 
 ```bash
@@ -84,19 +86,24 @@ npm run build:linux # uses linux as build target
 Optional configuration options can be found in the [Electron Builder CLI docs](https://www.electron.build/cli.html).
 
 #### Lint and Prettier
+
 ```bash
-npm run lint       # run eslint and prettier, fixing what it can
-npm run lint:check # run eslint without changing files (used by CI)
-npm run typecheck  # run vue-tsc
+npm run lint         # run eslint, fixing what it can
+npm run lint:check   # run eslint without changing files (used by CI)
+npm run format       # format every file with prettier
+npm run format:check # check the formatting without changing files (used by CI)
+npm run typecheck    # run vue-tsc
 ```
 
 #### Tests
+
 ```bash
 npm test           # run unit tests once (vitest)
 npm run test:watch # run unit tests in watch mode
 ```
 
 #### Taze
+
 ```bash
 npm run deps:update # run taze major -I
 ```

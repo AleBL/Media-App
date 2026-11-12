@@ -13,7 +13,12 @@
 
   <div class="grid justify-center pb-4">
     <ol class="list-decimal">
-      <li><a href="https://www.themoviedb.org/settings/api" target="_blank">{{ t('common.clickHere') }}</a> {{ t('homePage.stepOne') }}</li>
+      <li>
+        <a href="https://www.themoviedb.org/settings/api" target="_blank">{{
+          t('common.clickHere')
+        }}</a>
+        {{ t('homePage.stepOne') }}
+      </li>
       <li>{{ t('homePage.stepTwo') }}</li>
       <li>{{ t('homePage.stepThree') }}</li>
       <li>{{ t('homePage.stepFour') }}</li>

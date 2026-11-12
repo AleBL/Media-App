@@ -39,7 +39,8 @@
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "format": "prettier .  --write",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
     "deps:update": "taze major -I"
   },
   "devDependencies": {

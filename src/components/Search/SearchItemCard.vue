@@ -23,13 +23,13 @@
   });
 
   const genres = computed(() =>
-    getGenreNames(props.item.genre_ids ?? [], locale.value)
+    getGenreNames(props.item.genre_ids ?? [], locale.value),
   );
 
   const rating = computed(() =>
     typeof props.item.vote_average === 'number'
       ? props.item.vote_average.toFixed(2)
-      : null
+      : null,
   );
 </script>
 

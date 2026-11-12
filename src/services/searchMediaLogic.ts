@@ -3,10 +3,13 @@ import { theMovieDb } from '@/util/tmdb';
 import { MEDIA_TYPES } from '@/util/constants';
 import defaultPoster from '@/assets/default_search.jpg';
 
+// TMDB always returns 20 results per page and rejects pages above 500.
+export const PAGE_SIZE = 20;
+export const MAX_PAGES = 500;
+
 export const searchText = ref('');
 export const mediaType = ref(MEDIA_TYPES.MOVIE);
 export const results = ref([]);
-export const resultsPageCount = ref(0);
 export const totalResults = ref(0);
 export const currentPage = ref(1);
 
@@ -28,8 +31,10 @@ export async function getResult(mediaType, page = 1) {
 
     results.value = response.results;
     currentPage.value = response.page;
-    totalResults.value = response.total_pages;
-    resultsPageCount.value = response.results.length;
+    totalResults.value = Math.min(
+      response.total_results,
+      MAX_PAGES * PAGE_SIZE
+    );
   } catch (error) {
     alert(
       // @ts-expect-error error is of type unknow

@@ -2,10 +2,11 @@
   import {
     mediaType,
     results,
-    resultsPageCount,
     totalResults,
+    currentPage,
     searchText,
     getResult,
+    PAGE_SIZE,
   } from '@/services/searchMediaLogic';
   import Paginator from 'primevue/paginator';
   import DataView from 'primevue/dataview';
@@ -21,8 +22,10 @@
   <div v-if="results.length">
     <Paginator
       class="my-4"
-      :rows="resultsPageCount"
+      :first="(currentPage - 1) * PAGE_SIZE"
+      :rows="PAGE_SIZE"
       :total-records="totalResults"
+      :always-show="false"
       @page="getResult(mediaType, $event.page + 1)"
     />
 

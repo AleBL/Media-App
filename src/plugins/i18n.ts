@@ -9,16 +9,16 @@ const messages = Object.fromEntries(
   Object.entries(
     import.meta.glob<{ default: string }>('../locales/*.json', {
       eager: true,
-    })
+    }),
   ).map(([key, value]) => {
     return [key.match(regex)?.join(), value.default];
-  })
+  }),
 );
 
 const i18n = createI18n({
   legacy: false,
   locale: defaultLocale.value,
-  fallbackLocale: defaultLocale.value,
+  fallbackLocale: 'en',
   warnHtmlMessage: false,
   messages,
 });

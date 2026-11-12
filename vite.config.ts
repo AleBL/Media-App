@@ -6,6 +6,7 @@ import AutoImport from 'unplugin-auto-import/vite';
 import electron from 'vite-plugin-electron';
 import renderer from 'vite-plugin-electron-renderer';
 import pkg from './package.json';
+import { dependencyVersions } from './config/dependency-versions';
 
 rmSync('dist-electron', { recursive: true, force: true });
 
@@ -19,6 +20,7 @@ export default defineConfig({
     __VUE_I18N_FULL_INSTALL__: true,
     __VUE_I18N_LEGACY_API__: false,
     __INTLIFY_PROD_DEVTOOLS__: false,
+    __DEPENDENCY_VERSIONS__: JSON.stringify(dependencyVersions),
   },
   resolve: {
     alias: {
@@ -43,7 +45,7 @@ export default defineConfig({
         onstart(options) {
           if (process.env.VSCODE_DEBUG) {
             console.log(
-              /* For `.vscode/.debug.script.mjs` */ '[startup] Electron App'
+              /* For `.vscode/.debug.script.mjs` */ '[startup] Electron App',
             );
           } else {
             options.startup();
@@ -56,7 +58,7 @@ export default defineConfig({
             outDir: 'dist-electron/main',
             rollupOptions: {
               external: Object.keys(
-                'dependencies' in pkg ? pkg.dependencies : {}
+                'dependencies' in pkg ? pkg.dependencies : {},
               ),
             },
           },
@@ -76,7 +78,7 @@ export default defineConfig({
             outDir: 'dist-electron/preload',
             rollupOptions: {
               external: Object.keys(
-                'dependencies' in pkg ? pkg.dependencies : {}
+                'dependencies' in pkg ? pkg.dependencies : {},
               ),
             },
           },

@@ -11,5 +11,5 @@
       "~/*": ["*"]
     }
   },
-  "include": ["vite.config.ts", "package.json", "electron"]
+  "include": ["vite.config.ts", "vitest.config.mts", "package.json", "electron", "config"]
 }

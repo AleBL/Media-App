@@ -33,5 +33,8 @@ export default defineConfig({
     include: ['src/**/*.spec.ts'],
     setupFiles: ['src/test/setup.ts'],
     restoreMocks: true,
+    // A timezone behind UTC, like most users of the app, so date bugs
+    // that only show there (year shifting on January 1st) are caught.
+    env: { TZ: 'America/Sao_Paulo' },
   },
 });

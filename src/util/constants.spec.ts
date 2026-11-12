@@ -17,6 +17,10 @@ describe('getGenreNames', () => {
     expect(getGenreNames([28], 'pt-BR')).toBe('Ação');
   });
 
+  it('falls back to English for a language without a genre list', () => {
+    expect(getGenreNames([28], 'fr')).toBe('Action');
+  });
+
   it('ignores ids that are not in the genre list', () => {
     expect(getGenreNames([28, 999999], 'en')).toBe('Action');
   });

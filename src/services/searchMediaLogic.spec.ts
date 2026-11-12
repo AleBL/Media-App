@@ -30,6 +30,7 @@ function tmdbPage(overrides = {}) {
 
 describe('getResult', () => {
   beforeEach(() => {
+    theMovieDb.common.api_key = 'test-key';
     searchText.value = 'matrix';
     results.value = [];
     totalResults.value = 0;
@@ -150,6 +151,17 @@ describe('getResult', () => {
     expect(loading.value).toBe(false);
   });
 
+  it('reports a missing API key without calling TMDB', async () => {
+    const getMovie = vi.spyOn(theMovieDb.search, 'getMovie');
+    theMovieDb.common.api_key = '';
+
+    await getResult(MEDIA_TYPES.MOVIE);
+
+    expect(getMovie).not.toHaveBeenCalled();
+    expect(searchError.value).toEqual({ status: 401 });
+    expect(loading.value).toBe(false);
+  });
+
   it('clears a previous error when a new search starts', async () => {
     vi.spyOn(theMovieDb.search, 'getMovie').mockResolvedValue(tmdbPage());
     searchError.value = { status: 500 };
@@ -183,8 +195,14 @@ describe('getMediaAttributesByType', () => {
 });
 
 describe('getImage', () => {
-  it('builds the TMDB image url from a poster path', () => {
+  it('builds a TMDB url sized for the result cards', () => {
     expect(getImage('/poster.jpg')).toBe(
+      'https://image.tmdb.org/t/p/w500/poster.jpg'
+    );
+  });
+
+  it('accepts another image size', () => {
+    expect(getImage('/poster.jpg', 'original')).toBe(
       'https://image.tmdb.org/t/p/original/poster.jpg'
     );
   });

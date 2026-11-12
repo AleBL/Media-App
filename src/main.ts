@@ -21,6 +21,9 @@ app.use(PrimeVue, {
 });
 
 theMovieDb.common.language = defaultLocale.value;
+// The key used to be loaded only when the home page was opened, so a
+// reload on any other page searched without it.
+theMovieDb.common.api_key = localStorage.getItem('api_key') ?? '';
 
 app.directive('ripple', Ripple);
 

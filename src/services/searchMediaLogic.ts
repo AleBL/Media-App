@@ -8,6 +8,8 @@ import type { MediaItem } from '@/types';
 export const PAGE_SIZE = 20;
 export const MAX_PAGES = 500;
 export const MIN_QUERY_LENGTH = 2;
+// Cards are at most 400px wide; "original" posters weigh several MB each.
+export const POSTER_SIZE = 'w500';
 export const SEARCH_DEBOUNCE_MS = 350;
 
 export type SearchError = { status?: number; message?: string };
@@ -42,6 +44,15 @@ export async function getResult(type: number = mediaType.value, page = 1) {
     clearResults();
     searched.value = false;
     loading.value = false;
+    return;
+  }
+
+  if (!theMovieDb.common.api_key) {
+    // No point in asking TMDB without a key: it would answer 401.
+    clearResults();
+    searched.value = false;
+    loading.value = false;
+    searchError.value = { status: 401 };
     return;
   }
 
@@ -87,14 +98,12 @@ export async function getResult(type: number = mediaType.value, page = 1) {
   }
 }
 
-export function getImage(path: string = '') {
+export function getImage(path: string = '', size: string = POSTER_SIZE) {
   if (!path) {
     return defaultPoster;
   }
 
-  const params = { file: path };
-
-  return theMovieDb.common.getImage(params);
+  return theMovieDb.common.getImage({ file: path, size });
 }
 
 export function getMediaAttributesByType(mediaType: number): {

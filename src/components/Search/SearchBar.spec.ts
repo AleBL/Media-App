@@ -21,6 +21,7 @@ describe('SearchBar', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
+    theMovieDb.common.api_key = 'test-key';
     searchText.value = '';
     mediaType.value = MEDIA_TYPES.MOVIE;
     wrapper = mount(SearchBar, {

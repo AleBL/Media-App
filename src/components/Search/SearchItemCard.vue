@@ -1,18 +1,36 @@
 <script setup lang="ts">
-  import {
-    mediaType,
-    getImage,
-    getMediaAttributesByType,
-  } from '@/services/searchMediaLogic';
+  import { computed } from 'vue';
+  import { getImage } from '@/services/searchMediaLogic';
   import { getGenreNames } from '@/util/constants';
+  import type { MediaItem } from '@/types';
+
+  const props = defineProps<{
+    item: MediaItem;
+  }>();
 
   const { locale } = useI18n();
 
-  const currentLocale = locale.value;
+  // Read from the item itself, not from the selected media type: while a
+  // new search is loading, the cards still hold results of the old type.
+  const title = computed(() => props.item.title ?? props.item.name ?? '');
 
-  defineProps<{
-    item: { poster_path: string; genre_ids: number[]; vote_average: number };
-  }>();
+  const year = computed(() => {
+    const date = props.item.release_date || props.item.first_air_date || '';
+
+    // TMDB sends YYYY-MM-DD. Going through Date would read it as UTC and
+    // show the previous year for January 1st in timezones behind UTC.
+    return /^\d{4}/.exec(date)?.[0] ?? null;
+  });
+
+  const genres = computed(() =>
+    getGenreNames(props.item.genre_ids ?? [], locale.value)
+  );
+
+  const rating = computed(() =>
+    typeof props.item.vote_average === 'number'
+      ? props.item.vote_average.toFixed(2)
+      : null
+  );
 </script>
 
 <template>
@@ -20,18 +38,18 @@
     <div>
       <img
         class="poster"
-        :src="getImage(item.poster_path)"
-        :alt="item[getMediaAttributesByType(mediaType).propertyName]"
+        :src="getImage(item.poster_path ?? '')"
+        :alt="title"
+        loading="lazy"
       />
     </div>
     <div class="pt-4">
       <div class="flex flex-row items-start justify-between gap-2">
         <div>
-          <span class="text-secondary text-sm font-medium">{{
-            getGenreNames(item.genre_ids, currentLocale)
-          }}</span>
+          <span class="text-secondary text-sm font-medium">{{ genres }}</span>
         </div>
         <div
+          v-if="rating"
           class="bg-surface-100 p-1 dark:bg-surface-700"
           style="border-radius: 30px"
         >
@@ -41,7 +59,7 @@
             <span
               class="text-sm font-medium text-surface-900 dark:text-surface-0"
             >
-              {{ item.vote_average.toFixed(2) }}
+              {{ rating }}
             </span>
             <i class="pi pi-star-fill text-yellow-500" />
           </div>
@@ -49,11 +67,7 @@
       </div>
     </div>
     <div class="mt-1 text-lg font-medium text-surface-900 dark:text-surface-0">
-      {{ item[getMediaAttributesByType(mediaType).propertyName] }} ({{
-        new Date(
-          item[getMediaAttributesByType(mediaType).releaseDate]
-        ).getFullYear()
-      }})
+      {{ title }}<template v-if="year"> ({{ year }})</template>
     </div>
   </div>
 </template>

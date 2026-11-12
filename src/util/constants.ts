@@ -63,12 +63,12 @@ export function getGenreNames(ids: number[], language: string) {
     return '';
   }
 
-  const regex = new RegExp('-.*');
+  // 'pt-BR' -> 'pt'; languages without a genre list fall back to English
+  const genres = GENRES[language.replace(/-.*/, '')] ?? GENRES.en;
+
   return ids
     .map((id) => {
-      const genre = GENRES[language.replace(regex, '')].find(
-        (genre) => genre.id === id
-      );
+      const genre = genres.find((genre) => genre.id === id);
       return genre ? genre.name : null;
     })
     .filter((name) => name !== null)

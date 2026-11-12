@@ -2,9 +2,9 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
 import AutoImport from 'unplugin-auto-import/vite';
-import { dependencyVersions } from './config/dependency-versions';
+import { dependencyVersions } from './config/dependency-versions.mjs';
 
-// Kept separate from vite.config.ts on purpose: that file wipes
+// Kept separate from vite.config.mts on purpose: that file wipes
 // dist-electron and registers the Electron plugins, none of which
 // should run during unit tests.
 const src = fileURLToPath(new URL('./src/', import.meta.url));
@@ -26,7 +26,7 @@ export default defineConfig({
     vue(),
     AutoImport({
       imports: ['vue', 'vue-router', 'vue-i18n', '@vueuse/core'],
-      // src/auto-imports.d.ts is owned by vite.config.ts
+      // src/auto-imports.d.ts is owned by vite.config.mts
       dts: false,
     }),
   ],

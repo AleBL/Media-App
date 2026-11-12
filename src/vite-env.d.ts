@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
-// Injected by vite.config.ts and vitest.config.mts, see
-// config/dependency-versions.ts
+// Injected by vite.config.mts and vitest.config.mts, see
+// config/dependency-versions.mjs
 declare const __DEPENDENCY_VERSIONS__: {
   electron: string;
   node: string;

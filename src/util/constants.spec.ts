@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { getGenreNames } from '@/util/constants';
+import { version as vueVersion } from 'vue';
+import { DEPENDENCIES, getGenreNames } from '@/util/constants';
+
+describe('DEPENDENCIES', () => {
+  it('reports the installed versions', () => {
+    expect(DEPENDENCIES.VUE.VERSION).toBe(vueVersion);
+
+    for (const { VERSION } of Object.values(DEPENDENCIES)) {
+      expect(VERSION).toMatch(/^\d+\.\d+\.\d+/);
+    }
+  });
+
+  it('does not show the version of one package for another', () => {
+    expect(DEPENDENCIES.VUEUSE.VERSION).not.toBe(DEPENDENCIES.VUE.VERSION);
+    expect(DEPENDENCIES.PRETTIER.VERSION).not.toBe(DEPENDENCIES.VITE.VERSION);
+  });
+});
 
 describe('getGenreNames', () => {
   it('returns an empty string when there are no ids', () => {

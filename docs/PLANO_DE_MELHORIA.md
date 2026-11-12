@@ -16,6 +16,14 @@ Observação de premissa: o app usa a API do **TMDB** (themoviedb.org), não do 
 
 Caminho crítico até "sem token": `Fase 0` → `Fase 3` → `refactor/tmdb-client-main` → `feat/app-credential`. Há um atalho na seção 5.
 
+### Andamento
+
+| Fase | Situação | Onde |
+|------|----------|------|
+| 0. Fundação | Feita. Limpeza, npm e dependências entraram pelos PRs #44 e #45. O Vitest e o CI se perderam no squash do #46 (só os scripts do `package.json` entraram) e foram refeitos na branch da Fase 1 | `staging`, `fix/phase-1-bugs` |
+| 1. Bugs atuais | Feita, aguardando PR | `fix/phase-1-bugs` |
+| 2 em diante | A fazer | |
+
 ---
 
 ## 2. Diagnóstico
@@ -243,16 +251,20 @@ Se o item 1 falhar, o fallback "Já autorizei" vira o fluxo principal; nada mais
 
 ## 4. Fluxo Git
 
-- **Trunk-based:** `master` protegido (PR obrigatório, CI verde, sem push direto). Branches curtas, uma por item do roadmap, merge por *squash*.
+- **Integração em `staging`:** todo PR entra em `staging` por *squash merge*. `master` recebe `staging` nos marcos, junto com a tag.
+- **Uma branch, um PR, só os próprios commits.** Criar cada branch a partir do `origin/staging` atualizado. Nunca empilhar uma branch em cima de outra ainda não mergeada: depois do squash da primeira, a segunda repete os commits dela no PR.
+- **Trabalho que depende de outro ainda não mergeado** vai na mesma branch (um PR só) ou espera o merge.
+- **Correções que mexem nos mesmos arquivos** vão numa branch só, com um commit por correção, em vez de várias branches que conflitam entre si.
+- **Conferir depois de cada merge** que o squash trouxe os arquivos esperados: `git show --stat origin/staging`.
 - **Nome de branch:** `<tipo>/<escopo-curto-em-kebab-case>`. Tipos: `feat`, `fix`, `refactor`, `chore`, `ci`, `test`, `docs`, `security`, `spike` (este nunca é mergeado).
-- **Commits:** Conventional Commits em inglês, como o histórico já faz (`feat(search): ...`, `fix(router): ...`).
+- **Commits:** Conventional Commits em inglês, com autor único (sem `Co-Authored-By` nem outras linhas de atribuição).
 - **Título do PR** = mensagem do commit de squash. Corpo: o quê, por quê, como testar, screenshots se houver UI.
 - **Tags por marco:** `v0.2.0` (Fases 0 e 1), `v0.3.0` (Fases 2 e 3), `v0.4.0` (Fases 4 e 5, sem token e com login), `v0.5.0` (Fase 6), `v1.0.0` (Fases 7 e 8).
-- **Começar cada branch a partir do `master` atualizado:**
+- **Node:** 26 no CI; `engines` aceita a partir do 22.12.
 
 ```bash
-git switch master && git pull --ff-only
-git switch -c fix/search-pagination
+git fetch origin
+git switch -c fix/search-pagination origin/staging
 ```
 
 ---
@@ -305,11 +317,17 @@ git branch -r | grep 'origin/dependabot/' | sed 's#origin/##' | xargs -n1 git pu
 - [ ] `.github/workflows/ci.yml`: em PR e push no `master`, `npm ci`, `lint` (sem `--fix`; criar script `lint:check`), `vue-tsc --noEmit`, `test`, `vite build`.
 - [ ] `.github/dependabot.yml`: semanal, agrupando minor/patch de devDependencies num PR só.
 - [ ] `.github/pull_request_template.md` com o checklist da seção 8.
-- [ ] Ativar proteção do `master` exigindo o check do CI.
+- [ ] Ativar proteção de `staging` e `master` exigindo o check do CI.
 - Aceite: PR de teste mostra o check verde.
 - Commit: `ci: add lint, typecheck, test and build workflow`.
 
 ### Fase 1: Bugs atuais (cada um com teste de regressão)
+
+Entregue numa branch só, `fix/phase-1-bugs`, com um commit por correção: os cinco itens mexem nos mesmos arquivos e a branch também repõe o Vitest e o CI perdidos no #46. Diferenças em relação ao que estava planejado abaixo:
+
+- Erros de busca aparecem numa mensagem na própria página, não em Toast: o estado fica visível enquanto durar e não empilha avisos a cada tentativa.
+- Entraram quatro correções que não estavam na lista: a busca cortava o texto no `&` ("tom & jerry"), o ano saía um a menos para lançamentos de 1º de janeiro em fusos atrás do UTC, os cards mostravam "undefined (NaN)" ao trocar entre filme e série, e a chave salva só era carregada ao abrir a Home.
+- A atribuição do TMDB (texto e logo oficiais) saiu do item 1.5 e foi para o 8.1, porque depende de baixar o logo e conferir o texto nos termos.
 
 **1.1 `fix/search-pagination`** (P)
 - [ ] Guardar `total_results` (não `total_pages`) e usar `rows` fixo em 20.
@@ -371,7 +389,6 @@ watchDebounced([query, mediaType], () => search(1), { debounce: 350 });
 
 **1.5 `fix/about-versions`** (P)
 - [ ] Gerar as versões a partir do `package.json` no build (`define` com as versões resolvidas) em vez de constantes.
-- [ ] Adicionar a atribuição exigida pelos termos do TMDB (texto "This product uses the TMDB API but is not endorsed or certified by TMDB" e logo; confirmar o texto atual nos termos de uso da API).
 - Commit: `fix(about): read dependency versions from package.json`.
 
 ### Fase 2: Ferramentas e ecossistema
@@ -417,6 +434,7 @@ TypeScript 7 fica para depois: esperar o `vue-tsc` suportar oficialmente.
 - [ ] `session.setPermissionRequestHandler` negando tudo.
 - [ ] Título da janela com o nome do app; `nativeTheme.themeSource` acompanhando o alternador de tema.
 - [ ] Trocar o `v-html` do `LogoItem.vue` por renderização normal (`v-for` em `<span>`).
+- [ ] Expor `process.versions` (Electron, Node, Chrome) pelo preload: a tela Sobre lê hoje do `process` do renderer, que deixa de existir com o isolamento, e cairia para a versão do Node de quem fez o build.
 - Aceite: no DevTools, `typeof require === 'undefined'` e `typeof process === 'undefined'`; checklist de segurança do Electron sem alertas.
 - Commit: `fix(electron): enable context isolation and sandbox`.
 
@@ -539,7 +557,7 @@ Feita antes das features novas para não construir telas duas vezes.
 
 ### Fase 8: Distribuição
 
-**8.1 `chore/electron-builder-config`** (P): `appId` real (ex.: `io.github.alebl.mediaapp`), `productName`, Linux com AppImage e deb além do snap, ícones em todos os tamanhos.
+**8.1 `chore/electron-builder-config`** (P): `appId` real (ex.: `io.github.alebl.mediaapp`), `productName`, Linux com AppImage e deb além do snap, ícones em todos os tamanhos. Antes de publicar binários, adicionar na tela Sobre a atribuição exigida pelos termos do TMDB (logo oficial e o aviso "This product uses the TMDB API but is not endorsed or certified by TMDB"; confirmar o texto atual nos termos de uso da API).
 
 **8.2 `ci/release-workflow`** (M): workflow disparado por tag `v*`, matriz Linux/Windows/macOS, `TMDB_READ_TOKEN` do secret, publica no GitHub Releases.
 

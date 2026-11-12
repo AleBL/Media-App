@@ -10,6 +10,10 @@
   },
   "license": "MIT",
   "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "npm@11.12.1",
   "main": "dist-electron/main/index.js",
   "keywords": [
     "electron",
@@ -45,6 +49,7 @@
     "@vueuse/core": "^10.9.0",
     "autoprefixer": "^10.4.19",
     "axios": "^1.7.2",
+    "bootstrap": "^5.3.3",
     "electron": "^30.0.7",
     "electron-builder": "^24.13.3",
     "esbuild": "^0.21.3",
@@ -56,6 +61,8 @@
     "postcss": "^8.4.38",
     "prettier": "^3.2.5",
     "prettier-plugin-tailwindcss": "^0.5.14",
+    "primeicons": "^7.0.0",
+    "primevue": "^3.52.0",
     "sass": "^1.77.2",
     "tailwindcss": "^3.4.3",
     "taze": "^0.13.8",
@@ -68,12 +75,5 @@
     "vue-i18n": "^9.13.1",
     "vue-router": "^4.3.2",
     "vue-tsc": "^2.0.19"
-  },
-  "dependencies": {
-    "@popperjs/core": "^2.11.8",
-    "bootstrap": "^5.3.3",
-    "primeicons": "^7.0.0",
-    "primevue": "^3.52.0",
-    "yarn": "^1.22.22"
   }
 }

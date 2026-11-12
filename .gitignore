@@ -28,3 +28,9 @@ dist-electron
 *.sln
 *.sw?
 .editorconfig
+
+# Other package managers (this project uses npm)
+yarn.lock
+.yarn/
+.yarnrc.yml
+pnpm-lock.yaml

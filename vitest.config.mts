@@ -32,7 +32,7 @@ export default defineConfig({
   ],
   test: {
     environment: 'happy-dom',
-    include: ['src/**/*.spec.ts'],
+    include: ['src/**/*.spec.ts', 'electron/**/*.spec.ts'],
     setupFiles: ['src/test/setup.ts'],
     restoreMocks: true,
     // A timezone behind UTC, like most users of the app, so date bugs

@@ -1,5 +1,13 @@
 /// <reference types="vite/client" />
 
+interface Window {
+  /**
+   * Exposed by the preload script (electron/preload/index.ts). Missing when
+   * the renderer runs outside Electron, as in the unit tests.
+   */
+  api?: import('../shared/api').MediaAppApi;
+}
+
 // Injected by vite.config.mts and vitest.config.mts, see
 // config/dependency-versions.mjs
 declare const __DEPENDENCY_VERSIONS__: {

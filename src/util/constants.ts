@@ -7,21 +7,21 @@ export const MEDIA_TYPES: { [key: string]: number } = {
 
 // Installed versions, injected at build time (config/dependency-versions.mjs)
 const versions = __DEPENDENCY_VERSIONS__;
-// Electron knows which Electron and Node it is running; the build-time
-// values are the fallback for tests and for a renderer without Node access.
-const runtime: Partial<Record<string, string>> =
-  globalThis.process?.versions ?? {};
+// The running app reports which Electron and Node it is on through the
+// preload script; the build-time values are the fallback for unit tests.
+const runtime =
+  typeof window === 'undefined' ? undefined : window.api?.versions;
 
 export const DEPENDENCIES: {
   [key: string]: { VERSION: string; LINK: string; LOGO: string };
 } = {
   ELECTRON: {
-    VERSION: runtime.electron ?? versions.electron,
+    VERSION: runtime?.electron ?? versions.electron,
     LINK: 'https://www.electronjs.org/',
     LOGO: 'electron.svg',
   },
   NODE: {
-    VERSION: runtime.node ?? versions.node,
+    VERSION: runtime?.node ?? versions.node,
     LINK: 'https://nodejs.org/',
     LOGO: 'node.svg',
   },

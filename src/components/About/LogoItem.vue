@@ -5,15 +5,6 @@
   defineProps<{
     item: Logo;
   }>();
-
-  function getSpanVersion(version) {
-    const versionSplited = version.split('');
-    const spans = versionSplited.map(
-      (item, index) => `<span style="--i:${index + 1}">${item}</span>`,
-    );
-
-    return `${spans.join('')}`;
-  }
 </script>
 
 <template>
@@ -23,7 +14,14 @@
       :img-src="item.imgSrc"
       :img-alt="item.imgAlt"
     />
-    <div class="waviy" v-html="getSpanVersion(item.version)" />
+    <div class="waviy">
+      <span
+        v-for="(character, index) in item.version"
+        :key="index"
+        :style="{ '--i': index + 1 }"
+        >{{ character }}</span
+      >
+    </div>
   </div>
 </template>
 

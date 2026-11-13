@@ -1,7 +1,22 @@
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 
 const isDark = useDark();
 const toggleDark = useToggle(isDark);
+
+// useDark keeps 'auto', 'dark' or 'light' under this key. The native theme
+// follows it, so the window chrome matches the app and 'auto' keeps tracking
+// the operating system.
+const colorScheme = useStorage('vueuse-color-scheme', 'auto');
+
+watch(
+  colorScheme,
+  (scheme) => {
+    window.api?.setNativeTheme(
+      scheme === 'dark' || scheme === 'light' ? scheme : 'system',
+    );
+  },
+  { immediate: true },
+);
 
 export class ThemeItem {
   private translate: Function;

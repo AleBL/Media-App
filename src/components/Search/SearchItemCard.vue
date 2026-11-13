@@ -1,14 +1,15 @@
 <script setup lang="ts">
   import { computed } from 'vue';
-  import { getImage } from '@/services/searchMediaLogic';
-  import { getGenreNames } from '@/util/constants';
-  import type { MediaItem } from '@/types';
+  import type { MediaItem } from '@shared/api';
+  import { useGenresStore } from '@/stores/genres';
+  import { posterUrl } from '@/util/images';
 
   const props = defineProps<{
     item: MediaItem;
   }>();
 
   const { locale } = useI18n();
+  const genreStore = useGenresStore();
 
   // Read from the item itself, not from the selected media type: while a
   // new search is loading, the cards still hold results of the old type.
@@ -23,7 +24,7 @@
   });
 
   const genres = computed(() =>
-    getGenreNames(props.item.genre_ids ?? [], locale.value),
+    genreStore.names(props.item.genre_ids, locale.value),
   );
 
   const rating = computed(() =>
@@ -38,7 +39,7 @@
     <div>
       <img
         class="poster"
-        :src="getImage(item.poster_path ?? '')"
+        :src="posterUrl(item.poster_path)"
         :alt="title"
         loading="lazy"
       />

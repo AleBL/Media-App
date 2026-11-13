@@ -22,7 +22,13 @@
     "stepOne": "para acessar o site do TMDB.",
     "stepTwo": "Crie a sua chave da api, caso ainda não tenha uma.",
     "stepThree": "Insira ela no campo abaixo e salve.",
-    "stepFour": "Caso queira excluir a chave é só apertar em deletar."
+    "stepFour": "Caso queira excluir a chave é só apertar em deletar.",
+    "keySaved": "Há uma chave salva",
+    "saveKey": "Salvar chave",
+    "removeKey": "Remover chave",
+    "invalidKey": "Isso não parece uma chave do TMDB.",
+    "keyNotPersisted": "A chave não pôde ser gravada em disco, então vale só até o app ser fechado.",
+    "keyNotEncrypted": "Este sistema não tem chaveiro, então a chave fica salva sem criptografia."
   },
 
   "search": {

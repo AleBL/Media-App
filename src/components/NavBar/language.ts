@@ -1,4 +1,3 @@
-import { theMovieDb } from '@/util/tmdb';
 import { defaultLocale } from '@/plugins/i18n';
 
 export class LanguageItem {
@@ -41,7 +40,6 @@ export class LanguageItem {
   public toggleLocale(lang: string) {
     // @ts-expect-error Value will always exist
     this.locale.value = lang;
-    theMovieDb.common.language = lang;
     defaultLocale.value = lang;
   }
 

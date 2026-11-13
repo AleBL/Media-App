@@ -10,6 +10,7 @@ const pkg = JSON.parse(
   readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
 );
 const src = fileURLToPath(new URL('./src/', import.meta.url));
+const shared = fileURLToPath(new URL('./shared', import.meta.url));
 
 // Runtime dependencies are loaded from node_modules by the main and
 // preload scripts instead of being bundled into them.
@@ -22,8 +23,9 @@ const isDevelopment =
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Adds the Content-Security-Policy to index.html. The renderer may only run
-// its own scripts and talk to TMDB; the dev server also needs a WebSocket
-// for hot reload, which is why the policy is not written in index.html.
+// its own scripts and load posters from TMDB: the API calls are made by the
+// main process. The dev server also needs a WebSocket for hot reload, which
+// is why the policy is not written in index.html.
 function contentSecurityPolicy(): Plugin {
   let isDevServer = false;
 
@@ -40,7 +42,7 @@ function contentSecurityPolicy(): Plugin {
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: https://image.tmdb.org",
         "font-src 'self' data:",
-        `connect-src 'self' https://api.themoviedb.org${isDevServer ? ' ws:' : ''}`,
+        `connect-src 'self'${isDevServer ? ' ws:' : ''}`,
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'none'",
@@ -69,6 +71,7 @@ export default defineConfig({
     alias: {
       '~/': src,
       '@': src,
+      '@shared': shared,
     },
   },
 

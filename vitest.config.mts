@@ -8,6 +8,7 @@ import { dependencyVersions } from './config/dependency-versions.mjs';
 // dist-electron and registers the Electron plugins, none of which
 // should run during unit tests.
 const src = fileURLToPath(new URL('./src/', import.meta.url));
+const shared = fileURLToPath(new URL('./shared', import.meta.url));
 
 export default defineConfig({
   define: {
@@ -20,6 +21,7 @@ export default defineConfig({
     alias: {
       '~/': src,
       '@': src,
+      '@shared': shared,
     },
   },
   plugins: [

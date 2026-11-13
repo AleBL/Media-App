@@ -22,7 +22,6 @@ export default defineConfigWithVueTs(
       '**/*.d.ts',
       // vendored code
       'src/presets/**',
-      'src/util/tmdb.js',
     ],
   },
 
@@ -38,7 +37,7 @@ export default defineConfigWithVueTs(
   },
   {
     name: 'app/commonjs-files',
-    files: ['*.config.js', 'src/util/fetchGenres.js', 'src/util/languages.js'],
+    files: ['*.config.js'],
     languageOptions: { sourceType: 'commonjs' },
   },
   {

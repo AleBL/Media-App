@@ -1,13 +1,13 @@
 import { vi } from 'vitest';
 
-// Unit tests must never reach the real TMDB API. Anything that is not
-// mocked fails loudly here instead of doing a network request.
+// The renderer reaches TMDB only through window.api, and unit tests must
+// never reach the network: a request made by mistake fails loudly here.
 vi.stubGlobal(
   'XMLHttpRequest',
   class {
     constructor() {
       throw new Error(
-        'Network access is not allowed in unit tests: mock theMovieDb instead',
+        'Network access is not allowed in unit tests: use installFakeApi()',
       );
     }
   },

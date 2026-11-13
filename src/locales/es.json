@@ -22,7 +22,13 @@
     "stepOne": "para acceder al sitio web de TMDB.",
     "stepTwo": "Genera tu clave API si aún no tienes una.",
     "stepThree": "Introdúcelo en el campo de abajo y guárdalo.",
-    "stepFour": "Si desea eliminar la clave, simplemente presione eliminar."
+    "stepFour": "Si desea eliminar la clave, simplemente presione eliminar.",
+    "keySaved": "Hay una clave guardada",
+    "saveKey": "Guardar clave",
+    "removeKey": "Eliminar clave",
+    "invalidKey": "Esto no parece una clave de TMDB.",
+    "keyNotPersisted": "La clave no se pudo guardar en disco, así que solo se conserva hasta cerrar la aplicación.",
+    "keyNotEncrypted": "Este sistema no tiene un llavero, así que la clave se guarda sin cifrar."
   },
 
   "search": {

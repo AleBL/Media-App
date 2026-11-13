@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
-import type { MediaAppApi } from '../../../shared/api';
+import { installFakeApi } from '@/test/fakeApi';
 
 const STORAGE_KEY = 'vueuse-color-scheme';
 
@@ -12,15 +12,11 @@ async function loadTheme() {
 }
 
 describe('native theme sync', () => {
-  let setNativeTheme: ReturnType<typeof vi.fn<MediaAppApi['setNativeTheme']>>;
+  let setNativeTheme: ReturnType<typeof installFakeApi>['setNativeTheme'];
 
   beforeEach(() => {
     localStorage.clear();
-    setNativeTheme = vi.fn<MediaAppApi['setNativeTheme']>();
-    window.api = {
-      versions: { electron: '45.0.0', node: '24.0.0', chrome: '140.0.0' },
-      setNativeTheme,
-    };
+    setNativeTheme = installFakeApi().setNativeTheme;
   });
 
   afterEach(() => {

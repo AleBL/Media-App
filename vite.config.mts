@@ -1,6 +1,6 @@
 import { readFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import AutoImport from 'unplugin-auto-import/vite';
 import electron from 'vite-plugin-electron';
@@ -21,6 +21,42 @@ const isDevelopment =
   process.env.NODE_ENV === 'development' || !!process.env.VSCODE_DEBUG;
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Adds the Content-Security-Policy to index.html. The renderer may only run
+// its own scripts and talk to TMDB; the dev server also needs a WebSocket
+// for hot reload, which is why the policy is not written in index.html.
+function contentSecurityPolicy(): Plugin {
+  let isDevServer = false;
+
+  return {
+    name: 'app:content-security-policy',
+    configResolved(config) {
+      isDevServer = config.command === 'serve';
+    },
+    transformIndexHtml() {
+      const policy = [
+        "default-src 'self'",
+        "script-src 'self'",
+        // Vue and PrimeVue set inline styles
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https://image.tmdb.org",
+        "font-src 'self' data:",
+        `connect-src 'self' https://api.themoviedb.org${isDevServer ? ' ws:' : ''}`,
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'none'",
+      ].join('; ');
+
+      return [
+        {
+          tag: 'meta',
+          attrs: { 'http-equiv': 'Content-Security-Policy', content: policy },
+          injectTo: 'head-prepend',
+        },
+      ];
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
@@ -38,6 +74,7 @@ export default defineConfig({
 
   plugins: [
     vue(),
+    contentSecurityPolicy(),
 
     // https://github.com/antfu/unplugin-auto-import
     AutoImport({

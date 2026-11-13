@@ -51,7 +51,7 @@
     "@vitejs/plugin-vue": "^6.0.11",
     "@vue/eslint-config-typescript": "^14.9.0",
     "@vue/test-utils": "^2.5.1",
-    "@vueuse/core": "^10.11.1",
+    "@vueuse/core": "^15.0.0",
     "autoprefixer": "^10.6.2",
     "axios": "^1.21.1",
     "bootstrap": "^5.3.9",
@@ -62,7 +62,7 @@
     "eslint-plugin-vue": "^10.12.1",
     "globals": "^17.14.0",
     "happy-dom": "^21.0.4",
-    "pinia": "^2.3.1",
+    "pinia": "^4.1.0",
     "postcss": "^8.5.32",
     "prettier": "^3.10.1",
     "prettier-plugin-tailwindcss": "^0.5.14",
@@ -78,8 +78,8 @@
     "vitest": "^5.1.0",
     "vue": "^3.5.45",
     "vue-eslint-parser": "^10.4.2",
-    "vue-i18n": "^9.14.5",
-    "vue-router": "^4.6.4",
+    "vue-i18n": "^11.4.19",
+    "vue-router": "^5.5.0",
     "vue-tsc": "^3.3.14"
   }
 }

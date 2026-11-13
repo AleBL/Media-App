@@ -45,7 +45,6 @@ export default defineConfigWithVueTs(
     name: 'app/rules',
     rules: {
       'vue/component-name-in-template-casing': ['error', 'PascalCase'],
-      'vue/no-v-html': 'off',
       '@typescript-eslint/no-require-imports': 'off',
       // {} and Function are used as loose types in a few places
       '@typescript-eslint/no-empty-object-type': 'off',

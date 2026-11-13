@@ -1,6 +1,19 @@
-import { app, BrowserWindow, shell, ipcMain, nativeTheme } from 'electron';
-import { release } from 'node:os';
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  nativeTheme,
+  session,
+  shell,
+} from 'electron';
 import { join } from 'node:path';
+import { IPC } from '../../shared/api';
+import {
+  isAppUrl,
+  isNativeTheme,
+  isSafeExternalUrl,
+  type AppLocation,
+} from './security';
 
 // The built directory structure
 //
@@ -18,9 +31,6 @@ process.env.PUBLIC = process.env.VITE_DEV_SERVER_URL
   ? join(process.env.DIST_ELECTRON, '../public')
   : process.env.DIST;
 
-// Disable GPU Acceleration for Windows 7
-if (release().startsWith('6.1')) app.disableHardwareAcceleration();
-
 // Set application name for Windows 10+ notifications
 if (process.platform === 'win32') app.setAppUserModelId(app.getName());
 
@@ -29,20 +39,16 @@ if (!app.requestSingleInstanceLock()) {
   process.exit(0);
 }
 
-// Remove electron security warnings
-// This warning only shows in development mode
-// Read more on https://www.electronjs.org/docs/latest/tutorial/security
-// process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true'
-
 let win: BrowserWindow | null = null;
-// Here, you can also use other preload
 const preload = join(__dirname, '../preload/index.js');
-const url = process.env.VITE_DEV_SERVER_URL;
-const indexHtml = join(process.env.DIST, 'index.html');
+const appLocation: AppLocation = {
+  devServerUrl: process.env.VITE_DEV_SERVER_URL,
+  indexHtml: join(process.env.DIST, 'index.html'),
+};
 
-async function createWindow() {
+function createWindow() {
   win = new BrowserWindow({
-    title: 'Main window',
+    title: 'Media App',
     icon: join(process.env.PUBLIC, 'favicon.ico'),
     width: 1600,
     height: 900,
@@ -50,33 +56,64 @@ async function createWindow() {
     minHeight: 720,
     webPreferences: {
       preload,
-      // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production
-      // Consider using contextBridge.exposeInMainWorld
-      // Read more on https://www.electronjs.org/docs/latest/tutorial/context-isolation
-      nodeIntegration: true,
-      contextIsolation: false,
+      // The renderer is plain web code: no Node, no Electron and its own
+      // JavaScript world. It reaches the main process only through the API
+      // that the preload script exposes (shared/api.ts).
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
     },
   });
 
-  if (process.env.VITE_DEV_SERVER_URL) {
-    // electron-vite-vue#298
-    win.loadURL(url);
-    // Open devTool if the app is not packaged
+  if (appLocation.devServerUrl) {
+    win.loadURL(appLocation.devServerUrl);
     win.webContents.openDevTools();
   } else {
-    win.loadFile(indexHtml);
+    win.loadFile(appLocation.indexHtml);
   }
+}
 
-  // Make all links open with the browser, not with the application
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https:')) shell.openExternal(url);
+function openInBrowser(url: string) {
+  if (isSafeExternalUrl(url)) {
+    shell.openExternal(url);
+  }
+}
+
+// Applies to every web contents, including any created later.
+app.on('web-contents-created', (_event, contents) => {
+  // Nothing opens a second app window: links go to the system browser.
+  contents.setWindowOpenHandler(({ url }) => {
+    openInBrowser(url);
     return { action: 'deny' };
   });
 
-  nativeTheme.themeSource = 'dark';
-}
+  // The window only ever shows the app itself.
+  contents.on('will-navigate', (event, url) => {
+    if (!isAppUrl(url, appLocation)) {
+      event.preventDefault();
+      openInBrowser(url);
+    }
+  });
 
-app.whenReady().then(createWindow);
+  contents.on('will-attach-webview', (event) => event.preventDefault());
+});
+
+ipcMain.on(IPC.setNativeTheme, (event, theme: unknown) => {
+  const sender = event.senderFrame?.url;
+
+  if (sender && isAppUrl(sender, appLocation) && isNativeTheme(theme)) {
+    nativeTheme.themeSource = theme;
+  }
+});
+
+app.whenReady().then(() => {
+  // The app uses no camera, microphone, location, notifications and so on.
+  session.defaultSession.setPermissionRequestHandler(
+    (_contents, _permission, callback) => callback(false),
+  );
+
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   win = null;
@@ -97,22 +134,5 @@ app.on('activate', () => {
     allWindows[0].focus();
   } else {
     createWindow();
-  }
-});
-
-// New window example arg: new windows url
-ipcMain.handle('open-win', (_, arg) => {
-  const childWindow = new BrowserWindow({
-    webPreferences: {
-      preload,
-      nodeIntegration: true,
-      contextIsolation: false,
-    },
-  });
-
-  if (process.env.VITE_DEV_SERVER_URL) {
-    childWindow.loadURL(`${url}#${arg}`);
-  } else {
-    childWindow.loadFile(indexHtml, { hash: arg });
   }
 });

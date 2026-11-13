@@ -36,7 +36,7 @@
     "preview": "vite preview",
     "lint": "eslint . --fix",
     "lint:check": "eslint .",
-    "typecheck": "vue-tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "typecheck": "vue-tsc --noEmit && tsc -p tsconfig.node.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier . --write",

@@ -1,3 +1,21 @@
+import { contextBridge, ipcRenderer } from 'electron';
+import { IPC, type MediaAppApi } from '../../shared/api';
+
+// Everything the renderer can ask of the main process. Keep it small and
+// specific: never expose ipcRenderer or other Electron objects directly.
+const api: MediaAppApi = {
+  versions: {
+    electron: process.versions.electron,
+    node: process.versions.node,
+    chrome: process.versions.chrome,
+  },
+  setNativeTheme: (theme) => ipcRenderer.send(IPC.setNativeTheme, theme),
+};
+
+contextBridge.exposeInMainWorld('api', api);
+
+// ----------------------------------------------------------------------
+
 function domReady(
   condition: DocumentReadyState[] = ['complete', 'interactive'],
 ) {

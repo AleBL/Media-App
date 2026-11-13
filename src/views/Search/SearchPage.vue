@@ -1,38 +1,45 @@
 <script setup lang="ts">
-  import { computed } from 'vue';
-  import {
-    mediaType,
-    results,
-    totalResults,
-    currentPage,
-    loading,
-    searched,
-    searchError,
-    getResult,
-    PAGE_SIZE,
-  } from '@/services/searchMediaLogic';
+  import { computed, watch } from 'vue';
+  import { storeToRefs } from 'pinia';
+  import { TMDB_PAGE_SIZE } from '@shared/api';
+  import { useGenresStore } from '@/stores/genres';
+  import { useSearchStore } from '@/stores/search';
   import Paginator from 'primevue/paginator';
   import DataView from 'primevue/dataview';
   import SearchItemCard from '@/components/Search/SearchItemCard.vue';
   import SearchBar from '@/components/Search/SearchBar.vue';
 
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const store = useSearchStore();
+  const genres = useGenresStore();
+  const { results, totalResults, currentPage, loading, searched, error } =
+    storeToRefs(store);
 
-  const isUnauthorized = computed(() => searchError.value?.status === 401);
+  const needsKey = computed(
+    () =>
+      error.value?.code === 'missing-credential' ||
+      error.value?.code === 'unauthorized',
+  );
+
+  // Genre names come from TMDB too. Asking again after each answer costs
+  // nothing once they are loaded, and recovers from an earlier failure.
+  watch([locale, results], () => genres.load(locale.value), {
+    immediate: true,
+  });
 </script>
 
 <template>
   <SearchBar />
 
   <div
-    v-if="searchError"
+    v-if="error"
     role="alert"
     class="search-message text-red-600 dark:text-red-400"
   >
     <p>
-      {{ isUnauthorized ? t('search.errorUnauthorized') : t('search.error') }}
+      {{ needsKey ? t('search.errorUnauthorized') : t('search.error') }}
     </p>
-    <RouterLink v-if="isUnauthorized" :to="{ name: 'home' }">
+    <RouterLink v-if="needsKey" :to="{ name: 'home' }">
       {{ t('search.configureKey') }}
     </RouterLink>
   </div>
@@ -44,11 +51,11 @@
   >
     <Paginator
       class="my-4"
-      :first="(currentPage - 1) * PAGE_SIZE"
-      :rows="PAGE_SIZE"
+      :first="(currentPage - 1) * TMDB_PAGE_SIZE"
+      :rows="TMDB_PAGE_SIZE"
       :total-records="totalResults"
       :always-show="false"
-      @page="getResult(mediaType, $event.page + 1)"
+      @page="store.search($event.page + 1)"
     />
 
     <DataView :value="results" layout="grid" data-key="id">

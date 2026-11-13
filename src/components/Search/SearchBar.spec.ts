@@ -1,70 +1,94 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount, VueWrapper } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
 import PrimeVue from 'primevue/config';
 import i18n from '@/plugins/i18n';
 import SearchBar from '@/components/Search/SearchBar.vue';
-import {
-  SEARCH_DEBOUNCE_MS,
-  mediaType,
-  searchText,
-} from '@/services/searchMediaLogic';
-import { MEDIA_TYPES } from '@/util/constants';
-import { theMovieDb } from '@/util/tmdb';
-
-const emptyPage = {
-  response: { page: 1, results: [], total_pages: 0, total_results: 0 },
-};
+import { SEARCH_DEBOUNCE_MS, useSearchStore } from '@/stores/search';
+import { installFakeApi, pageOf } from '@/test/fakeApi';
 
 describe('SearchBar', () => {
+  let api: ReturnType<typeof installFakeApi>;
+  let store: ReturnType<typeof useSearchStore>;
   let wrapper: VueWrapper;
 
   beforeEach(() => {
     vi.useFakeTimers();
-    theMovieDb.common.api_key = 'test-key';
-    searchText.value = '';
-    mediaType.value = MEDIA_TYPES.MOVIE;
+    i18n.global.locale.value = 'en';
+    api = installFakeApi();
+
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    store = useSearchStore();
     wrapper = mount(SearchBar, {
-      global: { plugins: [i18n, [PrimeVue, { unstyled: true }]] },
+      global: { plugins: [pinia, i18n, [PrimeVue, { unstyled: true }]] },
     });
   });
 
   afterEach(() => {
     wrapper.unmount();
     vi.useRealTimers();
+    delete window.api;
   });
 
   it('searches once after the user stops typing', async () => {
-    const getMovie = vi
-      .spyOn(theMovieDb.search, 'getMovie')
-      .mockResolvedValue(emptyPage);
     const input = wrapper.get('[data-pc-name="inputtext"]');
 
     for (const text of ['ma', 'mat', 'matr', 'matrix']) {
       await input.setValue(text);
       await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS - 50);
     }
-    expect(getMovie).not.toHaveBeenCalled();
+    expect(api.tmdb.search).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
 
-    expect(getMovie).toHaveBeenCalledTimes(1);
-    expect(getMovie).toHaveBeenCalledWith({ query: 'matrix', page: 1 });
+    expect(api.tmdb.search).toHaveBeenCalledTimes(1);
+    expect(api.tmdb.search).toHaveBeenCalledWith({
+      type: 'movie',
+      query: 'matrix',
+      page: 1,
+      language: 'en',
+    });
   });
 
   it('searches right away when the media type changes', async () => {
-    vi.spyOn(theMovieDb.search, 'getMovie').mockResolvedValue(emptyPage);
-    const getTv = vi
-      .spyOn(theMovieDb.search, 'getTv')
-      .mockResolvedValue(emptyPage);
-    searchText.value = 'matrix';
+    store.query = 'matrix';
     await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
-    getTv.mockClear();
+    api.tmdb.search.mockClear();
 
-    mediaType.value = MEDIA_TYPES.TV_SHOW;
+    await wrapper.get('#mediaTypeTVShow').setValue(true);
     await nextTick();
 
-    expect(getTv).toHaveBeenCalledTimes(1);
-    expect(getTv).toHaveBeenCalledWith({ query: 'matrix', page: 1 });
+    expect(store.mediaType).toBe('tv');
+    expect(api.tmdb.search).toHaveBeenCalledTimes(1);
+    expect(api.tmdb.search).toHaveBeenCalledWith({
+      type: 'tv',
+      query: 'matrix',
+      page: 1,
+      language: 'en',
+    });
+  });
+
+  it('asks for the same page again when the language changes', async () => {
+    store.query = 'matrix';
+    await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
+    api.tmdb.search.mockResolvedValue({
+      ok: true,
+      data: pageOf([{ id: 603 }], { page: 3, totalResults: 60 }),
+    });
+    await store.search(3);
+    api.tmdb.search.mockClear();
+
+    i18n.global.locale.value = 'pt-BR';
+    await nextTick();
+
+    expect(api.tmdb.search).toHaveBeenCalledTimes(1);
+    expect(api.tmdb.search).toHaveBeenCalledWith({
+      type: 'movie',
+      query: 'matrix',
+      page: 3,
+      language: 'pt-BR',
+    });
   });
 });

@@ -1,26 +1,27 @@
 <script setup lang="ts">
   import { watch } from 'vue';
+  import { storeToRefs } from 'pinia';
   import { watchDebounced } from '@vueuse/core';
-  import {
-    mediaType,
-    getResult,
-    searchText,
-    SEARCH_DEBOUNCE_MS,
-  } from '@/services/searchMediaLogic';
+  import { SEARCH_DEBOUNCE_MS, useSearchStore } from '@/stores/search';
   import IconField from 'primevue/iconfield';
   import InputIcon from 'primevue/inputicon';
   import InputText from 'primevue/inputtext';
   import RadioButton from 'primevue/radiobutton';
   import { MEDIA_TYPES } from '@/util/constants';
 
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const store = useSearchStore();
+  const { query, mediaType } = storeToRefs(store);
 
   // One request after the user stops typing instead of one per key press.
-  watchDebounced(searchText, () => getResult(mediaType.value), {
+  watchDebounced(query, () => store.search(), {
     debounce: SEARCH_DEBOUNCE_MS,
   });
 
-  watch(mediaType, (type) => getResult(type));
+  watch(mediaType, () => store.search());
+
+  // TMDB translates titles: ask for the same page again in the new language.
+  watch(locale, () => store.search(store.currentPage));
 </script>
 
 <template>
@@ -30,7 +31,7 @@
         <i class="pi pi-search" />
       </InputIcon>
       <InputText
-        v-model="searchText"
+        v-model="query"
         :placeholder="t('pageTitles.search')"
         :aria-label="t('pageTitles.search')"
       />

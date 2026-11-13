@@ -1,9 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { nextTick } from 'vue';
-import { mount } from '@vue/test-utils';
+import { mount, VueWrapper } from '@vue/test-utils';
+import { createPinia, setActivePinia, type Pinia } from 'pinia';
+import type { MediaItem } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import SearchItemCard from '@/components/Search/SearchItemCard.vue';
-import type { MediaItem } from '@/types';
+import { useGenresStore } from '@/stores/genres';
 
 const movie: MediaItem = {
   id: 603,
@@ -14,16 +16,37 @@ const movie: MediaItem = {
   release_date: '1999-03-31',
 };
 
-function mountCard(item: MediaItem) {
-  return mount(SearchItemCard, {
-    props: { item },
-    global: { plugins: [i18n] },
-  });
-}
-
 describe('SearchItemCard', () => {
+  let pinia: Pinia;
+  let wrapper: VueWrapper | undefined;
+
+  function mountCard(item: MediaItem) {
+    wrapper = mount(SearchItemCard, {
+      props: { item },
+      global: { plugins: [pinia, i18n] },
+    });
+
+    return wrapper;
+  }
+
   beforeEach(() => {
     i18n.global.locale.value = 'en';
+    pinia = createPinia();
+    setActivePinia(pinia);
+    useGenresStore().byLanguage = {
+      en: [
+        { id: 28, name: 'Action' },
+        { id: 18, name: 'Drama' },
+      ],
+      'pt-BR': [{ id: 28, name: 'Ação' }],
+    };
+  });
+
+  // A card left mounted would react to the next test's language change and
+  // make its own pinia the active one again.
+  afterEach(() => {
+    wrapper?.unmount();
+    wrapper = undefined;
   });
 
   it('renders title, year, rating, genres and poster', () => {
@@ -51,6 +74,7 @@ describe('SearchItemCard', () => {
     });
 
     expect(wrapper.text()).toContain('Breaking Bad (2008)');
+    expect(wrapper.text()).toContain('Drama');
     expect(wrapper.get('img').attributes('alt')).toBe('Breaking Bad');
   });
 
@@ -86,5 +110,14 @@ describe('SearchItemCard', () => {
     await nextTick();
 
     expect(wrapper.text()).toContain('Ação');
+  });
+
+  it('still renders while the genre names are not loaded', () => {
+    useGenresStore().byLanguage = {};
+
+    const wrapper = mountCard(movie);
+
+    expect(wrapper.text()).toContain('The Matrix (1999)');
+    expect(wrapper.text()).not.toContain('Action');
   });
 });

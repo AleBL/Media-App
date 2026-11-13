@@ -6,13 +6,14 @@ import router from '@/router';
 import PrimeVue from 'primevue/config';
 import Ripple from 'primevue/ripple';
 import Wind from '@/presets/wind.d';
-import i18n, { defaultLocale } from '@/plugins/i18n';
-import { theMovieDb } from '@/util/tmdb';
+import i18n from '@/plugins/i18n';
+import { useCredentialsStore } from '@/stores/credentials';
 
 const app = createApp(App);
+const pinia = createPinia();
 
 app.use(i18n);
-app.use(createPinia());
+app.use(pinia);
 app.use(router);
 app.use(PrimeVue, {
   unstyled: true,
@@ -20,10 +21,9 @@ app.use(PrimeVue, {
   ripple: true,
 });
 
-theMovieDb.common.language = defaultLocale.value;
-// The key used to be loaded only when the home page was opened, so a
-// reload on any other page searched without it.
-theMovieDb.common.api_key = localStorage.getItem('api_key') ?? '';
+// Asks the main process whether a TMDB key is saved, and hands over a key
+// that an older version of the app left in localStorage.
+useCredentialsStore(pinia).load().catch(console.error);
 
 app.directive('ripple', Ripple);
 

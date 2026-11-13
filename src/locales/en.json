@@ -22,7 +22,13 @@
     "stepOne": "to access the TMDB website.",
     "stepTwo": "Generate your api key if you don't already have one.",
     "stepThree": "Enter it in the field below and save.",
-    "stepFour": "If you want to delete the key, just press delete."
+    "stepFour": "If you want to delete the key, just press delete.",
+    "keySaved": "A key is saved",
+    "saveKey": "Save key",
+    "removeKey": "Remove key",
+    "invalidKey": "This does not look like a TMDB key.",
+    "keyNotPersisted": "The key could not be saved to disk, so it is kept only until the app closes.",
+    "keyNotEncrypted": "This system has no keyring, so the key is saved without encryption."
   },
 
   "search": {

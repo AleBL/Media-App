@@ -1,9 +1,9 @@
-import { GENRES } from './generatedGenres';
+import type { MediaType } from '@shared/api';
 
-export const MEDIA_TYPES: { [key: string]: number } = {
-  MOVIE: 1,
-  TV_SHOW: 2,
-};
+export const MEDIA_TYPES = {
+  MOVIE: 'movie',
+  TV_SHOW: 'tv',
+} as const satisfies Record<string, MediaType>;
 
 // Installed versions, injected at build time (config/dependency-versions.mjs)
 const versions = __DEPENDENCY_VERSIONS__;
@@ -66,23 +66,3 @@ export const DEPENDENCIES: {
     LOGO: 'prime.svg',
   },
 };
-
-export function getGenreNames(ids: number[], language: string) {
-  if (!ids || !Array.isArray(ids) || ids.length === 0) {
-    return '';
-  }
-
-  // 'pt-BR' -> 'pt'; languages without a genre list fall back to English
-  const genres = GENRES[language.replace(/-.*/, '')] ?? GENRES.en;
-
-  return ids
-    .map((id) => {
-      const genre = genres.find((genre) => genre.id === id);
-      return genre ? genre.name : null;
-    })
-    .filter((name) => name !== null)
-    .join(', ');
-}
-
-GENRES.getGenreNames = getGenreNames;
-export { GENRES };

@@ -22,7 +22,18 @@
 </script>
 
 <template>
-  <Password v-model="apiKeyLocal" :feedback="false" :toggle-mask="apiKeyStorage.length <= 0" :disabled="apiKeyStorage.length > 0" style="width: 330px;"/>
-  <Button v-if="apiKeyStorage" icon="pi pi-trash" severity="danger" @click="resetApiKey"/>
-  <Button v-else icon="pi pi-save" @click="addApiKey"/>
+  <Password
+    v-model="apiKeyLocal"
+    :feedback="false"
+    :toggle-mask="apiKeyStorage.length <= 0"
+    :disabled="apiKeyStorage.length > 0"
+    style="width: 330px"
+  />
+  <Button
+    v-if="apiKeyStorage"
+    icon="pi pi-trash"
+    severity="danger"
+    @click="resetApiKey"
+  />
+  <Button v-else icon="pi pi-save" @click="addApiKey" />
 </template>

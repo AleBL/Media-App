@@ -5,7 +5,7 @@ export const MEDIA_TYPES: { [key: string]: number } = {
   TV_SHOW: 2,
 };
 
-// Installed versions, injected at build time (config/dependency-versions.ts)
+// Installed versions, injected at build time (config/dependency-versions.mjs)
 const versions = __DEPENDENCY_VERSIONS__;
 // Electron knows which Electron and Node it is running; the build-time
 // values are the fallback for tests and for a renderer without Node access.

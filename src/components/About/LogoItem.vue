@@ -9,7 +9,7 @@
   function getSpanVersion(version) {
     const versionSplited = version.split('');
     const spans = versionSplited.map(
-      (item, index) => `<span style="--i:${index + 1}">${item}</span>`
+      (item, index) => `<span style="--i:${index + 1}">${item}</span>`,
     );
 
     return `${spans.join('')}`;

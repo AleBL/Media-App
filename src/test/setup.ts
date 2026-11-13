@@ -7,8 +7,8 @@ vi.stubGlobal(
   class {
     constructor() {
       throw new Error(
-        'Network access is not allowed in unit tests: mock theMovieDb instead'
+        'Network access is not allowed in unit tests: mock theMovieDb instead',
       );
     }
-  }
+  },
 );

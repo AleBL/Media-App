@@ -1,12 +1,19 @@
-import path from 'path';
-import { rmSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import AutoImport from 'unplugin-auto-import/vite';
 import electron from 'vite-plugin-electron';
-import renderer from 'vite-plugin-electron-renderer';
-import pkg from './package.json';
-import { dependencyVersions } from './config/dependency-versions';
+import { dependencyVersions } from './config/dependency-versions.mjs';
+
+const pkg = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
+);
+const src = fileURLToPath(new URL('./src/', import.meta.url));
+
+// Runtime dependencies are loaded from node_modules by the main and
+// preload scripts instead of being bundled into them.
+const external = Object.keys(pkg.dependencies ?? {});
 
 rmSync('dist-electron', { recursive: true, force: true });
 
@@ -14,7 +21,7 @@ const isDevelopment =
   process.env.NODE_ENV === 'development' || !!process.env.VSCODE_DEBUG;
 const isProduction = process.env.NODE_ENV === 'production';
 
-// https://vitejs.dev/config/
+// https://vite.dev/config/
 export default defineConfig({
   define: {
     __VUE_I18N_FULL_INSTALL__: true,
@@ -24,8 +31,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '~/': `${path.resolve(__dirname, 'src')}/`,
-      '@': `${path.resolve(__dirname, 'src')}/`,
+      '~/': src,
+      '@': src,
     },
   },
 
@@ -34,7 +41,7 @@ export default defineConfig({
 
     // https://github.com/antfu/unplugin-auto-import
     AutoImport({
-      imports: ['vue', 'vue-router', 'vue-i18n', 'vue/macros', '@vueuse/core'],
+      imports: ['vue', 'vue-router', 'vue-i18n', '@vueuse/core'],
       dts: 'src/auto-imports.d.ts',
     }),
 
@@ -56,11 +63,7 @@ export default defineConfig({
             sourcemap: isDevelopment,
             minify: isProduction,
             outDir: 'dist-electron/main',
-            rollupOptions: {
-              external: Object.keys(
-                'dependencies' in pkg ? pkg.dependencies : {},
-              ),
-            },
+            rolldownOptions: { external },
           },
         },
       },
@@ -76,20 +79,11 @@ export default defineConfig({
             sourcemap: isDevelopment,
             minify: isProduction,
             outDir: 'dist-electron/preload',
-            rollupOptions: {
-              external: Object.keys(
-                'dependencies' in pkg ? pkg.dependencies : {},
-              ),
-            },
+            rolldownOptions: { external },
           },
         },
       },
     ]),
-
-    // Use Node.js API in the Renderer-process
-    renderer({
-      nodeIntegration: true,
-    }),
   ],
 
   server: process.env.VSCODE_DEBUG

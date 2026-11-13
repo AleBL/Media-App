@@ -15,7 +15,7 @@ export class LanguageItem {
     this.icons = Object.entries(
       import.meta.glob<{ default: string }>('@/assets/locales/*.svg', {
         eager: true,
-      })
+      }),
     ).reduce((acc, [key, value]) => {
       const matchedKey = key.match(regex)?.join();
       return matchedKey !== undefined

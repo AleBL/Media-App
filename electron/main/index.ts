@@ -3,17 +3,17 @@ import {
   BrowserWindow,
   ipcMain,
   nativeTheme,
+  net,
+  safeStorage,
   session,
   shell,
 } from 'electron';
 import { join } from 'node:path';
-import { IPC } from '../../shared/api';
-import {
-  isAppUrl,
-  isNativeTheme,
-  isSafeExternalUrl,
-  type AppLocation,
-} from './security';
+import { registerIpc } from './ipc';
+import { isAppUrl, isSafeExternalUrl, type AppLocation } from './security';
+import { createTmdbClient } from './tmdb/client';
+import { createCredentialStore } from './tmdb/credentials';
+import { createGenreCache } from './tmdb/genres';
 
 // The built directory structure
 //
@@ -98,19 +98,37 @@ app.on('web-contents-created', (_event, contents) => {
   contents.on('will-attach-webview', (event) => event.preventDefault());
 });
 
-ipcMain.on(IPC.setNativeTheme, (event, theme: unknown) => {
-  const sender = event.senderFrame?.url;
-
-  if (sender && isAppUrl(sender, appLocation) && isNativeTheme(theme)) {
-    nativeTheme.themeSource = theme;
-  }
-});
-
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // The app uses no camera, microphone, location, notifications and so on.
   session.defaultSession.setPermissionRequestHandler(
     (_contents, _permission, callback) => callback(false),
   );
+
+  const userData = app.getPath('userData');
+  const credentials = createCredentialStore(userData, safeStorage);
+  await credentials.load();
+
+  const tmdb = createTmdbClient({
+    getCredential: credentials.get,
+    // Chromium's network stack: follows the system proxy and certificates.
+    fetch: (url, init) => net.fetch(url, init),
+    // Tests point the app at a local server. A packaged app only talks to TMDB.
+    baseUrl: app.isPackaged ? undefined : process.env.TMDB_BASE_URL,
+  });
+  const genres = createGenreCache({
+    directory: join(userData, 'genres'),
+    fetchGenres: tmdb.genres,
+  });
+
+  registerIpc(ipcMain, {
+    isTrustedSender: (url) => isAppUrl(url, appLocation),
+    setNativeTheme: (theme) => {
+      nativeTheme.themeSource = theme;
+    },
+    tmdb,
+    genres,
+    credentials,
+  });
 
   createWindow();
 });

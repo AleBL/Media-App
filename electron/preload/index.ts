@@ -10,6 +10,15 @@ const api: MediaAppApi = {
     chrome: process.versions.chrome,
   },
   setNativeTheme: (theme) => ipcRenderer.send(IPC.setNativeTheme, theme),
+  tmdb: {
+    search: (request) => ipcRenderer.invoke(IPC.tmdbSearch, request),
+    genres: (language) => ipcRenderer.invoke(IPC.tmdbGenres, language),
+  },
+  credentials: {
+    status: () => ipcRenderer.invoke(IPC.credentialStatus),
+    save: (apiKey) => ipcRenderer.invoke(IPC.credentialSave, apiKey),
+    clear: () => ipcRenderer.invoke(IPC.credentialClear),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

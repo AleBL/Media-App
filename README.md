@@ -52,7 +52,7 @@ sudo apt-get install -yq --no-install-recommends libasound2 libatk1.0-0 libc6 li
 _**Requirements:**_
 
 ```bash
-node -v # >= 22.12.0
+node -v # 22.13+, 24 or 26+ (CI runs on 26)
 npm  -v # >= 11 (this project uses npm only; do not use yarn or pnpm)
 ```
 

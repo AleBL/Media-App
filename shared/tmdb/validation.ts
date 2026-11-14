@@ -1,8 +1,9 @@
-import type { SearchRequest } from '../../../shared/api';
+import type { SearchRequest } from '../api';
 import { TMDB_MAX_PAGES } from './client';
 
-// Everything that arrives from the renderer over IPC is checked here before
-// it is used: the main process does not trust the renderer's types.
+// Everything that arrives from the renderer, over IPC in the desktop app or
+// over HTTP on the web, is checked here before it is used: whoever holds the
+// TMDB credential does not trust the renderer's types.
 
 const LANGUAGE = /^[a-z]{2}(-[A-Z]{2})?$/;
 const API_KEY = /^[\w.-]{16,1024}$/;

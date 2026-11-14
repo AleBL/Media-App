@@ -10,12 +10,12 @@ import {
   type TmdbFailure,
 } from '../../shared/api';
 import { isNativeTheme } from './security';
-import { TmdbError } from './tmdb/client';
+import { TmdbError } from '../../shared/tmdb/client';
 import {
   parseApiKey,
   parseLanguage,
   parseSearchRequest,
-} from './tmdb/validation';
+} from '../../shared/tmdb/validation';
 
 /** The part of an IPC event that the handlers look at. */
 export interface IpcEvent {

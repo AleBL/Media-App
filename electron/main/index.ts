@@ -11,7 +11,7 @@ import {
 import { join } from 'node:path';
 import { registerIpc } from './ipc';
 import { isAppUrl, isSafeExternalUrl, type AppLocation } from './security';
-import { createTmdbClient } from './tmdb/client';
+import { createTmdbClient } from '../../shared/tmdb/client';
 import { createCredentialStore } from './tmdb/credentials';
 import { createGenreCache } from './tmdb/genres';
 

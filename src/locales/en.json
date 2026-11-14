@@ -24,6 +24,7 @@
     "ownKeyOptional": "The app already has access to TMDB, so this is optional. A key of your own is used instead of the app's, which keeps the search working if the app's access ever stops.",
     "ownKeyRequired": "This copy of the app was built without access to TMDB. Save a key of your own to be able to search.",
     "getKey": "Get a key on the TMDB website",
+    "nothingOnWeb": "There is nothing to set up in the web version: just search.",
     "keyLabel": "TMDB key",
     "keySaved": "A key is saved",
     "saveKey": "Save key",
@@ -40,6 +41,7 @@
     "errorNoAccess": "This copy of the app has no access to TMDB. Save a key of your own in the settings.",
     "errorAppRefused": "TMDB refused the app's access. Update the app, or use a key of your own.",
     "errorOwnKeyRefused": "TMDB refused your key. Check it or remove it in the settings.",
+    "errorWebUnavailable": "The search is unavailable at the moment. Please try again later.",
     "openSettings": "Open the settings"
   }
 }

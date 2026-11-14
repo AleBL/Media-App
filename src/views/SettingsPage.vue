@@ -1,10 +1,12 @@
 <script setup lang="ts">
   import { storeToRefs } from 'pinia';
   import OwnKeyInput from '@/components/Settings/OwnKeyInput.vue';
+  import { isDesktop } from '@/services/api';
   import { useCredentialsStore } from '@/stores/credentials';
 
   const { t } = useI18n();
   const { loaded, builtIn } = storeToRefs(useCredentialsStore());
+  const desktop = isDesktop();
 </script>
 
 <template>
@@ -14,7 +16,12 @@
     </h1>
   </div>
 
-  <section class="mx-auto max-w-xl px-4 pb-4 text-center">
+  <!-- The menu of the web version has no link to this page -->
+  <p v-if="!desktop" class="mx-auto max-w-xl px-4 pb-4 text-center">
+    {{ t('settings.nothingOnWeb') }}
+  </p>
+
+  <section v-else class="mx-auto max-w-xl px-4 pb-4 text-center">
     <h2 class="mb-2 text-xl">
       {{ t('settings.ownKeyTitle') }}
     </h2>

@@ -2,6 +2,12 @@ import { vi } from 'vitest';
 
 // The renderer reaches TMDB only through window.api, and unit tests must
 // never reach the network: a request made by mistake fails loudly here.
+vi.stubGlobal('fetch', () => {
+  throw new Error(
+    'Network access is not allowed in unit tests: pass a fetch to the code under test',
+  );
+});
+
 vi.stubGlobal(
   'XMLHttpRequest',
   class {

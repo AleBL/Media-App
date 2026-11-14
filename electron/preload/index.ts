@@ -4,6 +4,7 @@ import { IPC, type MediaAppApi } from '../../shared/api';
 // Everything the renderer can ask of the main process. Keep it small and
 // specific: never expose ipcRenderer or other Electron objects directly.
 const api: MediaAppApi = {
+  platform: 'desktop',
   versions: {
     electron: process.versions.electron,
     node: process.versions.node,

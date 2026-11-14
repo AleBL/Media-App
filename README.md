@@ -100,7 +100,10 @@ npm run typecheck    # run vue-tsc
 ```bash
 npm test           # run unit tests once (vitest)
 npm run test:watch # run unit tests in watch mode
+npm run test:e2e   # build the app and drive it end to end (playwright)
 ```
+
+The end-to-end tests in `e2e/` start the real app against a local stand-in for the TMDB API (`e2e/support/fake-tmdb.ts`), each with its own profile folder, so they need neither a TMDB key nor a connection. On Linux they run without opening a window; set `E2E_SHOW=1` to watch them.
 
 #### Taze
 
@@ -112,6 +115,7 @@ npm run deps:update # run taze major -I
 
 ```bash
 📦config # build helpers shared by the Vite and Vitest configs
+📦e2e # end-to-end tests: the built app against a local stand-in for TMDB
 📦electron
  ┣ 📦main
  ┃ ┣ 📦tmdb # TMDB client, saved key, genre cache and input validation

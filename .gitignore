@@ -9,6 +9,8 @@ lerna-debug.log*
 
 release
 node_modules
+test-results
+playwright-report
 dist
 dist-ssr
 dist-electron

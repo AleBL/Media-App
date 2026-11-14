@@ -1,6 +1,13 @@
-// The API that the preload script exposes to the renderer as `window.api`.
-// The renderer has no Node or Electron access: whatever it needs from the
-// main process goes through here.
+// What the renderer can ask of whoever holds the TMDB credential.
+//
+// In the desktop app that is the main process: the preload script exposes
+// this API as `window.api`, and the renderer has no other Node or Electron
+// access. On the web there is no preload script, and the same API is
+// implemented over HTTP (src/services/webApi.ts) on top of a function of the
+// site that keeps the credential on the server (api/tmdb.ts).
+
+/** Where the site answers TMDB requests for the web version of the app. */
+export const TMDB_PROXY_PATH = '/api/tmdb';
 
 export type NativeTheme = 'system' | 'light' | 'dark';
 
@@ -76,8 +83,13 @@ export interface CredentialStatus {
 }
 
 export interface MediaAppApi {
-  /** Versions of the runtime the app is running on. */
-  versions: {
+  /**
+   * Where the app is running: installed, inside Electron, or as a web page.
+   * A web page has no key of the user to keep and no window chrome to theme.
+   */
+  platform: 'desktop' | 'web';
+  /** Versions of the runtime the desktop app is running on. */
+  versions?: {
     electron: string;
     node: string;
     chrome: string;

@@ -59,8 +59,14 @@ jobs:
 
       - run: npm ci
 
-      # Starts the built app against a local stand-in for TMDB. On Linux it
-      # runs without a display, so no virtual screen is needed.
+      # The web version is tested in a browser. The desktop app needs
+      # nothing more: it runs on the Electron that npm ci installed.
+      - name: Install the browser for the web tests
+        run: npx playwright install --with-deps --only-shell chromium
+
+      # Starts the built app, as a desktop app and as a web page, against a
+      # local stand-in for TMDB. On Linux it runs without a display, so no
+      # virtual screen is needed.
       - name: Run the app end to end
         run: npm run test:e2e
 

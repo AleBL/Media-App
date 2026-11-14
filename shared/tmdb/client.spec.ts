@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { TMDB_PAGE_SIZE } from '../../../shared/api';
+import { TMDB_PAGE_SIZE } from '../api';
 import {
   createTmdbClient,
   TMDB_MAX_PAGES,

@@ -24,6 +24,7 @@
     "ownKeyOptional": "O app já tem acesso ao TMDB, então isto é opcional. Uma chave sua é usada no lugar da do app, o que mantém a busca funcionando se o acesso do app um dia parar.",
     "ownKeyRequired": "Esta cópia do app foi gerada sem acesso ao TMDB. Salve uma chave sua para poder procurar.",
     "getKey": "Obter uma chave no site do TMDB",
+    "nothingOnWeb": "Não há nada para configurar na versão web: é só procurar.",
     "keyLabel": "Chave do TMDB",
     "keySaved": "Há uma chave salva",
     "saveKey": "Salvar chave",
@@ -40,6 +41,7 @@
     "errorNoAccess": "Esta cópia do app não tem acesso ao TMDB. Salve uma chave sua nas configurações.",
     "errorAppRefused": "O TMDB recusou o acesso do app. Atualize o app ou use uma chave sua.",
     "errorOwnKeyRefused": "O TMDB recusou a sua chave. Confira ou remova a chave nas configurações.",
+    "errorWebUnavailable": "A busca está indisponível no momento. Tente de novo mais tarde.",
     "openSettings": "Abrir as configurações"
   }
 }

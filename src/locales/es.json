@@ -24,6 +24,7 @@
     "ownKeyOptional": "La aplicación ya tiene acceso a TMDB, así que esto es opcional. Una clave tuya se usa en lugar de la de la aplicación, lo que mantiene la búsqueda funcionando si el acceso de la aplicación deja de funcionar algún día.",
     "ownKeyRequired": "Esta copia de la aplicación se generó sin acceso a TMDB. Guarda una clave tuya para poder buscar.",
     "getKey": "Obtener una clave en el sitio web de TMDB",
+    "nothingOnWeb": "No hay nada que configurar en la versión web: solo busca.",
     "keyLabel": "Clave de TMDB",
     "keySaved": "Hay una clave guardada",
     "saveKey": "Guardar clave",
@@ -40,6 +41,7 @@
     "errorNoAccess": "Esta copia de la aplicación no tiene acceso a TMDB. Guarda una clave tuya en los ajustes.",
     "errorAppRefused": "TMDB rechazó el acceso de la aplicación. Actualiza la aplicación o usa una clave tuya.",
     "errorOwnKeyRefused": "TMDB rechazó tu clave. Compruébala o elimínala en los ajustes.",
+    "errorWebUnavailable": "La búsqueda no está disponible en este momento. Inténtalo de nuevo más tarde.",
     "openSettings": "Abrir los ajustes"
   }
 }

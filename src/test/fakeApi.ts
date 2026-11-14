@@ -42,6 +42,7 @@ export function pageOf(
  */
 export function installFakeApi() {
   const api = {
+    platform: 'desktop' as MediaAppApi['platform'],
     versions: { electron: '45.0.0', node: '24.0.0', chrome: '156.0.0' },
     setNativeTheme: vi.fn<MediaAppApi['setNativeTheme']>(),
     tmdb: {

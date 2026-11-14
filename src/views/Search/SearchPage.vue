@@ -2,6 +2,7 @@
   import { computed, onMounted, watch } from 'vue';
   import { storeToRefs } from 'pinia';
   import { TMDB_PAGE_SIZE } from '@shared/api';
+  import { isDesktop } from '@/services/api';
   import { useCredentialsStore } from '@/stores/credentials';
   import { useGenresStore } from '@/stores/genres';
   import { useSearchStore } from '@/stores/search';
@@ -17,19 +18,29 @@
   const { results, totalResults, currentPage, loading, searched, error } =
     storeToRefs(store);
 
-  // A failure that the settings page can solve, as the message to show.
+  const desktop = isDesktop();
+
+  // A failure of the credential and not of the search, as the message to
+  // show. In the desktop app the settings page can solve it; on the web
+  // only whoever runs the site can.
   const accessProblem = computed(() => {
-    if (error.value?.code === 'missing-credential') {
+    const code = error.value?.code;
+
+    if (code !== 'missing-credential' && code !== 'unauthorized') {
+      return null;
+    }
+
+    if (!desktop) {
+      return 'search.errorWebUnavailable';
+    }
+
+    if (code === 'missing-credential') {
       return 'search.errorNoAccess';
     }
 
-    if (error.value?.code === 'unauthorized') {
-      return credentials.hasKey
-        ? 'search.errorOwnKeyRefused'
-        : 'search.errorAppRefused';
-    }
-
-    return null;
+    return credentials.hasKey
+      ? 'search.errorOwnKeyRefused'
+      : 'search.errorAppRefused';
   });
 
   // The user may be coming back from the settings, where the credential
@@ -58,7 +69,7 @@
     <p>
       {{ t(accessProblem ?? 'search.error') }}
     </p>
-    <RouterLink v-if="accessProblem" :to="{ name: 'settings' }">
+    <RouterLink v-if="accessProblem && desktop" :to="{ name: 'settings' }">
       {{ t('search.openSettings') }}
     </RouterLink>
   </div>

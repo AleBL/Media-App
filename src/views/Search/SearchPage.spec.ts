@@ -174,6 +174,22 @@ describe('SearchPage', () => {
       expect(alert.get('a').attributes('href')).toBe('#/settings');
     });
 
+    it.each(['missing-credential', 'unauthorized'] as const)(
+      'on the web, a %s failure is the site being unavailable, with no settings to offer',
+      async (code) => {
+        api.platform = 'web';
+        failedSearch(code);
+
+        await mountPage();
+
+        const alert = wrapper.get('[role="alert"]');
+        expect(alert.text()).toContain(
+          'The search is unavailable at the moment.',
+        );
+        expect(alert.find('a').exists()).toBe(false);
+      },
+    );
+
     it('searches again when the user comes back, as the credential may have changed', async () => {
       failedSearch('unauthorized');
       api.tmdb.search.mockResolvedValue({

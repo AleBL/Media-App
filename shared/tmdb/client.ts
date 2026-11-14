@@ -5,7 +5,7 @@ import {
   type Paged,
   type SearchRequest,
   type TmdbErrorCode,
-} from '../../../shared/api';
+} from '../api';
 
 export const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 

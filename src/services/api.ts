@@ -1,15 +1,29 @@
 import type { MediaAppApi } from '@shared/api';
+import { createWebApi } from './webApi';
+
+let webApi: MediaAppApi | undefined;
 
 /**
- * The API exposed by the preload script. The renderer has no other way to
- * reach TMDB or the main process, so its absence is an error.
+ * The renderer's only way to TMDB. In the desktop app it is the API that
+ * the preload script exposes; as a web page, it is the same API over HTTP.
  */
 export function getApi(): MediaAppApi {
-  if (!window.api) {
+  if (window.api) {
+    return window.api;
+  }
+
+  // Inside Electron the preload script always runs. Falling back to the web
+  // version there would only hide that something is broken.
+  if (navigator.userAgent.includes('Electron')) {
     throw new Error(
-      'window.api is missing: the app must run in Electron with its preload script',
+      'window.api is missing: the preload script of the app did not run',
     );
   }
 
-  return window.api;
+  webApi ??= createWebApi();
+
+  return webApi;
 }
+
+/** False when the app runs as a web page instead of installed. */
+export const isDesktop = () => getApi().platform === 'desktop';

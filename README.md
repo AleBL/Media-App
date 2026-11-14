@@ -75,6 +75,14 @@ cp .env.example .env.local # ignored by git
 
 The token is compiled into the main process only (`dist-electron/main`), never into the renderer. It is not in the repository, but anyone can extract it from a distributed app: treat it as what identifies the app to TMDB, not as a secret, and be ready to replace it. A key that a user saves in **Settings** is used instead of it, which keeps their copy working if the token is ever revoked.
 
+### The web version 🌐
+
+The same interface also runs as a web page, deployed by Vercel. A page cannot hold the credential (everything a browser loads is public), so there it asks a function of the site, `api/tmdb.ts`, which keeps `TMDB_READ_TOKEN` on the server and only does what the app does: search movies and tv shows, and list genres.
+
+- On Vercel, set `TMDB_READ_TOKEN` in the project's environment variables, for Production and for Preview. Never give it a `VITE_` prefix: that would put it in the page.
+- The web version has no Settings page: a browser has no safe place for a key of the user.
+- Locally, `npm run dev` and `npx vite preview` answer `/api/tmdb` with the same code, so opening the address they print in a browser shows the web version.
+
 ### Start developing ⚒️
 
 ```bash
@@ -116,6 +124,8 @@ npm run test:watch # run unit tests in watch mode
 npm run test:e2e   # build the app and drive it end to end (playwright)
 ```
 
+The end-to-end tests cover the two ways the app runs: as a desktop app, in Electron (`e2e/*.spec.ts`), and as a web page, in a browser (`e2e/web`). The browser has to be downloaded once with `npx playwright install chromium`; to run only one of the two, add `-- --project=desktop` or `-- --project=web`.
+
 The end-to-end tests in `e2e/` start the real app against a local stand-in for the TMDB API (`e2e/support/fake-tmdb.ts`), each with its own profile folder, so they need neither a TMDB credential nor a connection. On Linux they run without opening a window; set `E2E_SHOW=1` to watch them.
 
 The run builds the app itself (`e2e/support/global-setup.ts`) with a made up credential, so a real token from `.env.local` is never in the app under test. That test build stays in `dist` and `dist-electron` afterwards: the `build` scripts replace it, but run `npx vite build` before starting or packaging the app by hand.
@@ -129,18 +139,22 @@ npm run deps:update # run taze major -I
 ## Project Structure
 
 ```bash
+📦api
+ ┗ 📜tmdb.ts # Vercel Function: answers TMDB requests for the web version
 📦config # build helpers shared by the Vite and Vitest configs
 📦e2e # end-to-end tests: the built app against a local stand-in for TMDB
+ ┗ 📦web # the same for the web version, in a browser
 📦electron
  ┣ 📦main
- ┃ ┣ 📦tmdb # TMDB client, credentials, genre cache and input validation
+ ┃ ┣ 📦tmdb # credentials and genre cache of the desktop app
  ┃ ┣ 📜index.ts # entry of Electron-Main
  ┃ ┣ 📜ipc.ts # handlers behind window.api
  ┃ ┗ 📜security.ts # rules for navigation, external links and IPC input
  ┗ 📦preload
    ┗ 📜index.ts # exposes window.api to the renderer, loading screen
-📦shared
- ┗ 📜api.ts # contract between the preload script and the renderer
+📦shared # used by more than one of: main process, renderer, web function
+ ┣ 📦tmdb # TMDB client, input validation and the proxy behind the web version
+ ┗ 📜api.ts # what the renderer can ask, on the desktop and on the web
 📦src
  ┣ 📦assets
  ┣ 📦components
@@ -148,7 +162,7 @@ npm run deps:update # run taze major -I
  ┣ 📦plugins
  ┣ 📦presets # PrimeVue Components Styled with Tailwind CSS - https://github.com/primefaces/primevue-tailwind
  ┣ 📦router
- ┣ 📦services # access to window.api
+ ┣ 📦services # the api of the renderer: window.api, or HTTP on the web
  ┣ 📦stores # Pinia stores: search, genres, TMDB credential status
  ┣ 📦style
  ┣ 📦test # helpers for the unit tests
@@ -161,7 +175,9 @@ npm run deps:update # run taze major -I
 
 The renderer is plain web code: it runs sandboxed, with context isolation and without Node or Electron access. Whatever it needs from the main process is exposed by the preload script as `window.api` and declared in `shared/api.ts`. To add a capability, declare it there, implement it in `electron/preload/index.ts` and handle it in `electron/main/ipc.ts`, validating every value that comes from the renderer.
 
-TMDB is only reached from the main process. The renderer asks through `window.api.tmdb` and never sees a credential. The app's own is compiled into the main process (see [Give the app access to TMDB](#give-the-app-access-to-tmdb-)), and the optional key of the user is saved by the main process, encrypted by the operating system when a keyring is available. The end-to-end tests check that the app's credential is in no file that the window loads. Unit tests replace `window.api` with `installFakeApi()` from `src/test/fakeApi.ts`.
+In the desktop app, TMDB is only reached from the main process. The renderer asks through `window.api.tmdb` and never sees a credential. The app's own is compiled into the main process (see [Give the app access to TMDB](#give-the-app-access-to-tmdb-)), and the optional key of the user is saved by the main process, encrypted by the operating system when a keyring is available. The end-to-end tests check that the app's credential is in no file that the window loads. Unit tests replace `window.api` with `installFakeApi()` from `src/test/fakeApi.ts`.
+
+The web version has no main process, so the same `shared/api.ts` is implemented over HTTP (`src/services/webApi.ts`) on top of `api/tmdb.ts`. That function is not a general proxy: it accepts only the requests of the app, validates them with the code the main process uses (`shared/tmdb/validation.ts`) and lets the CDN cache the answers. A capability added to `shared/api.ts` has to be implemented there too, or the web version loses it.
 
 The window only shows the app itself: other links open in the system browser (https only), permission requests are denied and the Content-Security-Policy is generated by `vite.config.mts`.
 

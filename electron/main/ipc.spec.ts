@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IPC, type CredentialStatus } from '../../shared/api';
 import { registerIpc, type IpcEvent, type IpcServices } from './ipc';
-import { TmdbError } from './tmdb/client';
+import { TmdbError } from '../../shared/tmdb/client';
 
 const APP_URL = 'file:///opt/media-app/dist/index.html#/search';
 const KEY = '0123456789abcdef0123456789abcdef';

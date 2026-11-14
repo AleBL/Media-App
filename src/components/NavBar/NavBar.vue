@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import Menubar from 'primevue/menubar';
   import { ref } from 'vue';
+  import { isDesktop } from '@/services/api';
   import { ThemeItem } from './theme';
   import { LanguageItem } from './language';
 
@@ -30,13 +31,19 @@
     },
     themeItem.getThemes(),
     languageItem.getLanguages(),
-    {
-      label: computed(() => {
-        return t('pageTitles.settings');
-      }),
-      icon: 'pi pi-cog',
-      route: '/settings',
-    },
+    // The only setting so far is the user's own TMDB key, which a web page
+    // has no safe place to keep.
+    ...(isDesktop()
+      ? [
+          {
+            label: computed(() => {
+              return t('pageTitles.settings');
+            }),
+            icon: 'pi pi-cog',
+            route: '/settings',
+          },
+        ]
+      : []),
     {
       label: computed(() => {
         return t('pageTitles.about');

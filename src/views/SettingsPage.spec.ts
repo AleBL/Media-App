@@ -57,6 +57,16 @@ describe('SettingsPage', () => {
     expect(wrapper.text()).not.toContain('built without access');
   });
 
+  it('has nothing to set up in the web version, which keeps no key', async () => {
+    api.platform = 'web';
+
+    await mountPage();
+
+    expect(wrapper.text()).toContain('nothing to set up in the web version');
+    expect(wrapper.find('input').exists()).toBe(false);
+    expect(wrapper.find('a').exists()).toBe(false);
+  });
+
   it('links to the page of TMDB where keys are created', async () => {
     api.credentials.status.mockResolvedValue(SAVED_KEY);
 

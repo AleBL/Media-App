@@ -39,12 +39,14 @@
     "typecheck": "vue-tsc --noEmit && tsc -p tsconfig.node.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "vite build && playwright test",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "deps:update": "taze major -I"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.1",
     "@types/minimatch": "^5.1.2",
     "@types/yargs": "^17.0.35",
     "@types/yargs-parser": "^21.0.3",

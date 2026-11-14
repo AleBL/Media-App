@@ -16,6 +16,8 @@
   "include": [
     "vite.config.mts",
     "vitest.config.mts",
+    "playwright.config.ts",
+    "e2e",
     "electron",
     "config",
     "shared"

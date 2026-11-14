@@ -1,12 +1,9 @@
 {
-  "common": {
-    "clickHere": "Haga clic aquí"
-  },
-
   "pageTitles": {
     "home": "Página de Inicio",
     "about": "Acerca de",
     "search": "Buscar",
+    "settings": "Ajustes",
     "movie": "Pélicula",
     "tvShow": "Serie"
   },
@@ -18,11 +15,16 @@
   },
 
   "homePage": {
-    "descriptionInput": "Para poder utilizar la aplicación necesitas seguir los siguientes pasos:",
-    "stepOne": "para acceder al sitio web de TMDB.",
-    "stepTwo": "Genera tu clave API si aún no tienes una.",
-    "stepThree": "Introdúcelo en el campo de abajo y guárdalo.",
-    "stepFour": "Si desea eliminar la clave, simplemente presione eliminar.",
+    "intro": "Encuentra películas y series, con carteles, géneros y notas de TMDB.",
+    "startSearching": "Empezar a buscar"
+  },
+
+  "settings": {
+    "ownKeyTitle": "Tu propia clave de TMDB",
+    "ownKeyOptional": "La aplicación ya tiene acceso a TMDB, así que esto es opcional. Una clave tuya se usa en lugar de la de la aplicación, lo que mantiene la búsqueda funcionando si el acceso de la aplicación deja de funcionar algún día.",
+    "ownKeyRequired": "Esta copia de la aplicación se generó sin acceso a TMDB. Guarda una clave tuya para poder buscar.",
+    "getKey": "Obtener una clave en el sitio web de TMDB",
+    "keyLabel": "Clave de TMDB",
     "keySaved": "Hay una clave guardada",
     "saveKey": "Guardar clave",
     "removeKey": "Eliminar clave",
@@ -35,7 +37,9 @@
     "notFound": "No se encontraron registros",
     "loading": "Buscando...",
     "error": "La búsqueda falló. Comprueba tu conexión e inténtalo de nuevo.",
-    "errorUnauthorized": "Falta la clave de la API de TMDB o no es válida.",
-    "configureKey": "Configura la clave en la página de inicio"
+    "errorNoAccess": "Esta copia de la aplicación no tiene acceso a TMDB. Guarda una clave tuya en los ajustes.",
+    "errorAppRefused": "TMDB rechazó el acceso de la aplicación. Actualiza la aplicación o usa una clave tuya.",
+    "errorOwnKeyRefused": "TMDB rechazó tu clave. Compruébala o elimínala en los ajustes.",
+    "openSettings": "Abrir los ajustes"
   }
 }

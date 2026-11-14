@@ -1,7 +1,8 @@
 <script setup lang="ts">
-  import { computed, watch } from 'vue';
+  import { computed, onMounted, watch } from 'vue';
   import { storeToRefs } from 'pinia';
   import { TMDB_PAGE_SIZE } from '@shared/api';
+  import { useCredentialsStore } from '@/stores/credentials';
   import { useGenresStore } from '@/stores/genres';
   import { useSearchStore } from '@/stores/search';
   import Paginator from 'primevue/paginator';
@@ -12,14 +13,32 @@
   const { t, locale } = useI18n();
   const store = useSearchStore();
   const genres = useGenresStore();
+  const credentials = useCredentialsStore();
   const { results, totalResults, currentPage, loading, searched, error } =
     storeToRefs(store);
 
-  const needsKey = computed(
-    () =>
-      error.value?.code === 'missing-credential' ||
-      error.value?.code === 'unauthorized',
-  );
+  // A failure that the settings page can solve, as the message to show.
+  const accessProblem = computed(() => {
+    if (error.value?.code === 'missing-credential') {
+      return 'search.errorNoAccess';
+    }
+
+    if (error.value?.code === 'unauthorized') {
+      return credentials.hasKey
+        ? 'search.errorOwnKeyRefused'
+        : 'search.errorAppRefused';
+    }
+
+    return null;
+  });
+
+  // The user may be coming back from the settings, where the credential
+  // changed: ask again instead of showing the old failure.
+  onMounted(() => {
+    if (accessProblem.value) {
+      store.search(currentPage.value);
+    }
+  });
 
   // Genre names come from TMDB too. Asking again after each answer costs
   // nothing once they are loaded, and recovers from an earlier failure.
@@ -37,10 +56,10 @@
     class="search-message text-red-600 dark:text-red-400"
   >
     <p>
-      {{ needsKey ? t('search.errorUnauthorized') : t('search.error') }}
+      {{ t(accessProblem ?? 'search.error') }}
     </p>
-    <RouterLink v-if="needsKey" :to="{ name: 'home' }">
-      {{ t('search.configureKey') }}
+    <RouterLink v-if="accessProblem" :to="{ name: 'settings' }">
+      {{ t('search.openSettings') }}
     </RouterLink>
   </div>
 

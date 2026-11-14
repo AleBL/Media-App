@@ -1,6 +1,4 @@
 <script setup lang="ts">
-  import TokenInput from '@/components/Home/TokenInput.vue';
-
   const { t } = useI18n();
 </script>
 
@@ -11,21 +9,14 @@
     </h1>
   </div>
 
-  <div class="grid justify-center pb-4">
-    <ol class="list-decimal">
-      <li>
-        <a href="https://www.themoviedb.org/settings/api" target="_blank">{{
-          t('common.clickHere')
-        }}</a>
-        {{ t('homePage.stepOne') }}
-      </li>
-      <li>{{ t('homePage.stepTwo') }}</li>
-      <li>{{ t('homePage.stepThree') }}</li>
-      <li>{{ t('homePage.stepFour') }}</li>
-    </ol>
-  </div>
-
-  <div class="flex justify-center items-center gap-3">
-    <TokenInput />
+  <div class="mx-auto max-w-xl px-4 pb-4 text-center">
+    <p class="mb-4">{{ t('homePage.intro') }}</p>
+    <RouterLink
+      :to="{ name: 'search' }"
+      class="inline-flex items-center gap-2 rounded-md bg-primary-500 px-4 py-2 font-semibold text-white no-underline hover:bg-primary-600"
+    >
+      <span class="pi pi-search" aria-hidden="true" />
+      {{ t('homePage.startSearching') }}
+    </RouterLink>
   </div>
 </template>

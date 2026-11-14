@@ -1,12 +1,9 @@
 {
-  "common": {
-    "clickHere": "Click here"
-  },
-
   "pageTitles": {
     "home": "Home Page",
     "about": "About Page",
     "search": "Search",
+    "settings": "Settings",
     "movie": "Movie",
     "tvShow": "TV Show"
   },
@@ -18,11 +15,16 @@
   },
 
   "homePage": {
-    "descriptionInput": "To be able to use the application you need to follow the steps below:",
-    "stepOne": "to access the TMDB website.",
-    "stepTwo": "Generate your api key if you don't already have one.",
-    "stepThree": "Enter it in the field below and save.",
-    "stepFour": "If you want to delete the key, just press delete.",
+    "intro": "Find movies and TV shows, with posters, genres and ratings from TMDB.",
+    "startSearching": "Start searching"
+  },
+
+  "settings": {
+    "ownKeyTitle": "Your own TMDB key",
+    "ownKeyOptional": "The app already has access to TMDB, so this is optional. A key of your own is used instead of the app's, which keeps the search working if the app's access ever stops.",
+    "ownKeyRequired": "This copy of the app was built without access to TMDB. Save a key of your own to be able to search.",
+    "getKey": "Get a key on the TMDB website",
+    "keyLabel": "TMDB key",
     "keySaved": "A key is saved",
     "saveKey": "Save key",
     "removeKey": "Remove key",
@@ -35,7 +37,9 @@
     "notFound": "No records found",
     "loading": "Searching...",
     "error": "The search failed. Check your connection and try again.",
-    "errorUnauthorized": "The TMDB API key is missing or invalid.",
-    "configureKey": "Set the key on the home page"
+    "errorNoAccess": "This copy of the app has no access to TMDB. Save a key of your own in the settings.",
+    "errorAppRefused": "TMDB refused the app's access. Update the app, or use a key of your own.",
+    "errorOwnKeyRefused": "TMDB refused your key. Check it or remove it in the settings.",
+    "openSettings": "Open the settings"
   }
 }

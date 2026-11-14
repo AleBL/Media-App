@@ -1,12 +1,9 @@
 {
-  "common": {
-    "clickHere": "Clique aqui"
-  },
-
   "pageTitles": {
     "home": "Página Inicial",
     "about": "Sobre",
     "search": "Procurar",
+    "settings": "Configurações",
     "movie": "Filme",
     "tvShow": "Série"
   },
@@ -18,11 +15,16 @@
   },
 
   "homePage": {
-    "descriptionInput": "Para poder usar o aplicativo é necessário seguir os passos abaixo:",
-    "stepOne": "para acessar o site do TMDB.",
-    "stepTwo": "Crie a sua chave da api, caso ainda não tenha uma.",
-    "stepThree": "Insira ela no campo abaixo e salve.",
-    "stepFour": "Caso queira excluir a chave é só apertar em deletar.",
+    "intro": "Encontre filmes e séries, com pôsteres, gêneros e notas do TMDB.",
+    "startSearching": "Começar a procurar"
+  },
+
+  "settings": {
+    "ownKeyTitle": "Sua própria chave do TMDB",
+    "ownKeyOptional": "O app já tem acesso ao TMDB, então isto é opcional. Uma chave sua é usada no lugar da do app, o que mantém a busca funcionando se o acesso do app um dia parar.",
+    "ownKeyRequired": "Esta cópia do app foi gerada sem acesso ao TMDB. Salve uma chave sua para poder procurar.",
+    "getKey": "Obter uma chave no site do TMDB",
+    "keyLabel": "Chave do TMDB",
     "keySaved": "Há uma chave salva",
     "saveKey": "Salvar chave",
     "removeKey": "Remover chave",
@@ -35,7 +37,9 @@
     "notFound": "Nenhum registro foi encontrado",
     "loading": "Buscando...",
     "error": "A busca falhou. Verifique sua conexão e tente novamente.",
-    "errorUnauthorized": "A chave da API do TMDB está ausente ou é inválida.",
-    "configureKey": "Configure a chave na página inicial"
+    "errorNoAccess": "Esta cópia do app não tem acesso ao TMDB. Salve uma chave sua nas configurações.",
+    "errorAppRefused": "O TMDB recusou o acesso do app. Atualize o app ou use uma chave sua.",
+    "errorOwnKeyRefused": "O TMDB recusou a sua chave. Confira ou remova a chave nas configurações.",
+    "openSettings": "Abrir as configurações"
   }
 }

@@ -21,8 +21,8 @@ app.use(PrimeVue, {
   ripple: true,
 });
 
-// Asks the main process whether a TMDB key is saved, and hands over a key
-// that an older version of the app left in localStorage.
+// Asks the main process which TMDB credential the app has, and deals with a
+// key that an older version of the app left in localStorage.
 useCredentialsStore(pinia).load().catch(console.error);
 
 app.directive('ripple', Ripple);

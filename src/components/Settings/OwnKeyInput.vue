@@ -9,8 +9,9 @@
   const credentials = useCredentialsStore();
   const { hasKey, persisted, encrypted } = storeToRefs(credentials);
 
-  // The typed key is sent to the main process and then forgotten here: a
-  // saved key is never shown again.
+  // A key of the user's own, used instead of the app's credential. The typed
+  // key is sent to the main process and then forgotten here: a saved key is
+  // never shown again.
   const draft = ref('');
   const rejected = ref(false);
 
@@ -38,13 +39,17 @@
 
 <template>
   <div class="flex flex-col items-center gap-2">
+    <label for="own-key" class="font-semibold">
+      {{ t('settings.keyLabel') }}
+    </label>
     <div class="flex items-center gap-3">
       <Password
         v-model="draft"
+        input-id="own-key"
         :feedback="false"
         :toggle-mask="!hasKey"
         :disabled="hasKey"
-        :placeholder="hasKey ? t('homePage.keySaved') : ''"
+        :placeholder="hasKey ? t('settings.keySaved') : ''"
         style="width: 330px"
         @keyup.enter="save"
       />
@@ -52,13 +57,13 @@
         v-if="hasKey"
         icon="pi pi-trash"
         severity="danger"
-        :aria-label="t('homePage.removeKey')"
+        :aria-label="t('settings.removeKey')"
         @click="remove"
       />
       <Button
         v-else
         icon="pi pi-save"
-        :aria-label="t('homePage.saveKey')"
+        :aria-label="t('settings.saveKey')"
         @click="save"
       />
     </div>
@@ -68,13 +73,13 @@
       role="alert"
       class="text-sm text-red-600 dark:text-red-400"
     >
-      {{ t('homePage.invalidKey') }}
+      {{ t('settings.invalidKey') }}
     </p>
     <p v-else-if="hasKey && !persisted" role="status" class="text-sm">
-      {{ t('homePage.keyNotPersisted') }}
+      {{ t('settings.keyNotPersisted') }}
     </p>
     <p v-else-if="hasKey && !encrypted" role="status" class="text-sm">
-      {{ t('homePage.keyNotEncrypted') }}
+      {{ t('settings.keyNotEncrypted') }}
     </p>
   </div>
 </template>

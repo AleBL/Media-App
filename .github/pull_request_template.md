@@ -8,7 +8,7 @@
 
 ## Checklist
 
-- [ ] `npm run lint:check`, `npm run typecheck`, `npm test` and `npx vite build` pass
+- [ ] `npm run lint:check`, `npm run typecheck`, `npm test` and `npm run test:e2e` pass
 - [ ] New or changed behavior is covered by a test (bug fix: a test that failed before)
 - [ ] New UI strings exist in all locales (`en`, `es`, `pt-BR`)
 - [ ] UI changes: screenshots in light and dark theme

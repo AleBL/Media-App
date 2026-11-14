@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useCredentialsStore } from '@/stores/credentials';
-import { installFakeApi, NO_KEY, SAVED_KEY } from '@/test/fakeApi';
+import { installFakeApi, NO_ACCESS, NO_KEY, SAVED_KEY } from '@/test/fakeApi';
 
 const KEY = '0123456789abcdef0123456789abcdef';
 
@@ -30,7 +30,36 @@ describe('credentials store', () => {
     expect(api.credentials.save).not.toHaveBeenCalled();
   });
 
-  it('hands a key left in localStorage to the main process and deletes it', async () => {
+  it('tells whether the app has its own access to TMDB', async () => {
+    expect(store.loaded).toBe(false);
+
+    await store.load();
+
+    expect(store.loaded).toBe(true);
+    expect(store.builtIn).toBe(true);
+    expect(store.hasKey).toBe(false);
+  });
+
+  it('tells when the app was built without access', async () => {
+    api.credentials.status.mockResolvedValue(NO_ACCESS);
+
+    await store.load();
+
+    expect(store.builtIn).toBe(false);
+  });
+
+  it('drops a key left in localStorage, now that the app has its own access', async () => {
+    localStorage.setItem('api_key', KEY);
+
+    await store.load();
+
+    expect(api.credentials.save).not.toHaveBeenCalled();
+    expect(localStorage.getItem('api_key')).toBeNull();
+    expect(store.hasKey).toBe(false);
+  });
+
+  it('hands that key to the main process when the app has no access of its own', async () => {
+    api.credentials.status.mockResolvedValue(NO_ACCESS);
     localStorage.setItem('api_key', KEY);
 
     await store.load();
@@ -41,7 +70,7 @@ describe('credentials store', () => {
   });
 
   it('does not replace a saved key with the one in localStorage', async () => {
-    api.credentials.status.mockResolvedValue(SAVED_KEY);
+    api.credentials.status.mockResolvedValue({ ...SAVED_KEY, builtIn: false });
     localStorage.setItem('api_key', KEY);
 
     await store.load();
@@ -51,6 +80,7 @@ describe('credentials store', () => {
   });
 
   it('just removes an empty entry left in localStorage', async () => {
+    api.credentials.status.mockResolvedValue(NO_ACCESS);
     localStorage.setItem('api_key', '');
 
     await store.load();
@@ -76,7 +106,7 @@ describe('credentials store', () => {
 
   it('tells when the key is kept for this session only', async () => {
     api.credentials.save.mockResolvedValue({
-      hasKey: true,
+      ...SAVED_KEY,
       persisted: false,
       encrypted: false,
     });
@@ -89,8 +119,7 @@ describe('credentials store', () => {
 
   it('tells when the saved key is not encrypted', async () => {
     api.credentials.status.mockResolvedValue({
-      hasKey: true,
-      persisted: true,
+      ...SAVED_KEY,
       encrypted: false,
     });
 

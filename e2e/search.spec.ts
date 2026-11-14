@@ -1,16 +1,9 @@
-import { QUERY_WITHOUT_RESULTS, VALID_KEY } from './support/fake-tmdb';
-import {
-  cards,
-  expect,
-  openPage,
-  saveKey,
-  searchBox,
-  test,
-} from './support/fixtures';
+import { QUERY_WITHOUT_RESULTS } from './support/fake-tmdb';
+import { cards, expect, openPage, searchBox, test } from './support/fixtures';
 
+// Nothing is set up first: the app searches with its own credential.
 test.describe('search', () => {
   test.beforeEach(async ({ page }) => {
-    await saveKey(page, VALID_KEY);
     await openPage(page, 'search');
   });
 
@@ -23,6 +16,7 @@ test.describe('search', () => {
     await expect(cards(page).first()).toContainText('7.50');
     expect(tmdb.lastSearch()).toEqual({
       path: '/3/search/movie',
+      credential: 'app',
       query: 'tom & jerry',
       page: '1',
       language: 'en',

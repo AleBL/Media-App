@@ -2,6 +2,7 @@ import { createWebHashHistory, createRouter, RouteRecordRaw } from 'vue-router';
 import HomePage from '@/views/HomePage.vue';
 import AboutPage from '@/views/AboutPage.vue';
 import SearchPage from '@/views/Search/SearchPage.vue';
+import SettingsPage from '@/views/SettingsPage.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -18,6 +19,11 @@ const routes: RouteRecordRaw[] = [
     path: '/search',
     name: 'search',
     component: SearchPage,
+  },
+  {
+    path: '/settings',
+    name: 'settings',
+    component: SettingsPage,
   },
   {
     path: '/about',

@@ -65,12 +65,14 @@ export type Result<T> =
   { ok: true; data: T } | { ok: false; error: TmdbFailure };
 
 export interface CredentialStatus {
-  /** A TMDB key is available for requests. */
+  /** The user saved a TMDB key of their own, used instead of the app's. */
   hasKey: boolean;
   /** The key is saved for the next launch, not only kept in memory. */
   persisted: boolean;
   /** The saved key is encrypted by the operating system. */
   encrypted: boolean;
+  /** The app was built with its own TMDB credential: no key is needed. */
+  builtIn: boolean;
 }
 
 export interface MediaAppApi {

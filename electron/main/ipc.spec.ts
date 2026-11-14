@@ -10,11 +10,13 @@ const SAVED: CredentialStatus = {
   hasKey: true,
   persisted: true,
   encrypted: true,
+  builtIn: true,
 };
 const NONE: CredentialStatus = {
   hasKey: false,
   persisted: false,
   encrypted: false,
+  builtIn: false,
 };
 
 const fromApp: IpcEvent = { senderFrame: { url: APP_URL } };

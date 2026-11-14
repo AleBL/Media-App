@@ -39,7 +39,7 @@
     "typecheck": "vue-tsc --noEmit && tsc -p tsconfig.node.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "vite build && playwright test",
+    "test:e2e": "playwright test",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "deps:update": "taze major -I"

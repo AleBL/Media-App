@@ -1,6 +1,6 @@
 import { readFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import AutoImport from 'unplugin-auto-import/vite';
 import electron from 'vite-plugin-electron';
@@ -9,6 +9,7 @@ import { dependencyVersions } from './config/dependency-versions.mjs';
 const pkg = JSON.parse(
   readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
 );
+const root = fileURLToPath(new URL('.', import.meta.url));
 const src = fileURLToPath(new URL('./src/', import.meta.url));
 const shared = fileURLToPath(new URL('./shared', import.meta.url));
 
@@ -59,8 +60,25 @@ function contentSecurityPolicy(): Plugin {
   };
 }
 
+// The TMDB credential of the app itself comes from TMDB_READ_TOKEN, set in
+// the environment or in .env.local (see .env.example). The empty prefix is
+// what makes loadEnv read a variable without VITE_ in its name, and that
+// missing VITE_ is what keeps Vite from handing it to the renderer.
+function appCredential(mode: string) {
+  const token = (loadEnv(mode, root, '').TMDB_READ_TOKEN ?? '').trim();
+
+  if (!token) {
+    console.warn(
+      '[media-app] TMDB_READ_TOKEN is not set: this build has no access to ' +
+        'TMDB of its own and will ask each user for a key. See .env.example.',
+    );
+  }
+
+  return token;
+}
+
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   define: {
     __VUE_I18N_FULL_INSTALL__: true,
     __VUE_I18N_LEGACY_API__: false,
@@ -99,6 +117,12 @@ export default defineConfig({
           }
         },
         vite: {
+          // Only the main process gets the credential: it is the one that
+          // talks to TMDB. Never move this to the `define` above, which is
+          // the renderer's.
+          define: {
+            __TMDB_READ_TOKEN__: JSON.stringify(appCredential(mode)),
+          },
           build: {
             sourcemap: isDevelopment,
             minify: isProduction,
@@ -136,4 +160,4 @@ export default defineConfig({
       })()
     : undefined,
   clearScreen: false,
-});
+}));

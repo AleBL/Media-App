@@ -6,16 +6,21 @@ import type {
   Paged,
 } from '@shared/api';
 
+/** The usual case: the app has its own credential and the user saved no key. */
 export const NO_KEY: CredentialStatus = {
   hasKey: false,
   persisted: false,
   encrypted: false,
+  builtIn: true,
 };
 export const SAVED_KEY: CredentialStatus = {
   hasKey: true,
   persisted: true,
   encrypted: true,
+  builtIn: true,
 };
+/** An app built without a credential, before the user saves a key. */
+export const NO_ACCESS: CredentialStatus = { ...NO_KEY, builtIn: false };
 
 export function pageOf(
   results: MediaItem[] = [],

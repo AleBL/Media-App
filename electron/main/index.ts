@@ -105,7 +105,13 @@ app.whenReady().then(async () => {
   );
 
   const userData = app.getPath('userData');
-  const credentials = createCredentialStore(userData, safeStorage);
+  // The app's own TMDB credential is put here by the build (vite.config.mts)
+  // and never reaches the renderer. A key saved by the user replaces it.
+  const credentials = createCredentialStore(
+    userData,
+    safeStorage,
+    __TMDB_READ_TOKEN__,
+  );
   await credentials.load();
 
   const tmdb = createTmdbClient({

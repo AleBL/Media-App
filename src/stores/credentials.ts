@@ -7,21 +7,27 @@ import { getApi } from '@/services/api';
 const LEGACY_STORAGE_KEY = 'api_key';
 
 /**
- * Whether a TMDB key is saved. The key itself lives in the main process and
- * never comes back to the renderer.
+ * Which TMDB credential the app has: its own, a key saved by the user, or
+ * none. The credentials themselves live in the main process and never come
+ * to the renderer.
  */
 export const useCredentialsStore = defineStore('credentials', () => {
+  // false until the main process answered for the first time
+  const loaded = ref(false);
   const hasKey = ref(false);
   const persisted = ref(false);
   const encrypted = ref(false);
+  const builtIn = ref(false);
 
   function apply(status: CredentialStatus) {
     hasKey.value = status.hasKey;
     persisted.value = status.persisted;
     encrypted.value = status.encrypted;
+    builtIn.value = status.builtIn;
+    loaded.value = true;
   }
 
-  /** Reads the status and hands over a key left in localStorage, once. */
+  /** Reads the status and clears a key left in localStorage, once. */
   async function load() {
     apply(await getApi().credentials.status());
 
@@ -31,7 +37,10 @@ export const useCredentialsStore = defineStore('credentials', () => {
       return;
     }
 
-    if (legacyKey && !hasKey.value) {
+    // The app searches with its own credential now, so the old key is just
+    // dropped. A copy built without one still needs that key: it is handed
+    // to the main process instead.
+    if (legacyKey && !hasKey.value && !builtIn.value) {
       apply(await getApi().credentials.save(legacyKey));
     }
 
@@ -49,5 +58,14 @@ export const useCredentialsStore = defineStore('credentials', () => {
     apply(await getApi().credentials.clear());
   }
 
-  return { hasKey, persisted, encrypted, load, save, clear };
+  return {
+    loaded,
+    hasKey,
+    persisted,
+    encrypted,
+    builtIn,
+    load,
+    save,
+    clear,
+  };
 });

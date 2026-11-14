@@ -31,7 +31,7 @@ export type FetchLike = (
 ) => Promise<FetchResponse>;
 
 export interface TmdbClientOptions {
-  /** The saved TMDB key, or null when there is none. */
+  /** The credential to send to TMDB, or null when there is none. */
   getCredential: () => string | null;
   fetch: FetchLike;
   baseUrl?: string;

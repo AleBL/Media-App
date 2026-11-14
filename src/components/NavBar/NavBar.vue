@@ -32,6 +32,13 @@
     languageItem.getLanguages(),
     {
       label: computed(() => {
+        return t('pageTitles.settings');
+      }),
+      icon: 'pi pi-cog',
+      route: '/settings',
+    },
+    {
+      label: computed(() => {
         return t('pageTitles.about');
       }),
       icon: 'pi pi-info-circle',

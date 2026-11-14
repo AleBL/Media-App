@@ -10,7 +10,7 @@ import {
 } from '@playwright/test';
 import { startFakeTmdb, type FakeTmdb } from './fake-tmdb';
 
-const projectRoot = resolve(__dirname, '../..');
+export const projectRoot = resolve(__dirname, '../..');
 
 // The tests do not need a visible window. E2E_SHOW=1 shows it, to watch a
 // test or to debug one.
@@ -26,7 +26,7 @@ export interface RunningApp {
 type Fixtures = {
   /** The local stand-in for the TMDB API that the app talks to. */
   tmdb: FakeTmdb;
-  /** The profile folder of the test: saved key, genre cache, localStorage. */
+  /** The profile folder of the test: the user's key, genre cache, localStorage. */
   userDataDir: string;
   /**
    * Starts the built app on the home page. Calling it again after
@@ -151,16 +151,31 @@ export const test = base.extend<Fixtures>({
 
 export { expect };
 
-/** Types a TMDB key on the home page and saves it. */
+/** Goes to a page through the menu, like a user would. */
+export async function openPage(
+  page: Page,
+  name: 'home' | 'search' | 'settings' | 'about',
+) {
+  await page.locator(`[data-pc-name="menubar"] a[href$="#/${name}"]`).click();
+  await expect(page).toHaveURL(new RegExp(`#/${name}$`));
+}
+
+/** The field of the settings page for a TMDB key of the user's own. */
+export const keyInput = (page: Page) =>
+  page.getByLabel('TMDB key', { exact: true });
+
+/** Saves a TMDB key of the user's own on the settings page. */
 export async function saveKey(page: Page, apiKey: string) {
-  await page.locator('input[type="password"]').fill(apiKey);
+  await openPage(page, 'settings');
+  await keyInput(page).fill(apiKey);
   await page.locator('button:has(.pi-save)').click();
 }
 
-/** Goes to a page through the menu, like a user would. */
-export async function openPage(page: Page, name: 'home' | 'search' | 'about') {
-  await page.locator(`a[href$="#/${name}"]`).click();
-  await expect(page).toHaveURL(new RegExp(`#/${name}$`));
+/** Removes the saved key on the settings page. */
+export async function removeKey(page: Page) {
+  await openPage(page, 'settings');
+  await page.locator('button:has(.pi-trash)').click();
+  await expect(keyInput(page)).toBeEnabled();
 }
 
 export const cards = (page: Page) => page.locator('.card-border');

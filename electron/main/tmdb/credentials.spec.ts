@@ -11,9 +11,25 @@ import {
 } from './credentials';
 
 const KEY = '0123456789abcdef0123456789abcdef';
-const NONE = { hasKey: false, persisted: false, encrypted: false };
-const ENCRYPTED = { hasKey: true, persisted: true, encrypted: true };
-const PLAIN = { hasKey: true, persisted: true, encrypted: false };
+const APP_TOKEN = 'app.read-access.token';
+const NONE = {
+  hasKey: false,
+  persisted: false,
+  encrypted: false,
+  builtIn: false,
+};
+const ENCRYPTED = {
+  hasKey: true,
+  persisted: true,
+  encrypted: true,
+  builtIn: false,
+};
+const PLAIN = {
+  hasKey: true,
+  persisted: true,
+  encrypted: false,
+  builtIn: false,
+};
 
 // Stands in for safeStorage: reversible, and never equal to the plain text.
 function fakeEncryption(
@@ -182,7 +198,61 @@ describe('credential store', () => {
       hasKey: true,
       persisted: false,
       encrypted: false,
+      builtIn: false,
     });
     expect(store.get()).toBe(KEY);
+  });
+
+  describe('in an app built with its own credential', () => {
+    const withAppToken = (token = APP_TOKEN) =>
+      createCredentialStore(directory, fakeEncryption(), token);
+
+    it('uses the credential of the app without asking for a key', async () => {
+      const store = withAppToken();
+
+      expect(await store.load()).toEqual({ ...NONE, builtIn: true });
+      expect(store.get()).toBe(APP_TOKEN);
+    });
+
+    it('prefers the key of the user', async () => {
+      const store = withAppToken();
+
+      expect(await store.save(KEY)).toEqual({ ...ENCRYPTED, builtIn: true });
+      expect(store.get()).toBe(KEY);
+
+      const nextLaunch = withAppToken();
+      await nextLaunch.load();
+
+      expect(nextLaunch.get()).toBe(KEY);
+    });
+
+    it('goes back to the credential of the app when the key is removed', async () => {
+      const store = withAppToken();
+      await store.save(KEY);
+
+      expect(await store.clear()).toEqual({ ...NONE, builtIn: true });
+      expect(store.get()).toBe(APP_TOKEN);
+    });
+
+    it('never writes the credential of the app to disk', async () => {
+      await withAppToken().load();
+
+      await missing(encryptedFile);
+      await missing(plainFile);
+    });
+
+    it.each(['', '   ', '\n'])(
+      'counts a blank credential (%j) as none',
+      async (blank) => {
+        const store = withAppToken(blank);
+
+        expect(await store.load()).toEqual(NONE);
+        expect(store.get()).toBeNull();
+      },
+    );
+
+    it('ignores spaces around the credential', async () => {
+      expect(withAppToken(` ${APP_TOKEN}\n`).get()).toBe(APP_TOKEN);
+    });
   });
 });

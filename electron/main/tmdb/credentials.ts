@@ -17,7 +17,13 @@ export const ENCRYPTED_FILE = 'tmdb-credential.bin';
 export const PLAIN_FILE = 'tmdb-credential.txt';
 
 /**
- * Keeps the TMDB key in the main process and on disk, inside `directory`.
+ * Decides which TMDB credential the requests use, and keeps the user's own
+ * key in the main process and on disk, inside `directory`.
+ *
+ * `appCredential` is the one the app was built with (empty when there is
+ * none). It is enough to search, so a key of the user is optional: when one
+ * is saved it is used instead, which keeps the app working if the app's
+ * credential is ever revoked.
  *
  * The key is encrypted by the operating system when it can do that. A
  * system without a keyring (some Linux setups) keeps it as plain text in a
@@ -31,9 +37,11 @@ export const PLAIN_FILE = 'tmdb-credential.txt';
 export function createCredentialStore(
   directory: string,
   encryption: Encryption,
+  appCredential = '',
 ) {
   const encryptedFile = join(directory, ENCRYPTED_FILE);
   const plainFile = join(directory, PLAIN_FILE);
+  const builtIn = appCredential.trim() || null;
 
   let key: string | null = null;
   let persisted = false;
@@ -43,6 +51,7 @@ export function createCredentialStore(
     hasKey: key !== null,
     persisted,
     encrypted,
+    builtIn: builtIn !== null,
   });
 
   async function canEncrypt() {
@@ -104,7 +113,8 @@ export function createCredentialStore(
   }
 
   return {
-    get: () => key,
+    /** The user's key when there is one, otherwise the app's credential. */
+    get: () => key ?? builtIn,
     status,
 
     /** Reads the key saved by a previous launch, if there is one. */

@@ -51,6 +51,7 @@ const NO_CREDENTIAL: CredentialStatus = {
   hasKey: false,
   persisted: false,
   encrypted: false,
+  builtIn: false,
 };
 
 function toFailure(error: unknown): TmdbFailure {

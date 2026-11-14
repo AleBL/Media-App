@@ -1,7 +1,12 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-/** The only key the stand-in accepts. Anything else gets a 401. */
+/**
+ * The credential the app is built with for these tests (global-setup.ts).
+ * Made up, in the three-part shape of a TMDB "API Read Access Token".
+ */
+export const APP_TOKEN = 'e2e.app-read-access.token';
+/** The only key of a user that the stand-in accepts. */
 export const VALID_KEY = '0123456789abcdef0123456789abcdef';
 export const REJECTED_KEY = 'ffffffffffffffffffffffffffffffff';
 
@@ -12,6 +17,8 @@ export const QUERY_WITHOUT_RESULTS = 'nothing like this';
 
 export interface TmdbRequest {
   path: string;
+  /** Whose credential came with the request, if one that is accepted. */
+  credential: 'app' | 'user' | 'rejected';
   query?: string;
   page?: string;
   language?: string;
@@ -22,6 +29,10 @@ export interface TmdbRequest {
  * The app is pointed at it through TMDB_BASE_URL, so the tests are fast,
  * repeatable and never leave the machine.
  *
+ * It accepts the app's token in the Authorization header and a user's key
+ * in the query string, the two ways TMDB itself takes a credential, and
+ * answers 401 to anything else.
+ *
  * Every search has 45 results: two full pages and a last one with five,
  * except QUERY_WITHOUT_RESULTS, which has none. Titles carry their number
  * and the language that was asked for, which lets a test tell what the app
@@ -29,6 +40,7 @@ export interface TmdbRequest {
  */
 export async function startFakeTmdb() {
   const requests: TmdbRequest[] = [];
+  let appTokenRevoked = false;
 
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? '/', 'http://tmdb.test');
@@ -37,10 +49,18 @@ export async function startFakeTmdb() {
       response.writeHead(status, { 'Content-Type': 'application/json' });
       response.end(JSON.stringify(body));
     };
+    const fromApp =
+      !appTokenRevoked &&
+      request.headers.authorization === `Bearer ${APP_TOKEN}`;
+    const credential = fromApp
+      ? 'app'
+      : apiKey === VALID_KEY
+        ? 'user'
+        : 'rejected';
 
-    requests.push({ path: url.pathname, ...query });
+    requests.push({ path: url.pathname, credential, ...query });
 
-    if (apiKey !== VALID_KEY) {
+    if (credential === 'rejected') {
       return send(401, {
         status_code: 7,
         status_message: 'Invalid API key: You must be granted a valid key.',
@@ -109,6 +129,10 @@ export async function startFakeTmdb() {
     requests,
     searches,
     lastSearch: () => searches().at(-1),
+    /** From now on the app's own token is refused, as if TMDB revoked it. */
+    revokeAppToken: () => {
+      appTokenRevoked = true;
+    },
     close: () =>
       new Promise<void>((resolve) => {
         server.closeAllConnections();

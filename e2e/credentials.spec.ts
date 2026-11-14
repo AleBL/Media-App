@@ -1,32 +1,35 @@
+import type { Page } from '@playwright/test';
 import { REJECTED_KEY, VALID_KEY } from './support/fake-tmdb';
 import {
   cards,
   expect,
+  keyInput,
   openPage,
+  removeKey,
   saveKey,
   searchBox,
   test,
 } from './support/fixtures';
 
-const keyInput = 'input[type="password"]';
+async function search(page: Page) {
+  await openPage(page, 'search');
+  await searchBox(page).fill('matrix');
+}
 
-test.describe('TMDB key', () => {
-  test('a search without a key explains it and leads to the home page', async ({
-    page,
-    tmdb,
-  }) => {
-    await openPage(page, 'search');
+test.describe('TMDB credential', () => {
+  test('a clean install searches without any setup', async ({ page, tmdb }) => {
+    await page.getByRole('link', { name: 'Start searching' }).click();
+    await expect(page).toHaveURL(/#\/search$/);
     await searchBox(page).fill('matrix');
 
-    const alert = page.getByRole('alert');
-    await expect(alert).toContainText(
-      'The TMDB API key is missing or invalid.',
-    );
-    expect(tmdb.searches()).toHaveLength(0);
+    await expect(cards(page)).toHaveCount(20);
+    expect(tmdb.lastSearch()?.credential).toBe('app');
 
-    await alert.getByRole('link').click();
+    await openPage(page, 'settings');
 
-    await expect(page).toHaveURL(/#\/home$/);
+    await expect(page.getByText('so this is optional')).toBeVisible();
+    await expect(keyInput(page)).toBeEnabled();
+    await expect(keyInput(page)).toHaveValue('');
   });
 
   test('text that is not a key is refused', async ({ page }) => {
@@ -35,47 +38,94 @@ test.describe('TMDB key', () => {
     await expect(page.getByRole('alert')).toHaveText(
       'This does not look like a TMDB key.',
     );
-    await expect(page.locator(keyInput)).toBeEnabled();
+    await expect(keyInput(page)).toBeEnabled();
   });
 
-  test('a key that TMDB rejects is reported on the search page', async ({
+  test('a key of the user is used instead of the credential of the app', async ({
     page,
+    tmdb,
+  }) => {
+    await saveKey(page, VALID_KEY);
+    await expect(keyInput(page)).toBeDisabled();
+
+    await search(page);
+
+    await expect(cards(page)).toHaveCount(20);
+    expect(tmdb.lastSearch()?.credential).toBe('user');
+  });
+
+  test('a key that TMDB rejects is reported, and removing it brings the search back', async ({
+    page,
+    tmdb,
   }) => {
     await saveKey(page, REJECTED_KEY);
-    await openPage(page, 'search');
-    await searchBox(page).fill('matrix');
+    await expect(keyInput(page)).toBeDisabled();
+    await search(page);
 
-    await expect(page.getByRole('alert')).toContainText(
-      'The TMDB API key is missing or invalid.',
-    );
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText('TMDB refused your key.');
     await expect(cards(page)).toHaveCount(0);
+
+    await alert.getByRole('link').click();
+    await expect(page).toHaveURL(/#\/settings$/);
+    await removeKey(page);
+    await openPage(page, 'search');
+
+    // The search page asks again by itself, now with the app's credential.
+    await expect(cards(page)).toHaveCount(20);
+    expect(tmdb.lastSearch()?.credential).toBe('app');
+  });
+
+  test('when TMDB refuses the app, a key of the user gets the search working', async ({
+    page,
+    tmdb,
+  }) => {
+    tmdb.revokeAppToken();
+    await search(page);
+
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText("TMDB refused the app's access.");
+    await expect(cards(page)).toHaveCount(0);
+
+    await alert.getByRole('link').click();
+    await expect(page).toHaveURL(/#\/settings$/);
+    await saveKey(page, VALID_KEY);
+    await expect(keyInput(page)).toBeDisabled();
+    await openPage(page, 'search');
+
+    await expect(cards(page)).toHaveCount(20);
+    expect(tmdb.lastSearch()?.credential).toBe('user');
   });
 
   test('a saved key survives a restart and is never shown again', async ({
     running,
     launchApp,
+    tmdb,
   }) => {
     await saveKey(running.page, VALID_KEY);
-    await expect(running.page.locator(keyInput)).toBeDisabled();
+    await expect(keyInput(running.page)).toBeDisabled();
     await running.app.close();
 
     const { page } = await launchApp();
+    await openPage(page, 'settings');
 
-    await expect(page.locator(keyInput)).toBeDisabled();
-    await expect(page.locator(keyInput)).toHaveValue('');
+    await expect(keyInput(page)).toBeDisabled();
+    await expect(keyInput(page)).toHaveValue('');
     expect(await page.content()).not.toContain(VALID_KEY);
     expect(
       await page.evaluate(() => JSON.stringify({ ...localStorage })),
     ).not.toContain(VALID_KEY);
 
-    await openPage(page, 'search');
-    await searchBox(page).fill('matrix');
+    await search(page);
+
     await expect(cards(page)).toHaveCount(20);
+    expect(tmdb.lastSearch()?.credential).toBe('user');
   });
 
-  test('a key left in localStorage by an older version is moved', async ({
+  test('a key left in localStorage by an older version is dropped', async ({
     running,
     launchApp,
+    tmdb,
   }) => {
     await running.page.evaluate(
       (key) => localStorage.setItem('api_key', key),
@@ -85,27 +135,17 @@ test.describe('TMDB key', () => {
 
     const { page } = await launchApp();
 
-    await expect(page.locator(keyInput)).toBeDisabled();
-    expect(
-      await page.evaluate(() => localStorage.getItem('api_key')),
-    ).toBeNull();
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem('api_key')))
+      .toBeNull();
 
-    await openPage(page, 'search');
-    await searchBox(page).fill('matrix');
+    // It did not become a saved key: the app's own credential is enough.
+    await openPage(page, 'settings');
+    await expect(keyInput(page)).toBeEnabled();
+
+    await search(page);
+
     await expect(cards(page)).toHaveCount(20);
-  });
-
-  test('a removed key is gone', async ({ page }) => {
-    await saveKey(page, VALID_KEY);
-    await expect(page.locator(keyInput)).toBeDisabled();
-
-    await page.locator('button:has(.pi-trash)').click();
-    await expect(page.locator(keyInput)).toBeEnabled();
-
-    await openPage(page, 'search');
-    await searchBox(page).fill('matrix');
-    await expect(page.getByRole('alert')).toContainText(
-      'The TMDB API key is missing or invalid.',
-    );
+    expect(tmdb.lastSearch()?.credential).toBe('app');
   });
 });

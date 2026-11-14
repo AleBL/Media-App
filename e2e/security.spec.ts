@@ -1,4 +1,7 @@
-import { expect, openPage, test } from './support/fixtures';
+import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { APP_TOKEN } from './support/fake-tmdb';
+import { expect, openPage, projectRoot, test } from './support/fixtures';
 
 test.describe('renderer isolation', () => {
   test('the page has no Node or Electron, only the preload api', async ({
@@ -106,6 +109,42 @@ test.describe('renderer isolation', () => {
     );
 
     expect(answer).toBe('denied');
+  });
+
+  test('the credential of the app stays in the main process', async ({
+    page,
+  }) => {
+    const holds = async (file: string) =>
+      (await readFile(file)).includes(APP_TOKEN);
+    const built = (path: string) => join(projectRoot, path);
+
+    // The app under test really carries the credential...
+    expect(await holds(built('dist-electron/main/index.js'))).toBe(true);
+    // ...but nothing that the window loads does.
+    expect(await holds(built('dist-electron/preload/index.js'))).toBe(false);
+
+    const rendererFiles = (
+      await readdir(built('dist'), { recursive: true, withFileTypes: true })
+    ).filter((entry) => entry.isFile());
+
+    expect(rendererFiles.length).toBeGreaterThan(0);
+
+    for (const entry of rendererFiles) {
+      const file = join(entry.parentPath, entry.name);
+
+      expect(await holds(file), file).toBe(false);
+    }
+
+    // And the page has no way to get it at run time.
+    const seen = await page.evaluate(async () =>
+      JSON.stringify([
+        await window.api?.credentials.status(),
+        { ...localStorage },
+        document.documentElement.outerHTML,
+      ]),
+    );
+
+    expect(seen).not.toContain(APP_TOKEN);
   });
 
   test('the page makes no request to TMDB by itself', async ({ page }) => {

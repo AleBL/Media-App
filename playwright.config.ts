@@ -1,9 +1,10 @@
 import { defineConfig } from '@playwright/test';
 
-// End-to-end tests: they start the built app (run `vite build` first, as
-// `npm run test:e2e` does) and drive its window. See e2e/support/fixtures.ts.
+// End-to-end tests: they build the app (e2e/support/global-setup.ts), start
+// it and drive its window. See e2e/support/fixtures.ts.
 export default defineConfig({
   testDir: 'e2e',
+  globalSetup: './e2e/support/global-setup.ts',
   outputDir: 'test-results',
   // Every test starts its own copy of the app. One at a time keeps the
   // machine usable while they run and the output easy to follow.

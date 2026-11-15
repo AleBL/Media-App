@@ -6,6 +6,7 @@ describe('router', () => {
     expect(router.resolve({ name: 'search' }).href).toBe('#/search');
     expect(router.resolve({ name: 'about' }).href).toBe('#/about');
     expect(router.resolve({ name: 'settings' }).href).toBe('#/settings');
+    expect(router.resolve({ name: 'account' }).href).toBe('#/account');
   });
 
   it('redirects the entry route to home', async () => {

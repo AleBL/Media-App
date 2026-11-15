@@ -4,6 +4,7 @@
     "about": "About Page",
     "search": "Search",
     "settings": "Settings",
+    "account": "Account",
     "movie": "Movie",
     "tvShow": "TV Show"
   },
@@ -43,5 +44,27 @@
     "errorOwnKeyRefused": "TMDB refused your key. Check it or remove it in the settings.",
     "errorWebUnavailable": "The search is unavailable at the moment. Please try again later.",
     "openSettings": "Open the settings"
+  },
+
+  "account": {
+    "signIn": "Sign in",
+    "intro": "Signing in with your TMDB account is optional: the search works without it.",
+    "howItWorks": "The approval happens on the TMDB website, in your browser. The app never sees your password.",
+    "signInWithTmdb": "Sign in with TMDB",
+    "waiting": "Approve the access on the TMDB page that opened in your browser. This page updates by itself.",
+    "alreadyApproved": "I already approved in the browser",
+    "cancel": "Cancel",
+    "notConfirmedYet": "TMDB has not confirmed the approval yet. Approve the access in the browser and try again.",
+    "pageDidNotOpen": "If the page did not open, copy this address into your browser:",
+    "signedInAs": "Signed in as {name}",
+    "signOut": "Sign out",
+    "tryAgain": "Try again",
+    "notOnWeb": "Signing in is not available in the web version yet.",
+    "error": {
+      "denied": "The access was not approved on the TMDB website.",
+      "timeout": "The approval took too long. Start again when you are ready.",
+      "network": "TMDB could not be reached. Check your connection and try again.",
+      "unavailable": "Signing in is unavailable at the moment. Please try again later."
+    }
   }
 }

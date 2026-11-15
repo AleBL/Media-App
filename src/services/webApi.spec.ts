@@ -39,6 +39,25 @@ describe('web api', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('has nobody signed in, and no way to sign in yet', async () => {
+    const fetch = answering({});
+    const { auth } = createWebApi(fetch);
+    const stop = auth.onChange(() => {
+      throw new Error('nothing ever changes');
+    });
+
+    expect(await auth.getSession()).toEqual({ status: 'anonymous' });
+    expect(await auth.login('en')).toEqual({
+      status: 'error',
+      reason: 'unavailable',
+    });
+    expect(await auth.confirmManual()).toEqual({ status: 'anonymous' });
+    expect(await auth.cancelLogin()).toEqual({ status: 'anonymous' });
+    expect(await auth.logout()).toEqual({ status: 'anonymous' });
+    expect(stop).not.toThrow();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('asks the site for a search and hands back its answer', async () => {
     const page = { page: 3, results: [], totalPages: 3, totalResults: 45 };
     const fetch = answering({ ok: true, data: page });

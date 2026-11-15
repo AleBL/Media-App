@@ -1,4 +1,5 @@
 import {
+  AUTH_PATHS,
   TMDB_PROXY_PATH,
   type CredentialStatus,
   type MediaAppApi,
@@ -19,10 +20,46 @@ const SERVER_CREDENTIAL: CredentialStatus = {
 
 const NO_SESSION: SessionState = { status: 'anonymous' };
 
+const LOGIN_FAILURES = ['denied', 'timeout', 'network', 'unavailable'];
+
 export type WebFetch = (
   url: string,
-  init: { headers: Record<string, string>; signal: AbortSignal },
+  init: {
+    /** GET when missing. */
+    method?: string;
+    headers: Record<string, string>;
+    signal: AbortSignal;
+  },
 ) => Promise<Pick<Response, 'status' | 'json'>>;
+
+/** A request to the site: why it has no answer, or the answer. */
+type Sent =
+  { failed: 'timeout' | 'network' } | { status: number; body: unknown };
+
+/** What the api needs of the browser, besides requests. */
+export interface WebBrowser {
+  /** Leaves the app for another address. */
+  navigate(url: string): void;
+  /**
+   * Calls `listener` once, when the browser brings the page back the way it
+   * was left (the back button) instead of loading it again.
+   */
+  onRestored(listener: () => void): void;
+}
+
+const thisBrowser: WebBrowser = {
+  navigate: (url) => window.location.assign(url),
+  onRestored(listener) {
+    const restored = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        window.removeEventListener('pageshow', restored);
+        listener();
+      }
+    };
+
+    window.addEventListener('pageshow', restored);
+  },
+};
 
 function isResult(value: unknown): value is Result<unknown> {
   if (typeof value !== 'object' || value === null) {
@@ -43,45 +80,104 @@ function isResult(value: unknown): value is Result<unknown> {
   );
 }
 
+// The site never says `pending`: on the web the wait for the approval
+// happens on the TMDB website, away from the app.
+function isSessionState(value: unknown): value is SessionState {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const { status, reason, account } = value as Record<string, unknown>;
+
+  if (status === 'anonymous') {
+    return true;
+  }
+
+  if (status === 'error') {
+    return typeof reason === 'string' && LOGIN_FAILURES.includes(reason);
+  }
+
+  return (
+    status === 'authenticated' &&
+    typeof account === 'object' &&
+    account !== null &&
+    typeof (account as { id?: unknown }).id === 'number' &&
+    typeof (account as { username?: unknown }).username === 'string'
+  );
+}
+
 /**
  * The api of shared/api.ts for the app running as a web page, where there
- * is no preload script and no main process. TMDB requests go to a function
- * of the site (api/tmdb.ts), which answers in the same shape as the main
- * process of the desktop app does.
+ * is no preload script and no main process. Its requests go to functions of
+ * the site (the files in /api), which answer in the same shape as the main
+ * process of the desktop app does. The TMDB credential and the session of
+ * whoever signed in stay with them.
  */
 export function createWebApi(
   fetch: WebFetch = (url, init) => window.fetch(url, init),
+  browser: WebBrowser = thisBrowser,
 ): MediaAppApi {
-  async function ask<T>(params: Record<string, string>): Promise<Result<T>> {
+  /** What the site answered, as JSON when it is JSON. */
+  async function send(url: string, method?: string): Promise<Sent> {
     let response: Awaited<ReturnType<WebFetch>>;
 
     try {
-      response = await fetch(
-        `${TMDB_PROXY_PATH}?${new URLSearchParams(params)}`,
-        {
-          headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(TIMEOUT_MS),
-        },
-      );
+      response = await fetch(url, {
+        ...(method ? { method } : {}),
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
     } catch (error) {
       const timedOut = error instanceof Error && error.name === 'TimeoutError';
 
-      return { ok: false, error: { code: timedOut ? 'timeout' : 'network' } };
+      return { failed: timedOut ? 'timeout' : 'network' };
     }
 
     try {
-      const body: unknown = await response.json();
-
-      if (isResult(body)) {
-        return body as Result<T>;
-      }
+      return { status: response.status, body: await response.json() };
     } catch {
-      // not JSON: handled below
+      // not JSON: for the caller to handle
+      return { status: response.status, body: undefined };
+    }
+  }
+
+  async function ask<T>(params: Record<string, string>): Promise<Result<T>> {
+    const answer = await send(
+      `${TMDB_PROXY_PATH}?${new URLSearchParams(params)}`,
+    );
+
+    if ('failed' in answer) {
+      return { ok: false, error: { code: answer.failed } };
+    }
+
+    if (isResult(answer.body)) {
+      return answer.body as Result<T>;
     }
 
     // Something else answered in place of the function, such as an error
     // page of the host.
-    return { ok: false, error: { code: 'server', status: response.status } };
+    return { ok: false, error: { code: 'server', status: answer.status } };
+  }
+
+  // What the site last said about the session.
+  let session = NO_SESSION;
+
+  async function askSession(path: string, method?: string) {
+    const answer = await send(path, method);
+
+    if ('failed' in answer) {
+      return { status: 'error', reason: 'network' } satisfies SessionState;
+    }
+
+    return isSessionState(answer.body)
+      ? answer.body
+      : ({ status: 'error', reason: 'unavailable' } satisfies SessionState);
+  }
+
+  async function getSession() {
+    session = await askSession(AUTH_PATHS.session);
+
+    return session;
   }
 
   return {
@@ -98,14 +194,47 @@ export function createWebApi(
       save: async () => SERVER_CREDENTIAL,
       clear: async () => SERVER_CREDENTIAL,
     },
-    // A web page has no safe place for a TMDB session: the site would have
-    // to keep it, which it does not do yet. Nobody is ever signed in here.
+    // A web page has no safe place for a TMDB session, so the site keeps
+    // it, in a cookie that scripts cannot read (shared/tmdb/web-auth.ts).
+    // The page asks who is signed in, like the window of the desktop app.
     auth: {
-      getSession: async () => NO_SESSION,
-      login: async () => ({ status: 'error', reason: 'unavailable' }),
-      confirmManual: async () => NO_SESSION,
-      cancelLogin: async () => NO_SESSION,
-      logout: async () => NO_SESSION,
+      getSession,
+
+      // The whole page goes to the TMDB website and comes back loaded
+      // again, already signed in or with the reason why not. So this only
+      // answers when the browser brings the page back as it was left.
+      login() {
+        browser.navigate(AUTH_PATHS.login);
+
+        return new Promise((resolve) => {
+          browser.onRestored(() => resolve(getSession()));
+        });
+      },
+
+      // There is no waiting here to confirm or to give up.
+      confirmManual: getSession,
+      async cancelLogin() {
+        if (session.status !== 'authenticated') {
+          session = NO_SESSION;
+        }
+
+        return session;
+      },
+
+      // Only the site can end the session: when it does not answer, whoever
+      // was signed in still is.
+      async logout() {
+        const answer = await askSession(AUTH_PATHS.logout, 'POST');
+
+        if (answer.status === 'anonymous') {
+          session = answer;
+        }
+
+        return session;
+      },
+
+      // Nothing changes while the page is open: the login happens away
+      // from it.
       onChange: () => () => {},
     },
   };

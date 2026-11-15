@@ -3,8 +3,7 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { extname, join, normalize, sep } from 'node:path';
 import { expect, test as base } from '@playwright/test';
-import { TMDB_PROXY_PATH } from '../../shared/api';
-import { createTmdbProxy } from '../../shared/tmdb/proxy';
+import { createSite } from '../../shared/tmdb/site';
 import { APP_TOKEN, startFakeTmdb, type FakeTmdb } from '../support/fake-tmdb';
 import { projectRoot } from '../support/fixtures';
 
@@ -27,26 +26,22 @@ const CONTENT_TYPES: Record<string, string> = {
 
 /**
  * The web version of the app as the site serves it: the built pages as
- * plain files, and the TMDB proxy at the path where Vercel runs
- * api/tmdb.ts. The proxy talks to the stand-in for TMDB.
+ * plain files, and the functions of the site at the paths where Vercel runs
+ * the files of /api. The functions talk to the stand-in for TMDB, and send
+ * the browser to its approval page instead of the TMDB website.
  */
-async function startSite(tmdbUrl: string, credential: string) {
-  const proxy = createTmdbProxy({ credential, baseUrl: tmdbUrl });
+async function startSite(tmdb: FakeTmdb, credential: string) {
+  const functions = createSite({
+    credential,
+    baseUrl: tmdb.url,
+    authorizeUrl: tmdb.websiteUrl,
+  });
 
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', 'http://site.test');
 
     try {
-      if (url.pathname === TMDB_PROXY_PATH) {
-        const answer = await proxy(
-          new Request(url, { method: request.method }),
-        );
-
-        answer.headers.forEach((value, name) =>
-          response.setHeader(name, value),
-        );
-        response.writeHead(answer.status);
-        response.end(await answer.text());
+      if (await functions(request, response)) {
         return;
       }
 
@@ -109,7 +104,7 @@ export const test = base.extend<Fixtures>({
   siteCredential: [APP_TOKEN, { option: true }],
 
   site: async ({ tmdb, siteCredential }, use) => {
-    const site = await startSite(tmdb.url, siteCredential);
+    const site = await startSite(tmdb, siteCredential);
 
     await use(site);
     await site.close();

@@ -2,13 +2,11 @@
   import { computed } from 'vue';
   import { storeToRefs } from 'pinia';
   import Button from 'primevue/button';
-  import { isDesktop } from '@/services/api';
   import { useSessionStore } from '@/stores/session';
 
   const { t, locale } = useI18n();
   const session = useSessionStore();
   const { state, account, notConfirmed, busy } = storeToRefs(session);
-  const desktop = isDesktop();
 
   const failure = computed(() =>
     state.value.status === 'error' ? state.value.reason : null,
@@ -30,12 +28,7 @@
     </h1>
   </div>
 
-  <!-- The menu of the web version has no link to this page -->
-  <p v-if="!desktop" class="mx-auto max-w-xl px-4 pb-4 text-center">
-    {{ t('account.notOnWeb') }}
-  </p>
-
-  <section v-else class="mx-auto max-w-xl px-4 pb-4 text-center">
+  <section class="mx-auto max-w-xl px-4 pb-4 text-center">
     <template v-if="account">
       <p class="mb-4">
         {{
@@ -51,6 +44,7 @@
       />
     </template>
 
+    <!-- Only in the desktop app: on the web the wait is on the TMDB website -->
     <template v-else-if="state.status === 'pending'">
       <p role="status" class="mb-4">
         {{ t('account.waiting') }}

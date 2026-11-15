@@ -3,11 +3,20 @@
 // In the desktop app that is the main process: the preload script exposes
 // this API as `window.api`, and the renderer has no other Node or Electron
 // access. On the web there is no preload script, and the same API is
-// implemented over HTTP (src/services/webApi.ts) on top of a function of the
-// site that keeps the credential on the server (api/tmdb.ts).
+// implemented over HTTP (src/services/webApi.ts) on top of functions of the
+// site, which keep the credential and the session on the server (the files
+// in /api).
 
 /** Where the site answers TMDB requests for the web version of the app. */
 export const TMDB_PROXY_PATH = '/api/tmdb';
+
+/** Where the site answers the sign-in requests of the web version. */
+export const AUTH_PATHS = {
+  login: '/api/auth/login',
+  callback: '/api/auth/callback',
+  session: '/api/auth/session',
+  logout: '/api/auth/logout',
+} as const;
 
 export type NativeTheme = 'system' | 'light' | 'dark';
 
@@ -152,6 +161,8 @@ export interface MediaAppApi {
     /**
      * Opens the approval page, with the result page in `language`. Answers
      * `pending` as soon as it is open: the rest arrives through `onChange`.
+     * On the web the app itself goes to that page and is loaded again on the
+     * way back, so there is no `pending` and nothing to wait for.
      */
     login(language: string): Promise<SessionState>;
     /**

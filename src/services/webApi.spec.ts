@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { SearchRequest } from '@shared/api';
+import type { SearchRequest, SessionState } from '@shared/api';
 import type { FetchLike } from '@shared/tmdb/client';
 import { createTmdbProxy } from '@shared/tmdb/proxy';
 import { createWebApi, type WebFetch } from '@/services/webApi';
@@ -11,10 +11,28 @@ const search: SearchRequest = {
   language: 'pt-BR',
 };
 
+const SIGNED_IN: SessionState = {
+  status: 'authenticated',
+  account: { id: 7, username: 'ada', name: 'Ada Lovelace' },
+};
+
 function answering(body: unknown, status = 200) {
   return vi.fn<WebFetch>(
     async () => new Response(JSON.stringify(body), { status }),
   );
+}
+
+/** A browser that goes nowhere, and brings the page back when told to. */
+function aBrowser() {
+  const waiting: (() => void)[] = [];
+
+  return {
+    navigate: vi.fn<(url: string) => void>(),
+    onRestored: (listener: () => void) => {
+      waiting.push(listener);
+    },
+    restore: () => waiting.splice(0).forEach((listener) => listener()),
+  };
 }
 
 describe('web api', () => {
@@ -39,23 +57,147 @@ describe('web api', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('has nobody signed in, and no way to sign in yet', async () => {
-    const fetch = answering({});
-    const { auth } = createWebApi(fetch);
-    const stop = auth.onChange(() => {
-      throw new Error('nothing ever changes');
+  describe('signing in', () => {
+    it('asks the site who is signed in', async () => {
+      const fetch = answering(SIGNED_IN);
+
+      await expect(createWebApi(fetch).auth.getSession()).resolves.toEqual(
+        SIGNED_IN,
+      );
+
+      const [url, init] = fetch.mock.calls[0];
+
+      expect(url).toBe('/api/auth/session');
+      expect(init.method).toBeUndefined();
+      expect(init.headers).toEqual({ Accept: 'application/json' });
     });
 
-    expect(await auth.getSession()).toEqual({ status: 'anonymous' });
-    expect(await auth.login('en')).toEqual({
-      status: 'error',
-      reason: 'unavailable',
+    it.each<SessionState>([
+      { status: 'anonymous' },
+      { status: 'error', reason: 'denied' },
+    ])('hands back what the site says: $status', async (state) => {
+      await expect(
+        createWebApi(answering(state)).auth.getSession(),
+      ).resolves.toEqual(state);
     });
-    expect(await auth.confirmManual()).toEqual({ status: 'anonymous' });
-    expect(await auth.cancelLogin()).toEqual({ status: 'anonymous' });
-    expect(await auth.logout()).toEqual({ status: 'anonymous' });
-    expect(stop).not.toThrow();
-    expect(fetch).not.toHaveBeenCalled();
+
+    it('takes the answer of a site that could not ask TMDB', async () => {
+      const state = { status: 'error', reason: 'network' };
+
+      await expect(
+        createWebApi(answering(state, 502)).auth.getSession(),
+      ).resolves.toEqual(state);
+    });
+
+    it.each([
+      ['could not be reached', new TypeError('Failed to fetch')],
+      [
+        'took too long',
+        new DOMException('The operation timed out.', 'TimeoutError'),
+      ],
+    ])('reports a site that %s', async (_case, error) => {
+      const fetch = vi.fn<WebFetch>(async () => {
+        throw error;
+      });
+
+      await expect(createWebApi(fetch).auth.getSession()).resolves.toEqual({
+        status: 'error',
+        reason: 'network',
+      });
+    });
+
+    it.each([
+      ['a page of the host', '<html>404</html>'],
+      ['JSON in another shape', JSON.stringify({ ok: true, data: [] })],
+      [
+        'a login that is waiting',
+        JSON.stringify({ status: 'pending', expiresAt: 1, authorizeUrl: '' }),
+      ],
+      [
+        'someone signed in without an account',
+        JSON.stringify({ status: 'authenticated', account: { id: '7' } }),
+      ],
+      [
+        'a failure it does not know',
+        JSON.stringify({ status: 'error', reason: 'hacked' }),
+      ],
+    ])('does not trust %s in place of the session', async (_case, text) => {
+      const fetch = vi.fn<WebFetch>(async () => new Response(text));
+
+      await expect(createWebApi(fetch).auth.getSession()).resolves.toEqual({
+        status: 'error',
+        reason: 'unavailable',
+      });
+    });
+
+    it('leaves the app for the site to sign in, and waits', async () => {
+      const fetch = answering(SIGNED_IN);
+      const browser = aBrowser();
+      const { auth } = createWebApi(fetch, browser);
+      let answered = false;
+
+      const login = auth.login('en').then((state) => {
+        answered = true;
+
+        return state;
+      });
+      await new Promise((resolve) => setTimeout(resolve));
+
+      expect(browser.navigate).toHaveBeenCalledExactlyOnceWith(
+        '/api/auth/login',
+      );
+      expect(answered).toBe(false);
+      expect(fetch).not.toHaveBeenCalled();
+
+      // the back button, in a browser that kept the page as it was
+      browser.restore();
+
+      await expect(login).resolves.toEqual(SIGNED_IN);
+      expect(fetch.mock.calls[0][0]).toBe('/api/auth/session');
+    });
+
+    it('signs out with a POST to the site', async () => {
+      const fetch = answering({ status: 'anonymous' });
+
+      await expect(createWebApi(fetch).auth.logout()).resolves.toEqual({
+        status: 'anonymous',
+      });
+
+      const [url, init] = fetch.mock.calls[0];
+
+      expect(url).toBe('/api/auth/logout');
+      expect(init.method).toBe('POST');
+    });
+
+    it.each([
+      ['does not answer', () => Promise.reject(new TypeError('Failed'))],
+      ['refuses', async () => new Response(null, { status: 403 })],
+    ])('is still signed in when the site %s', async (_case, answer) => {
+      const fetch = answering(SIGNED_IN);
+      const { auth } = createWebApi(fetch);
+
+      await auth.getSession();
+      fetch.mockImplementationOnce(answer);
+
+      await expect(auth.logout()).resolves.toEqual(SIGNED_IN);
+    });
+
+    it('has no waiting to confirm or to give up', async () => {
+      const fetch = answering(SIGNED_IN);
+      const { auth } = createWebApi(fetch);
+      const stop = auth.onChange(() => {
+        throw new Error('nothing changes by itself');
+      });
+
+      expect(await auth.cancelLogin()).toEqual({ status: 'anonymous' });
+      expect(fetch).not.toHaveBeenCalled();
+
+      expect(await auth.confirmManual()).toEqual(SIGNED_IN);
+      expect(fetch.mock.calls[0][0]).toBe('/api/auth/session');
+      // giving up signs nobody out
+      expect(await auth.cancelLogin()).toEqual(SIGNED_IN);
+      expect(stop).not.toThrow();
+    });
   });
 
   it('asks the site for a search and hands back its answer', async () => {

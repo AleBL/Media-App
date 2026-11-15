@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { IPC, type CredentialStatus } from '../../shared/api';
+import {
+  IPC,
+  type CredentialStatus,
+  type SessionState,
+} from '../../shared/api';
 import { registerIpc, type IpcEvent, type IpcServices } from './ipc';
 import { TmdbError } from '../../shared/tmdb/client';
 
@@ -17,6 +21,17 @@ const NONE: CredentialStatus = {
   persisted: false,
   encrypted: false,
   builtIn: false,
+};
+
+const ANONYMOUS: SessionState = { status: 'anonymous' };
+const PENDING: SessionState = {
+  status: 'pending',
+  expiresAt: 1_800_000_000_000,
+  authorizeUrl: 'https://www.themoviedb.org/authenticate/a1b2c3',
+};
+const SIGNED_IN: SessionState = {
+  status: 'authenticated',
+  account: { id: 7, username: 'ada' },
 };
 
 const fromApp: IpcEvent = { senderFrame: { url: APP_URL } };
@@ -53,6 +68,13 @@ describe('ipc handlers', () => {
         status: vi.fn(() => NONE),
         save: vi.fn(async () => SAVED),
         clear: vi.fn(async () => NONE),
+      },
+      auth: {
+        getSession: vi.fn(() => SIGNED_IN),
+        login: vi.fn(async () => PENDING),
+        confirmManual: vi.fn(async () => SIGNED_IN),
+        cancelLogin: vi.fn(() => ANONYMOUS),
+        logout: vi.fn(async () => ANONYMOUS),
       },
     };
 
@@ -172,6 +194,57 @@ describe('ipc handlers', () => {
       expect(await call(IPC.credentialClear, fromElsewhere)).toEqual(NONE);
       expect(services.credentials.save).not.toHaveBeenCalled();
       expect(services.credentials.clear).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('auth', () => {
+    it('tells the app who is signed in', async () => {
+      expect(await call(IPC.authSession, fromApp)).toEqual(SIGNED_IN);
+    });
+
+    it('starts a login with the language of the app', async () => {
+      await expect(call(IPC.authLogin, fromApp, 'pt-BR')).resolves.toEqual(
+        PENDING,
+      );
+      expect(services.auth.login).toHaveBeenCalledWith('pt-BR');
+    });
+
+    it.each([undefined, 42, '../../etc', 'english'])(
+      'starts the login in English when the language is %s',
+      async (language) => {
+        await call(IPC.authLogin, fromApp, language);
+
+        expect(services.auth.login).toHaveBeenCalledWith('en');
+      },
+    );
+
+    it('confirms, cancels and signs out for the app', async () => {
+      await expect(call(IPC.authConfirm, fromApp)).resolves.toEqual(SIGNED_IN);
+      expect(await call(IPC.authCancel, fromApp)).toEqual(ANONYMOUS);
+      await expect(call(IPC.authLogout, fromApp)).resolves.toEqual(ANONYMOUS);
+
+      expect(services.auth.confirmManual).toHaveBeenCalled();
+      expect(services.auth.cancelLogin).toHaveBeenCalled();
+      expect(services.auth.logout).toHaveBeenCalled();
+    });
+
+    it('tells other senders nothing and does nothing for them', async () => {
+      for (const channel of [
+        IPC.authSession,
+        IPC.authLogin,
+        IPC.authConfirm,
+        IPC.authCancel,
+        IPC.authLogout,
+      ]) {
+        expect(await call(channel, fromElsewhere, 'en')).toEqual(ANONYMOUS);
+        expect(await call(channel, { senderFrame: null }, 'en')).toEqual(
+          ANONYMOUS,
+        );
+      }
+
+      for (const method of Object.values(services.auth)) {
+        expect(method).not.toHaveBeenCalled();
+      }
     });
   });
 

@@ -59,7 +59,6 @@
     "signedInAs": "Sesión iniciada como {name}",
     "signOut": "Cerrar sesión",
     "tryAgain": "Intentar de nuevo",
-    "notOnWeb": "Todavía no se puede iniciar sesión en la versión web.",
     "error": {
       "denied": "El acceso no fue aprobado en el sitio de TMDB.",
       "timeout": "La aprobación tardó demasiado. Empieza de nuevo cuando quieras.",

@@ -59,7 +59,6 @@
     "signedInAs": "Signed in as {name}",
     "signOut": "Sign out",
     "tryAgain": "Try again",
-    "notOnWeb": "Signing in is not available in the web version yet.",
     "error": {
       "denied": "The access was not approved on the TMDB website.",
       "timeout": "The approval took too long. Start again when you are ready.",

@@ -53,25 +53,19 @@
       icon: 'pi pi-info-circle',
       route: '/about',
     },
-    // Signing in needs someone to keep the session, and on the web nobody
-    // does it yet.
-    ...(isDesktop()
-      ? [
-          {
-            label: computed(() => {
-              const account = session.account;
+    {
+      label: computed(() => {
+        const account = session.account;
 
-              return account
-                ? (account.name ?? account.username)
-                : t('account.signIn');
-            }),
-            icon: computed(() => {
-              return session.account ? 'pi pi-user' : 'pi pi-sign-in';
-            }),
-            route: '/account',
-          },
-        ]
-      : []),
+        return account
+          ? (account.name ?? account.username)
+          : t('account.signIn');
+      }),
+      icon: computed(() => {
+        return session.account ? 'pi pi-user' : 'pi pi-sign-in';
+      }),
+      route: '/account',
+    },
   ]);
 </script>
 

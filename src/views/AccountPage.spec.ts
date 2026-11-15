@@ -192,12 +192,15 @@ describe('AccountPage', () => {
     });
   });
 
-  it('has no sign in on the web version yet', async () => {
+  // On the web the whole page goes to TMDB, so the login never answers.
+  it('keeps the button out of the way while the page is leaving', async () => {
     api.platform = 'web';
-
+    api.auth.login.mockReturnValue(new Promise(() => {}));
     await mountPage();
 
-    expect(wrapper.text()).toContain('not available in the web version yet');
-    expect(wrapper.findAll('button')).toHaveLength(0);
+    await click('Sign in with TMDB');
+
+    expect(api.auth.login).toHaveBeenCalledExactlyOnceWith('en');
+    expect(button('Sign in with TMDB')!.attributes('disabled')).toBeDefined();
   });
 });

@@ -5,8 +5,9 @@ import { getApi } from '@/services/api';
 
 /**
  * Who is signed in to TMDB, if anyone. The session itself stays with
- * whoever holds the credential of the app (the main process, in the desktop
- * app): here there is only what the app shows of it.
+ * whoever holds the credential of the app (the main process of the desktop
+ * app, or the site of the web version): here there is only what the app
+ * shows of it.
  */
 export const useSessionStore = defineStore('session', () => {
   const state = ref<SessionState>({ status: 'anonymous' });

@@ -17,7 +17,14 @@ test.describe('renderer isolation', () => {
     expect(seen).toEqual({
       require: 'undefined',
       process: 'undefined',
-      api: ['credentials', 'platform', 'setNativeTheme', 'tmdb', 'versions'],
+      api: [
+        'auth',
+        'credentials',
+        'platform',
+        'setNativeTheme',
+        'tmdb',
+        'versions',
+      ],
       // no way to read the key back
       credentials: ['clear', 'save', 'status'],
     });

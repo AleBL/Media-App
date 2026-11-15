@@ -4,6 +4,7 @@
     "about": "Acerca de",
     "search": "Buscar",
     "settings": "Ajustes",
+    "account": "Cuenta",
     "movie": "Pélicula",
     "tvShow": "Serie"
   },
@@ -43,5 +44,27 @@
     "errorOwnKeyRefused": "TMDB rechazó tu clave. Compruébala o elimínala en los ajustes.",
     "errorWebUnavailable": "La búsqueda no está disponible en este momento. Inténtalo de nuevo más tarde.",
     "openSettings": "Abrir los ajustes"
+  },
+
+  "account": {
+    "signIn": "Iniciar sesión",
+    "intro": "Iniciar sesión con tu cuenta de TMDB es opcional: la búsqueda funciona sin ella.",
+    "howItWorks": "La aprobación se hace en el sitio de TMDB, en tu navegador. La aplicación nunca ve tu contraseña.",
+    "signInWithTmdb": "Iniciar sesión con TMDB",
+    "waiting": "Aprueba el acceso en la página de TMDB que se abrió en tu navegador. Esta página se actualiza sola.",
+    "alreadyApproved": "Ya lo aprobé en el navegador",
+    "cancel": "Cancelar",
+    "notConfirmedYet": "TMDB todavía no confirmó la aprobación. Aprueba el acceso en el navegador e inténtalo de nuevo.",
+    "pageDidNotOpen": "Si la página no se abrió, copia esta dirección en tu navegador:",
+    "signedInAs": "Sesión iniciada como {name}",
+    "signOut": "Cerrar sesión",
+    "tryAgain": "Intentar de nuevo",
+    "notOnWeb": "Todavía no se puede iniciar sesión en la versión web.",
+    "error": {
+      "denied": "El acceso no fue aprobado en el sitio de TMDB.",
+      "timeout": "La aprobación tardó demasiado. Empieza de nuevo cuando quieras.",
+      "network": "No se pudo conectar con TMDB. Comprueba tu conexión e inténtalo de nuevo.",
+      "unavailable": "No se puede iniciar sesión en este momento. Inténtalo de nuevo más tarde."
+    }
   }
 }

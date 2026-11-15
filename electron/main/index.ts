@@ -9,6 +9,9 @@ import {
   shell,
 } from 'electron';
 import { join } from 'node:path';
+import { IPC_EVENTS } from '../../shared/api';
+import { startLoopback } from './auth/loopback';
+import { createAuthService } from './auth/service';
 import { registerIpc } from './ipc';
 import { isAppUrl, isSafeExternalUrl, type AppLocation } from './security';
 import { createTmdbClient } from '../../shared/tmdb/client';
@@ -79,6 +82,13 @@ function openInBrowser(url: string) {
   }
 }
 
+function focusWindow() {
+  if (win) {
+    if (win.isMinimized()) win.restore();
+    win.focus();
+  }
+}
+
 // Applies to every web contents, including any created later.
 app.on('web-contents-created', (_event, contents) => {
   // Nothing opens a second app window: links go to the system browser.
@@ -126,6 +136,28 @@ app.whenReady().then(async () => {
     fetchGenres: tmdb.genres,
   });
 
+  // The TMDB session of whoever signs in stays in this process. Windows are
+  // only told who it is (shared/api.ts).
+  const auth = createAuthService({
+    tmdb,
+    startLoopback,
+    openExternal: (url) => shell.openExternal(url),
+    onChange: (state) => {
+      for (const { webContents } of BrowserWindow.getAllWindows()) {
+        if (!webContents.isDestroyed()) {
+          webContents.send(IPC_EVENTS.authChanged, state);
+        }
+      }
+
+      // The user is in the browser at this point: bring them back.
+      if (state.status === 'authenticated') {
+        focusWindow();
+      }
+    },
+  });
+
+  app.on('will-quit', () => auth.dispose());
+
   registerIpc(ipcMain, {
     isTrustedSender: (url) => isAppUrl(url, appLocation),
     setNativeTheme: (theme) => {
@@ -134,6 +166,7 @@ app.whenReady().then(async () => {
     tmdb,
     genres,
     credentials,
+    auth,
   });
 
   createWindow();
@@ -144,13 +177,8 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('second-instance', () => {
-  if (win) {
-    // Focus on the main window if the user tried to open another
-    if (win.isMinimized()) win.restore();
-    win.focus();
-  }
-});
+// Focus on the main window if the user tried to open another
+app.on('second-instance', focusWindow);
 
 app.on('activate', () => {
   const allWindows = BrowserWindow.getAllWindows();

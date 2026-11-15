@@ -1,5 +1,10 @@
-import { contextBridge, ipcRenderer } from 'electron';
-import { IPC, type MediaAppApi } from '../../shared/api';
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
+import {
+  IPC,
+  IPC_EVENTS,
+  type MediaAppApi,
+  type SessionState,
+} from '../../shared/api';
 
 // Everything the renderer can ask of the main process. Keep it small and
 // specific: never expose ipcRenderer or other Electron objects directly.
@@ -19,6 +24,25 @@ const api: MediaAppApi = {
     status: () => ipcRenderer.invoke(IPC.credentialStatus),
     save: (apiKey) => ipcRenderer.invoke(IPC.credentialSave, apiKey),
     clear: () => ipcRenderer.invoke(IPC.credentialClear),
+  },
+  auth: {
+    getSession: () => ipcRenderer.invoke(IPC.authSession),
+    login: (language) => ipcRenderer.invoke(IPC.authLogin, language),
+    confirmManual: () => ipcRenderer.invoke(IPC.authConfirm),
+    cancelLogin: () => ipcRenderer.invoke(IPC.authCancel),
+    logout: () => ipcRenderer.invoke(IPC.authLogout),
+    onChange: (listener) => {
+      // The listener gets the state alone: never the event, which would give
+      // the page a way to ipcRenderer.
+      const handler = (_event: IpcRendererEvent, state: SessionState) =>
+        listener(state);
+
+      ipcRenderer.on(IPC_EVENTS.authChanged, handler);
+
+      return () => {
+        ipcRenderer.removeListener(IPC_EVENTS.authChanged, handler);
+      };
+    },
   },
 };
 

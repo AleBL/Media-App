@@ -105,6 +105,27 @@ test.describe('web version', () => {
     await expect(page.locator('input')).toHaveCount(0);
   });
 
+  test('has no sign in yet: the site keeps no session', async ({
+    page,
+    site,
+  }) => {
+    await page.goto(site.url);
+
+    await expect(
+      page.locator('[data-pc-name="menubar"] a[href$="#/search"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-pc-name="menubar"] a[href$="#/account"]'),
+    ).toHaveCount(0);
+
+    await page.goto(`${site.url}#/account`);
+
+    await expect(
+      page.getByText('not available in the web version yet'),
+    ).toBeVisible();
+    await expect(page.locator('button')).toHaveCount(0);
+  });
+
   test('drops the key that the old web version kept in the browser', async ({
     page,
     site,

@@ -7,6 +7,7 @@ import {
   type Paged,
   type Result,
   type SearchRequest,
+  type SessionState,
   type TmdbFailure,
 } from '../../shared/api';
 import { isNativeTheme } from './security';
@@ -45,6 +46,13 @@ export interface IpcServices {
     save(apiKey: string): Promise<CredentialStatus>;
     clear(): Promise<CredentialStatus>;
   };
+  auth: {
+    getSession(): SessionState;
+    login(language: string): Promise<SessionState>;
+    confirmManual(): Promise<SessionState>;
+    cancelLogin(): SessionState;
+    logout(): Promise<SessionState>;
+  };
 }
 
 const NO_CREDENTIAL: CredentialStatus = {
@@ -53,6 +61,8 @@ const NO_CREDENTIAL: CredentialStatus = {
   encrypted: false,
   builtIn: false,
 };
+
+const NO_SESSION: SessionState = { status: 'anonymous' };
 
 function toFailure(error: unknown): TmdbFailure {
   if (error instanceof TmdbError) {
@@ -123,5 +133,29 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
 
   ipc.handle(IPC.credentialClear, (event) =>
     trusted(event) ? services.credentials.clear() : NO_CREDENTIAL,
+  );
+
+  ipc.handle(IPC.authSession, (event) =>
+    trusted(event) ? services.auth.getSession() : NO_SESSION,
+  );
+
+  // The language only picks the text of the page that the browser shows at
+  // the end, so an unknown one is no reason to refuse the login.
+  ipc.handle(IPC.authLogin, (event, value) =>
+    trusted(event)
+      ? services.auth.login(parseLanguage(value) ?? 'en')
+      : NO_SESSION,
+  );
+
+  ipc.handle(IPC.authConfirm, (event) =>
+    trusted(event) ? services.auth.confirmManual() : NO_SESSION,
+  );
+
+  ipc.handle(IPC.authCancel, (event) =>
+    trusted(event) ? services.auth.cancelLogin() : NO_SESSION,
+  );
+
+  ipc.handle(IPC.authLogout, (event) =>
+    trusted(event) ? services.auth.logout() : NO_SESSION,
   );
 }

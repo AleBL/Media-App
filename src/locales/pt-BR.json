@@ -4,6 +4,7 @@
     "about": "Sobre",
     "search": "Procurar",
     "settings": "Configurações",
+    "account": "Conta",
     "movie": "Filme",
     "tvShow": "Série"
   },
@@ -43,5 +44,27 @@
     "errorOwnKeyRefused": "O TMDB recusou a sua chave. Confira ou remova a chave nas configurações.",
     "errorWebUnavailable": "A busca está indisponível no momento. Tente de novo mais tarde.",
     "openSettings": "Abrir as configurações"
+  },
+
+  "account": {
+    "signIn": "Entrar",
+    "intro": "Entrar com a sua conta do TMDB é opcional: a busca funciona sem isso.",
+    "howItWorks": "A aprovação acontece no site do TMDB, no seu navegador. O app nunca vê a sua senha.",
+    "signInWithTmdb": "Entrar com TMDB",
+    "waiting": "Aprove o acesso na página do TMDB que abriu no seu navegador. Esta página se atualiza sozinha.",
+    "alreadyApproved": "Já autorizei no navegador",
+    "cancel": "Cancelar",
+    "notConfirmedYet": "O TMDB ainda não confirmou a aprovação. Aprove o acesso no navegador e tente de novo.",
+    "pageDidNotOpen": "Se a página não abriu, copie este endereço no seu navegador:",
+    "signedInAs": "Conectado como {name}",
+    "signOut": "Sair",
+    "tryAgain": "Tentar de novo",
+    "notOnWeb": "Ainda não dá para entrar na versão web.",
+    "error": {
+      "denied": "O acesso não foi aprovado no site do TMDB.",
+      "timeout": "A aprovação demorou demais. Comece de novo quando quiser.",
+      "network": "Não foi possível falar com o TMDB. Verifique sua conexão e tente de novo.",
+      "unavailable": "O login está indisponível no momento. Tente de novo mais tarde."
+    }
   }
 }

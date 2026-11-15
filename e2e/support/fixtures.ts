@@ -154,7 +154,7 @@ export { expect };
 /** Goes to a page through the menu, like a user would. */
 export async function openPage(
   page: Page,
-  name: 'home' | 'search' | 'settings' | 'about',
+  name: 'home' | 'search' | 'settings' | 'about' | 'account',
 ) {
   await page.locator(`[data-pc-name="menubar"] a[href$="#/${name}"]`).click();
   await expect(page).toHaveURL(new RegExp(`#/${name}$`));

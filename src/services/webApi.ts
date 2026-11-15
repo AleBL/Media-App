@@ -3,6 +3,7 @@ import {
   type CredentialStatus,
   type MediaAppApi,
   type Result,
+  type SessionState,
 } from '@shared/api';
 
 const TIMEOUT_MS = 12_000;
@@ -15,6 +16,8 @@ const SERVER_CREDENTIAL: CredentialStatus = {
   encrypted: false,
   builtIn: true,
 };
+
+const NO_SESSION: SessionState = { status: 'anonymous' };
 
 export type WebFetch = (
   url: string,
@@ -94,6 +97,16 @@ export function createWebApi(
       status: async () => SERVER_CREDENTIAL,
       save: async () => SERVER_CREDENTIAL,
       clear: async () => SERVER_CREDENTIAL,
+    },
+    // A web page has no safe place for a TMDB session: the site would have
+    // to keep it, which it does not do yet. Nobody is ever signed in here.
+    auth: {
+      getSession: async () => NO_SESSION,
+      login: async () => ({ status: 'error', reason: 'unavailable' }),
+      confirmManual: async () => NO_SESSION,
+      cancelLogin: async () => NO_SESSION,
+      logout: async () => NO_SESSION,
+      onChange: () => () => {},
     },
   };
 }

@@ -2,10 +2,12 @@
   import Menubar from 'primevue/menubar';
   import { ref } from 'vue';
   import { isDesktop } from '@/services/api';
+  import { useSessionStore } from '@/stores/session';
   import { ThemeItem } from './theme';
   import { LanguageItem } from './language';
 
   const { t, availableLocales, locale } = useI18n();
+  const session = useSessionStore();
 
   const themeItem = new ThemeItem(t);
   const languageItem = new LanguageItem(availableLocales, locale);
@@ -51,6 +53,25 @@
       icon: 'pi pi-info-circle',
       route: '/about',
     },
+    // Signing in needs someone to keep the session, and on the web nobody
+    // does it yet.
+    ...(isDesktop()
+      ? [
+          {
+            label: computed(() => {
+              const account = session.account;
+
+              return account
+                ? (account.name ?? account.username)
+                : t('account.signIn');
+            }),
+            icon: computed(() => {
+              return session.account ? 'pi pi-user' : 'pi pi-sign-in';
+            }),
+            route: '/account',
+          },
+        ]
+      : []),
   ]);
 </script>
 

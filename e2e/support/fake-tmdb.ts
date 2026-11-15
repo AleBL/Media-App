@@ -16,6 +16,9 @@ export const TOTAL_RESULTS = 45;
 /** The one query that finds nothing. */
 export const QUERY_WITHOUT_RESULTS = 'nothing like this';
 
+/** Where the stand-in has the approval page of the TMDB website. */
+const WEBSITE_PATH = '/authenticate';
+
 /** The TMDB account of whoever approves a login in these tests. */
 export const ACCOUNT = { id: 4242, username: 'e2e-user', name: 'E2E User' };
 
@@ -61,12 +64,19 @@ async function jsonBody(request: IncomingMessage) {
  *
  * Signing in works like at TMDB: a request token becomes a session once,
  * and only after it was approved. The approval, which a person gives on the
- * TMDB website, is `approve()` here.
+ * TMDB website, is `approve()` here. For the web version, whose browser
+ * goes to that website, there is a page that answers by itself (`website`).
  */
 export async function startFakeTmdb() {
   const requests: TmdbRequest[] = [];
   const requestTokens = new Map<string, 'new' | 'approved' | 'used'>();
   const sessions = new Set<string>();
+  const website = {
+    /** What the user answers on the approval page. */
+    answer: 'approve' as 'approve' | 'deny',
+    /** The approval pages a browser was sent to. */
+    visits: [] as { requestToken: string; redirectTo: string }[],
+  };
   let appTokenRevoked = false;
 
   const server = createServer(async (request, response) => {
@@ -77,6 +87,31 @@ export async function startFakeTmdb() {
       session_id: sessionId,
       ...query
     } = Object.fromEntries(url.searchParams);
+
+    // The approval page of the TMDB website, which a browser visits and the
+    // app never does. It answers by itself what the test says the user
+    // would, and sends the browser on like TMDB: to `redirect_to`, with the
+    // request token and the answer in the address.
+    if (url.pathname.startsWith(`${WEBSITE_PATH}/`) && query.redirect_to) {
+      const requestToken = url.pathname.slice(WEBSITE_PATH.length + 1);
+      const back = new URL(query.redirect_to);
+      const approved =
+        website.answer === 'approve' &&
+        requestTokens.get(requestToken) === 'new';
+
+      website.visits.push({ requestToken, redirectTo: query.redirect_to });
+
+      if (approved) {
+        requestTokens.set(requestToken, 'approved');
+      }
+
+      back.searchParams.set('request_token', requestToken);
+      back.searchParams.set(approved ? 'approved' : 'denied', 'true');
+      response.writeHead(302, { Location: back.toString() });
+      response.end();
+      return;
+    }
+
     const sent = method === 'GET' ? {} : await jsonBody(request);
     const send = (status: number, body: unknown) => {
       response.writeHead(status, { 'Content-Type': 'application/json' });
@@ -212,6 +247,12 @@ export async function startFakeTmdb() {
   return {
     /** What TMDB_BASE_URL must be for the app to talk to this server. */
     url: `http://127.0.0.1:${port}/3`,
+    /**
+     * The approval page of the TMDB website, for the web version: there the
+     * browser itself goes to it, so it has to be a page that exists here.
+     */
+    websiteUrl: `http://127.0.0.1:${port}${WEBSITE_PATH}`,
+    website,
     requests,
     searches,
     lastSearch: () => searches().at(-1),
@@ -229,6 +270,8 @@ export async function startFakeTmdb() {
     },
     /** The sessions that are open at TMDB right now. */
     sessions: () => [...sessions],
+    /** What the user does on the TMDB website to sign out everywhere. */
+    endSessions: () => sessions.clear(),
     close: () =>
       new Promise<void>((resolve) => {
         server.closeAllConnections();

@@ -59,6 +59,11 @@
     "signedInAs": "Signed in as {name}",
     "signOut": "Sign out",
     "tryAgain": "Try again",
+    "offline": "TMDB could not be reached, so your account was not checked. You are still signed in, and the app checks again by itself.",
+    "notRemembered": "This system has no keyring, so you stay signed in only until the app is closed. Staying signed in after that means saving the sign-in without encryption, in a file only your user can read.",
+    "rememberAnyway": "Keep me signed in",
+    "savedUnencrypted": "This system has no keyring, so the sign-in is saved without encryption.",
+    "notSaved": "The sign-in could not be saved to disk, so it lasts only until the app is closed.",
     "error": {
       "denied": "The access was not approved on the TMDB website.",
       "timeout": "The approval took too long. Start again when you are ready.",

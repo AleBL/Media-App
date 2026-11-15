@@ -83,63 +83,47 @@ function appCredential(mode: string) {
   return token;
 }
 
-// The web version of the app asks a function of the site for TMDB data
-// (api/tmdb.ts, deployed by Vercel). The dev and preview servers answer the
-// same path with the same code, so the app also works when it is opened in
-// a browser here. TMDB_BASE_URL points it at another server, for tests.
-function tmdbProxyServer(credential: string): Plugin {
-  type ProxyModule = typeof import('./shared/tmdb/proxy');
-  type Proxy = {
-    path: string;
-    handle: ReturnType<ProxyModule['createTmdbProxy']>;
-  };
+// The web version of the app asks functions of the site for TMDB data and
+// for the session of whoever signed in (the files in /api, deployed by
+// Vercel). The dev and preview servers answer the same paths with the same
+// code, so the app also works when it is opened in a browser here.
+// TMDB_BASE_URL points them at another server, for tests.
+function siteFunctions(credential: string): Plugin {
+  type SiteModule = typeof import('./shared/tmdb/site');
 
   // This file is loaded by Node, which cannot import the TypeScript of the
-  // app. The proxy is loaded through Vite instead, when it is first needed.
-  let loading: Promise<Proxy> | undefined;
-  const proxy = () =>
-    (loading ??= runnerImport<ProxyModule>(`${root}shared/tmdb/proxy.ts`, {
+  // app. The functions are loaded through Vite instead, when first needed.
+  let loading: Promise<ReturnType<SiteModule['createSite']>> | undefined;
+  const site = () =>
+    (loading ??= runnerImport<SiteModule>(`${root}shared/tmdb/site.ts`, {
       configFile: false,
       root,
       logLevel: 'error',
-    }).then(({ module }) => ({
-      path: module.TMDB_PROXY_PATH,
-      handle: module.createTmdbProxy({
+    }).then(({ module }) =>
+      module.createSite({
         credential,
         baseUrl: process.env.TMDB_BASE_URL,
       }),
-    })));
+    ));
 
   const middleware: Connect.NextHandleFunction = (request, response, next) => {
-    const url = new URL(request.url ?? '/', 'http://localhost');
-
-    if (!url.pathname.startsWith('/api/')) {
+    if (!request.url?.startsWith('/api/')) {
       next();
       return;
     }
 
-    proxy()
-      .then(async ({ path, handle }) => {
-        if (url.pathname !== path) {
+    site()
+      .then((answer) => answer(request, response))
+      .then((answered) => {
+        if (!answered) {
           next();
-          return;
         }
-
-        const answer = await handle(
-          new Request(url, { method: request.method }),
-        );
-
-        response.statusCode = answer.status;
-        answer.headers.forEach((value, name) =>
-          response.setHeader(name, value),
-        );
-        response.end(await answer.text());
       })
       .catch(next);
   };
 
   return {
-    name: 'app:tmdb-proxy',
+    name: 'app:site-functions',
     configureServer(server) {
       server.middlewares.use(middleware);
     },
@@ -171,7 +155,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       vue(),
       contentSecurityPolicy(),
-      tmdbProxyServer(credential),
+      siteFunctions(credential),
 
       // https://github.com/antfu/unplugin-auto-import
       AutoImport({

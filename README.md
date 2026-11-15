@@ -80,8 +80,16 @@ The token is compiled into the main process only (`dist-electron/main`), never i
 The same interface also runs as a web page, deployed by Vercel. A page cannot hold the credential (everything a browser loads is public), so there it asks a function of the site, `api/tmdb.ts`, which keeps `TMDB_READ_TOKEN` on the server and only does what the app does: search movies and tv shows, and list genres.
 
 - On Vercel, set `TMDB_READ_TOKEN` in the project's environment variables, for Production and for Preview. Never give it a `VITE_` prefix: that would put it in the page.
-- The web version has no Settings page: a browser has no safe place for a key of the user.
+- The web version has no Settings page: a browser has no safe place for a key of the user. For the same reason it has no sign in yet: the site would have to keep the session.
 - Locally, `npm run dev` and `npx vite preview` answer `/api/tmdb` with the same code, so opening the address they print in a browser shows the web version.
+
+### Signing in with TMDB 👤
+
+Signing in is optional (the search never needs it) and, for now, only in the desktop app. On the **Sign in** page the app opens the approval page of the TMDB website in the browser of the system, so it never sees a password. It needs no setup beyond the credential above.
+
+- TMDB sends the browser back to a web server that the app opens for that one login, on `127.0.0.1` and a port picked by the system. It closes after the first callback, on **Cancel**, or after five minutes.
+- When the browser does not come back by itself, **I already approved in the browser** asks TMDB directly. When the browser does not even open, the page shows the address to copy.
+- The session lasts until the app closes or **Sign out**, which also ends it at TMDB.
 
 ### Start developing ⚒️
 
@@ -146,6 +154,7 @@ npm run deps:update # run taze major -I
  ┗ 📦web # the same for the web version, in a browser
 📦electron
  ┣ 📦main
+ ┃ ┣ 📦auth # signing in to TMDB: the login and the way back from the browser
  ┃ ┣ 📦tmdb # credentials and genre cache of the desktop app
  ┃ ┣ 📜index.ts # entry of Electron-Main
  ┃ ┣ 📜ipc.ts # handlers behind window.api
@@ -163,7 +172,7 @@ npm run deps:update # run taze major -I
  ┣ 📦presets # PrimeVue Components Styled with Tailwind CSS - https://github.com/primefaces/primevue-tailwind
  ┣ 📦router
  ┣ 📦services # the api of the renderer: window.api, or HTTP on the web
- ┣ 📦stores # Pinia stores: search, genres, TMDB credential status
+ ┣ 📦stores # Pinia stores: search, genres, TMDB credential status, session
  ┣ 📦style
  ┣ 📦test # helpers for the unit tests
  ┣ 📦types
@@ -176,6 +185,8 @@ npm run deps:update # run taze major -I
 The renderer is plain web code: it runs sandboxed, with context isolation and without Node or Electron access. Whatever it needs from the main process is exposed by the preload script as `window.api` and declared in `shared/api.ts`. To add a capability, declare it there, implement it in `electron/preload/index.ts` and handle it in `electron/main/ipc.ts`, validating every value that comes from the renderer.
 
 In the desktop app, TMDB is only reached from the main process. The renderer asks through `window.api.tmdb` and never sees a credential. The app's own is compiled into the main process (see [Give the app access to TMDB](#give-the-app-access-to-tmdb-)), and the optional key of the user is saved by the main process, encrypted by the operating system when a keyring is available. The end-to-end tests check that the app's credential is in no file that the window loads. Unit tests replace `window.api` with `installFakeApi()` from `src/test/fakeApi.ts`.
+
+Signing in follows the same rule. TMDB's `session_id` works as a password of the account, so it stays in the main process (`electron/main/auth/service.ts`) and the renderer is only told who signed in. The callback from the browser (`electron/main/auth/loopback.ts`) can be reached by any program or page on the computer, so it proves nothing: it is only the signal to ask TMDB whether the request token was approved. Requests that are not the callback of the login in progress get a 404.
 
 The web version has no main process, so the same `shared/api.ts` is implemented over HTTP (`src/services/webApi.ts`) on top of `api/tmdb.ts`. That function is not a general proxy: it accepts only the requests of the app, validates them with the code the main process uses (`shared/tmdb/validation.ts`) and lets the CDN cache the answers. A capability added to `shared/api.ts` has to be implemented there too, or the web version loses it.
 

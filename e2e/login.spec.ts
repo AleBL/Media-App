@@ -1,33 +1,6 @@
 import { ACCOUNT } from './support/fake-tmdb';
-import { expect, openPage, test, type RunningApp } from './support/fixtures';
-
-const accountLink = '[data-pc-name="menubar"] a[href$="#/account"]';
-
-/**
- * Presses the button and takes apart the page the app asked the browser to
- * open. The tests never open it: what a person does there is `tmdb.approve`.
- */
-async function startLogin(running: RunningApp, button = 'Sign in with TMDB') {
-  const { page, openedInBrowser } = running;
-  const before = (await openedInBrowser()).length;
-
-  await page.getByRole('button', { name: button }).click();
-  await expect
-    .poll(async () => (await openedInBrowser()).length)
-    .toBe(before + 1);
-
-  const url = new URL((await openedInBrowser()).at(-1)!);
-
-  return {
-    url,
-    requestToken: url.pathname.split('/').at(-1)!,
-    redirectTo: url.searchParams.get('redirect_to')!,
-  };
-}
-
-/** What TMDB makes the browser do once the user answered on its website. */
-const comeBack = (redirectTo: string, requestToken: string) =>
-  fetch(`${redirectTo}?request_token=${requestToken}&approved=true`);
+import { expect, openPage, test } from './support/fixtures';
+import { accountLink, comeBack, startLogin } from './support/login';
 
 test.describe('signing in with TMDB', () => {
   test.beforeEach(async ({ page }) => {
@@ -192,7 +165,12 @@ test.describe('signing in with TMDB', () => {
 
     expect(session).toMatch(/^[0-9a-f]{40}$/);
     // Who signed in, and nothing that would let the page act as them.
-    expect(seen.state).toEqual({ status: 'authenticated', account: ACCOUNT });
+    expect(seen.state).toEqual({
+      status: 'authenticated',
+      account: ACCOUNT,
+      kept: expect.any(String),
+      offline: false,
+    });
     expect(seen.auth).toEqual([
       'cancelLogin',
       'confirmManual',
@@ -200,6 +178,7 @@ test.describe('signing in with TMDB', () => {
       'login',
       'logout',
       'onChange',
+      'remember',
     ]);
     expect(seen.everything).not.toContain(session);
   });

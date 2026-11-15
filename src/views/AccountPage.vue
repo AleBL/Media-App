@@ -15,6 +15,13 @@
   const authorizeUrl = computed(() =>
     state.value.status === 'pending' ? state.value.authorizeUrl : '',
   );
+  // Only the desktop app says these: on the web the site keeps the session.
+  const offline = computed(
+    () => state.value.status === 'authenticated' && state.value.offline,
+  );
+  const kept = computed(() =>
+    state.value.status === 'authenticated' ? state.value.kept : undefined,
+  );
 
   function selectAll(event: FocusEvent) {
     (event.target as HTMLInputElement).select();
@@ -33,6 +40,33 @@
       <p class="mb-4">
         {{
           t('account.signedInAs', { name: account.name ?? account.username })
+        }}
+      </p>
+      <p
+        v-if="offline"
+        role="status"
+        class="mb-4 text-sm text-surface-600 dark:text-surface-400"
+      >
+        {{ t('account.offline') }}
+      </p>
+      <div v-if="kept === 'ask'" class="mb-4">
+        <p class="mb-2 text-sm text-surface-600 dark:text-surface-400">
+          {{ t('account.notRemembered') }}
+        </p>
+        <Button
+          :label="t('account.rememberAnyway')"
+          icon="pi pi-bookmark"
+          severity="secondary"
+          :disabled="busy"
+          @click="session.remember()"
+        />
+      </div>
+      <p
+        v-else-if="kept === 'unencrypted' || kept === 'failed'"
+        class="mb-4 text-sm text-surface-600 dark:text-surface-400"
+      >
+        {{
+          t(kept === 'failed' ? 'account.notSaved' : 'account.savedUnencrypted')
         }}
       </p>
       <Button

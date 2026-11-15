@@ -198,6 +198,16 @@ describe('web api', () => {
       expect(await auth.cancelLogin()).toEqual(SIGNED_IN);
       expect(stop).not.toThrow();
     });
+
+    it('has nothing to remember: the site keeps the session', async () => {
+      const fetch = answering(SIGNED_IN);
+
+      await expect(createWebApi(fetch).auth.remember()).resolves.toEqual(
+        SIGNED_IN,
+      );
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(fetch.mock.calls[0][0]).toBe('/api/auth/session');
+    });
   });
 
   it('asks the site for a search and hands back its answer', async () => {

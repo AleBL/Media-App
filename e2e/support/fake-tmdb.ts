@@ -78,8 +78,15 @@ export async function startFakeTmdb() {
     visits: [] as { requestToken: string; redirectTo: string }[],
   };
   let appTokenRevoked = false;
+  let unreachable = false;
 
   const server = createServer(async (request, response) => {
+    // Like a computer without a connection: no answer at all.
+    if (unreachable) {
+      request.socket.destroy();
+      return;
+    }
+
     const url = new URL(request.url ?? '/', 'http://tmdb.test');
     const method = request.method ?? 'GET';
     const {
@@ -272,6 +279,10 @@ export async function startFakeTmdb() {
     sessions: () => [...sessions],
     /** What the user does on the TMDB website to sign out everywhere. */
     endSessions: () => sessions.clear(),
+    /** From now on nothing reaches TMDB, as if the computer were offline. */
+    goOffline: () => {
+      unreachable = true;
+    },
     close: () =>
       new Promise<void>((resolve) => {
         server.closeAllConnections();

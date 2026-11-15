@@ -59,6 +59,11 @@
     "signedInAs": "Sesión iniciada como {name}",
     "signOut": "Cerrar sesión",
     "tryAgain": "Intentar de nuevo",
+    "offline": "No se pudo conectar con TMDB, así que la cuenta no se comprobó. Sigues con la sesión iniciada, y la aplicación vuelve a comprobarla sola.",
+    "notRemembered": "Este sistema no tiene un llavero, así que la sesión dura solo hasta cerrar la aplicación. Para mantenerla después, se guarda sin cifrar, en un archivo que solo tu usuario puede leer.",
+    "rememberAnyway": "Mantener la sesión iniciada",
+    "savedUnencrypted": "Este sistema no tiene un llavero, así que la sesión se guarda sin cifrar.",
+    "notSaved": "La sesión no se pudo guardar en disco, así que solo dura hasta cerrar la aplicación.",
     "error": {
       "denied": "El acceso no fue aprobado en el sitio de TMDB.",
       "timeout": "La aprobación tardó demasiado. Empieza de nuevo cuando quieras.",

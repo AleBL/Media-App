@@ -87,6 +87,10 @@ export const test = base.extend<Fixtures>({
           ...(hidden && process.platform === 'linux'
             ? ['--ozone-platform=headless']
             : []),
+          // Never the keyring of whoever runs the tests: on Linux the app
+          // sees a system without one, like on CI, and asks before keeping
+          // a session (e2e/session.spec.ts).
+          ...(process.platform === 'linux' ? ['--password-store=basic'] : []),
         ],
       });
 

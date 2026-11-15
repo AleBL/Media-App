@@ -31,6 +31,7 @@ const api: MediaAppApi = {
     confirmManual: () => ipcRenderer.invoke(IPC.authConfirm),
     cancelLogin: () => ipcRenderer.invoke(IPC.authCancel),
     logout: () => ipcRenderer.invoke(IPC.authLogout),
+    remember: () => ipcRenderer.invoke(IPC.authRemember),
     onChange: (listener) => {
       // The listener gets the state alone: never the event, which would give
       // the page a way to ipcRenderer.

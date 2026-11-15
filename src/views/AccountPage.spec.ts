@@ -6,7 +6,12 @@ import type { LoginFailure } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import AccountPage from '@/views/AccountPage.vue';
 import { useSessionStore } from '@/stores/session';
-import { installFakeApi, PENDING, SIGNED_IN } from '@/test/fakeApi';
+import {
+  installFakeApi,
+  PENDING,
+  SIGNED_IN,
+  signedInOnDesktop,
+} from '@/test/fakeApi';
 
 describe('AccountPage', () => {
   let api: ReturnType<typeof installFakeApi>;
@@ -189,6 +194,49 @@ describe('AccountPage', () => {
 
       expect(api.auth.logout).toHaveBeenCalled();
       expect(button('Sign in with TMDB')).toBeDefined();
+    });
+
+    it('says nothing more when the session is kept encrypted', async () => {
+      store.state = signedInOnDesktop('encrypted');
+      await mountPage();
+
+      expect(wrapper.findAll('p')).toHaveLength(1);
+      expect(wrapper.find('[role="status"]').exists()).toBe(false);
+      expect(button('Keep me signed in')).toBeUndefined();
+    });
+
+    it('says when TMDB could not confirm the session', async () => {
+      store.state = signedInOnDesktop('encrypted', true);
+      await mountPage();
+
+      expect(wrapper.text()).toContain('Signed in as Ada Lovelace');
+      expect(wrapper.get('[role="status"]').text()).toContain(
+        'TMDB could not be reached, so your account was not checked',
+      );
+    });
+
+    it('without a keyring, asks before keeping the session', async () => {
+      store.state = signedInOnDesktop('ask');
+      api.auth.remember.mockResolvedValue(signedInOnDesktop('unencrypted'));
+      await mountPage();
+
+      expect(wrapper.text()).toContain('only until the app is closed');
+
+      await click('Keep me signed in');
+
+      expect(api.auth.remember).toHaveBeenCalled();
+      expect(button('Keep me signed in')).toBeUndefined();
+      expect(wrapper.text()).toContain(
+        'the sign-in is saved without encryption',
+      );
+    });
+
+    it('says when the session could not be saved', async () => {
+      store.state = signedInOnDesktop('failed');
+      await mountPage();
+
+      expect(wrapper.text()).toContain('could not be saved to disk');
+      expect(button('Keep me signed in')).toBeUndefined();
     });
   });
 

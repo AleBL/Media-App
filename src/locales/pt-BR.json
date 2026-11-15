@@ -59,6 +59,11 @@
     "signedInAs": "Conectado como {name}",
     "signOut": "Sair",
     "tryAgain": "Tentar de novo",
+    "offline": "Não foi possível falar com o TMDB, então a conta não foi conferida. Você continua conectado, e o app confere de novo sozinho.",
+    "notRemembered": "Este sistema não tem chaveiro, então você fica conectado só até o app ser fechado. Para continuar conectado depois disso, o login fica salvo sem criptografia, num arquivo que só o seu usuário lê.",
+    "rememberAnyway": "Manter conectado",
+    "savedUnencrypted": "Este sistema não tem chaveiro, então o login fica salvo sem criptografia.",
+    "notSaved": "O login não pôde ser gravado em disco, então vale só até o app ser fechado.",
     "error": {
       "denied": "O acesso não foi aprovado no site do TMDB.",
       "timeout": "A aprovação demorou demais. Comece de novo quando quiser.",

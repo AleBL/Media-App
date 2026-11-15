@@ -213,6 +213,8 @@ export function createWebApi(
 
       // There is no waiting here to confirm or to give up.
       confirmManual: getSession,
+      // The cookie of the site already keeps the session for 180 days.
+      remember: getSession,
       async cancelLogin() {
         if (session.status !== 'authenticated') {
           session = NO_SESSION;

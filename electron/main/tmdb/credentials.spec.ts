@@ -3,11 +3,11 @@ import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { fakeEncryption } from '../test/fake-encryption';
 import {
   createCredentialStore,
   ENCRYPTED_FILE,
   PLAIN_FILE,
-  type Encryption,
 } from './credentials';
 
 const KEY = '0123456789abcdef0123456789abcdef';
@@ -30,36 +30,6 @@ const PLAIN = {
   encrypted: false,
   builtIn: false,
 };
-
-// Stands in for safeStorage: reversible, and never equal to the plain text.
-function fakeEncryption(
-  options: {
-    available?: boolean;
-    shouldReEncrypt?: boolean;
-    backend?: string;
-  } = {},
-): Encryption & { encryptions: number } {
-  return {
-    encryptions: 0,
-    getSelectedStorageBackend: () => options.backend ?? 'gnome_libsecret',
-    isAsyncEncryptionAvailable: async () => options.available ?? true,
-    async encryptStringAsync(text) {
-      this.encryptions += 1;
-
-      return Buffer.from(`sealed:${text}`).reverse();
-    },
-    async decryptStringAsync(sealed) {
-      const text = Buffer.from(sealed).reverse().toString();
-
-      if (!text.startsWith('sealed:')) throw new Error('cannot decrypt');
-
-      return {
-        result: text.slice('sealed:'.length),
-        shouldReEncrypt: options.shouldReEncrypt ?? false,
-      };
-    },
-  };
-}
 
 describe('credential store', () => {
   let root: string;

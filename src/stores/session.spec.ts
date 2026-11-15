@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useSessionStore } from '@/stores/session';
-import { ANONYMOUS, installFakeApi, PENDING, SIGNED_IN } from '@/test/fakeApi';
+import {
+  ANONYMOUS,
+  installFakeApi,
+  PENDING,
+  SIGNED_IN,
+  signedInOnDesktop,
+} from '@/test/fakeApi';
 
 describe('session store', () => {
   let api: ReturnType<typeof installFakeApi>;
@@ -113,6 +119,18 @@ describe('session store', () => {
 
     expect(api.auth.logout).toHaveBeenCalled();
     expect(store.account).toBeNull();
+  });
+
+  it('keeps the session when the user agrees to', async () => {
+    const kept = signedInOnDesktop('unencrypted');
+    api.auth.getSession.mockResolvedValue(signedInOnDesktop('ask'));
+    api.auth.remember.mockResolvedValue(kept);
+    await store.load();
+
+    await store.remember();
+
+    expect(api.auth.remember).toHaveBeenCalled();
+    expect(store.state).toEqual(kept);
   });
 
   it('is not left busy by a request that failed', async () => {

@@ -65,6 +65,9 @@ export const useSessionStore = defineStore('session', () => {
 
   const logout = () => ask(() => getApi().auth.logout());
 
+  /** Keeps the session unencrypted, on a system without a keyring. */
+  const remember = () => ask(() => getApi().auth.remember());
+
   return {
     state,
     account,
@@ -75,5 +78,6 @@ export const useSessionStore = defineStore('session', () => {
     confirm,
     cancel,
     logout,
+    remember,
   };
 });

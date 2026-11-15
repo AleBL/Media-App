@@ -52,6 +52,7 @@ export interface IpcServices {
     confirmManual(): Promise<SessionState>;
     cancelLogin(): SessionState;
     logout(): Promise<SessionState>;
+    remember(): Promise<SessionState>;
   };
 }
 
@@ -157,5 +158,9 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
 
   ipc.handle(IPC.authLogout, (event) =>
     trusted(event) ? services.auth.logout() : NO_SESSION,
+  );
+
+  ipc.handle(IPC.authRemember, (event) =>
+    trusted(event) ? services.auth.remember() : NO_SESSION,
   );
 }

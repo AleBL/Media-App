@@ -9,9 +9,10 @@ import {
   shell,
 } from 'electron';
 import { join } from 'node:path';
-import { IPC_EVENTS } from '../../shared/api';
+import { IPC_EVENTS, type SessionState } from '../../shared/api';
 import { startLoopback } from './auth/loopback';
 import { createAuthService } from './auth/service';
+import { createSessionStore } from './auth/session-store';
 import { registerIpc } from './ipc';
 import { isAppUrl, isSafeExternalUrl, type AppLocation } from './security';
 import { createTmdbClient } from '../../shared/tmdb/client';
@@ -136,12 +137,14 @@ app.whenReady().then(async () => {
     fetchGenres: tmdb.genres,
   });
 
-  // The TMDB session of whoever signs in stays in this process. Windows are
-  // only told who it is (shared/api.ts).
+  // The TMDB session of whoever signs in stays in this process, and on disk
+  // for the next launch. Windows are only told who it is (shared/api.ts).
+  let previous: SessionState['status'] = 'anonymous';
   const auth = createAuthService({
     tmdb,
     startLoopback,
     openExternal: (url) => shell.openExternal(url),
+    store: createSessionStore(userData, safeStorage),
     onChange: (state) => {
       for (const { webContents } of BrowserWindow.getAllWindows()) {
         if (!webContents.isDestroyed()) {
@@ -149,14 +152,20 @@ app.whenReady().then(async () => {
         }
       }
 
-      // The user is in the browser at this point: bring them back.
-      if (state.status === 'authenticated') {
+      // The user approved in the browser: bring them back.
+      if (previous === 'pending' && state.status === 'authenticated') {
         focusWindow();
       }
+
+      previous = state.status;
     },
   });
 
   app.on('will-quit', () => auth.dispose());
+
+  // Starts signed in when the last launch was: the window opens already
+  // knowing who it is, while TMDB is asked whether the session still works.
+  await auth.restore();
 
   registerIpc(ipcMain, {
     isTrustedSender: (url) => isAppUrl(url, appLocation),

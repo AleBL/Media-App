@@ -1,9 +1,11 @@
 import { vi } from 'vitest';
 import type {
+  Account,
   CredentialStatus,
   MediaAppApi,
   MediaItem,
   Paged,
+  SessionKeeping,
   SessionState,
 } from '@shared/api';
 
@@ -31,10 +33,17 @@ export const PENDING: SessionState = {
   authorizeUrl:
     'https://www.themoviedb.org/authenticate/a1b2c3?redirect_to=http%3A%2F%2F127.0.0.1%3A50000%2Fcallback',
 };
+const ADA: Account = { id: 7, username: 'ada', name: 'Ada Lovelace' };
 export const SIGNED_IN: SessionState = {
   status: 'authenticated',
-  account: { id: 7, username: 'ada', name: 'Ada Lovelace' },
+  account: ADA,
 };
+
+/** Signed in on the desktop, which also tells how the session is kept. */
+export const signedInOnDesktop = (
+  kept: SessionKeeping,
+  offline = false,
+): SessionState => ({ status: 'authenticated', account: ADA, kept, offline });
 
 export function pageOf(
   results: MediaItem[] = [],
@@ -87,6 +96,7 @@ export function installFakeApi() {
         async () => ANONYMOUS,
       ),
       logout: vi.fn<MediaAppApi['auth']['logout']>(async () => ANONYMOUS),
+      remember: vi.fn<MediaAppApi['auth']['remember']>(async () => SIGNED_IN),
       // The listener is in `onChange.mock.calls`, for a test to call it the
       // way the main process does.
       onChange: vi.fn<MediaAppApi['auth']['onChange']>(() => () => {}),

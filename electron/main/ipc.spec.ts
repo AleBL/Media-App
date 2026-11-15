@@ -75,6 +75,7 @@ describe('ipc handlers', () => {
         confirmManual: vi.fn(async () => SIGNED_IN),
         cancelLogin: vi.fn(() => ANONYMOUS),
         logout: vi.fn(async () => ANONYMOUS),
+        remember: vi.fn(async () => SIGNED_IN),
       },
     };
 
@@ -228,6 +229,11 @@ describe('ipc handlers', () => {
       expect(services.auth.logout).toHaveBeenCalled();
     });
 
+    it('keeps the session when the app asks to', async () => {
+      await expect(call(IPC.authRemember, fromApp)).resolves.toEqual(SIGNED_IN);
+      expect(services.auth.remember).toHaveBeenCalled();
+    });
+
     it('tells other senders nothing and does nothing for them', async () => {
       for (const channel of [
         IPC.authSession,
@@ -235,6 +241,7 @@ describe('ipc handlers', () => {
         IPC.authConfirm,
         IPC.authCancel,
         IPC.authLogout,
+        IPC.authRemember,
       ]) {
         expect(await call(channel, fromElsewhere, 'en')).toEqual(ANONYMOUS);
         expect(await call(channel, { senderFrame: null }, 'en')).toEqual(

@@ -1,9 +1,18 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Account, SessionState } from '../../../shared/api';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type {
+  Account,
+  SessionKeeping,
+  SessionState,
+} from '../../../shared/api';
 import { TmdbError } from '../../../shared/tmdb/client';
 import type { CallbackOutcome, LoopbackOptions } from './loopback';
-import { createAuthService, LOGIN_TIMEOUT_MS } from './service';
+import {
+  createAuthService,
+  LOGIN_TIMEOUT_MS,
+  RECHECK_DELAYS_MS,
+} from './service';
+import type { SavedSession, SessionStore } from './session-store';
 
 const NOW = 1_800_000_000_000;
 const TOKEN = 'a1b2c3d4e5f6';
@@ -17,8 +26,14 @@ const PENDING: SessionState = {
   expiresAt: NOW + LOGIN_TIMEOUT_MS,
   authorizeUrl: AUTHORIZE_URL,
 };
-const SIGNED_IN: SessionState = { status: 'authenticated', account: ACCOUNT };
+const SIGNED_IN: SessionState = {
+  status: 'authenticated',
+  account: ACCOUNT,
+  kept: 'encrypted',
+  offline: false,
+};
 const ANONYMOUS: SessionState = { status: 'anonymous' };
+const SAVED: SavedSession = { sessionId: SESSION, account: ACCOUNT };
 
 // What TMDB answers for a request token that is not approved.
 const notApproved = () =>
@@ -26,6 +41,37 @@ const notApproved = () =>
 const offline = () => new TmdbError('network');
 const appRefused = () =>
   new TmdbError('unauthorized', 401, 'Invalid API key', 7);
+// What TMDB answers for a session that was ended.
+const sessionOver = () =>
+  new TmdbError('unauthorized', 401, 'Authentication failed', 3);
+
+/**
+ * Stands in for session-store.ts. `keyring: false` is a system without one:
+ * nothing is saved until the user agrees.
+ */
+function fakeStore({ keyring = true } = {}) {
+  const kept: SessionKeeping = keyring ? 'encrypted' : 'unencrypted';
+  const held: { saved: SavedSession | null } = { saved: null };
+  const store = Object.assign(held, {
+    load: vi.fn<SessionStore['load']>(async () =>
+      held.saved ? { session: held.saved, kept } : null,
+    ),
+    save: vi.fn<SessionStore['save']>(async (session, evenUnencrypted) => {
+      if (!keyring && !evenUnencrypted) {
+        return 'ask';
+      }
+
+      held.saved = session;
+
+      return kept;
+    }),
+    clear: vi.fn<SessionStore['clear']>(async () => {
+      held.saved = null;
+    }),
+  });
+
+  return store;
+}
 
 /** A promise that the test settles when it wants to. */
 function deferred<T>() {
@@ -37,7 +83,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function setup() {
+function setup(store = fakeStore()) {
   const tmdb = {
     createRequestToken: vi.fn(async () => TOKEN),
     createSession: vi.fn<(requestToken: string) => Promise<string>>(
@@ -61,6 +107,7 @@ function setup() {
     tmdb,
     startLoopback,
     openExternal,
+    store,
     onChange: (state) => changes.push(state),
     now: () => NOW,
   });
@@ -68,6 +115,7 @@ function setup() {
   return {
     service,
     tmdb,
+    store,
     loopback,
     startLoopback,
     openExternal,
@@ -422,6 +470,296 @@ describe('auth service', () => {
       await expect(service.login('en')).resolves.toEqual(PENDING);
       await expect(browserComesBack()).resolves.toBe('done');
       expect(service.getSession()).toEqual(SIGNED_IN);
+    });
+
+    it('removes the session saved for the next launch', async () => {
+      const { service, store } = await signedIn();
+      expect(store.saved).toEqual(SAVED);
+
+      await service.logout();
+
+      expect(store.clear).toHaveBeenCalled();
+      expect(store.saved).toBeNull();
+    });
+  });
+
+  describe('keeping the session for the next launch', () => {
+    async function signIn(context: ReturnType<typeof setup>) {
+      await context.service.login('en');
+
+      return context.browserComesBack();
+    }
+
+    it('saves it, encrypted, as soon as the user is signed in', async () => {
+      const context = setup();
+
+      await expect(signIn(context)).resolves.toBe('done');
+
+      expect(context.store.save).toHaveBeenCalledExactlyOnceWith(
+        SAVED,
+        undefined,
+      );
+      expect(context.service.getSession()).toEqual(SIGNED_IN);
+    });
+
+    it('without a keyring, keeps it only once the user agrees', async () => {
+      const context = setup(fakeStore({ keyring: false }));
+      await signIn(context);
+
+      expect(context.service.getSession()).toEqual({
+        ...SIGNED_IN,
+        kept: 'ask',
+      });
+      expect(context.store.saved).toBeNull();
+
+      await expect(context.service.remember()).resolves.toEqual({
+        ...SIGNED_IN,
+        kept: 'unencrypted',
+      });
+      expect(context.store.saved).toEqual(SAVED);
+      expect(context.changes.at(-1)).toEqual({
+        ...SIGNED_IN,
+        kept: 'unencrypted',
+      });
+    });
+
+    it('has nothing to remember otherwise', async () => {
+      const context = setup();
+
+      await expect(context.service.remember()).resolves.toEqual(ANONYMOUS);
+      await signIn(context);
+      await expect(context.service.remember()).resolves.toEqual(SIGNED_IN);
+
+      expect(context.store.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('still signs in when the session cannot be saved', async () => {
+      const context = setup();
+      context.store.save.mockResolvedValueOnce('failed');
+      await signIn(context);
+      expect(context.service.getSession()).toEqual({
+        ...SIGNED_IN,
+        kept: 'failed',
+      });
+
+      await context.service.logout();
+      context.store.save.mockRejectedValueOnce(new Error('EACCES'));
+      await signIn(context);
+      expect(context.service.getSession()).toEqual({
+        ...SIGNED_IN,
+        kept: 'failed',
+      });
+    });
+
+    it('keeps nothing of a login cancelled while it was being saved', async () => {
+      const context = setup();
+      const saving = deferred<SessionKeeping>();
+      context.store.save.mockImplementationOnce(async (session) => {
+        context.store.saved = session;
+
+        return saving.promise;
+      });
+      await context.service.login('en');
+
+      const page = context.browserComesBack();
+      await vi.waitFor(() => expect(context.store.save).toHaveBeenCalled());
+      context.service.cancelLogin();
+      saving.resolve('encrypted');
+
+      await expect(page).resolves.toBe('failed');
+      expect(context.store.saved).toBeNull();
+      expect(context.tmdb.deleteSession).toHaveBeenCalledExactlyOnceWith(
+        SESSION,
+      );
+      expect(context.service.getSession()).toEqual(ANONYMOUS);
+    });
+
+    it('removes what a save wrote when the sign out came during it', async () => {
+      const context = setup(fakeStore({ keyring: false }));
+      await signIn(context);
+      const saving = deferred<SessionKeeping>();
+      context.store.save.mockImplementationOnce(async (session) => {
+        context.store.saved = session;
+
+        return saving.promise;
+      });
+
+      const remembering = context.service.remember();
+      const signingOut = context.service.logout();
+      saving.resolve('unencrypted');
+
+      await expect(remembering).resolves.toEqual(ANONYMOUS);
+      await expect(signingOut).resolves.toEqual(ANONYMOUS);
+      expect(context.store.saved).toBeNull();
+    });
+  });
+
+  describe('at launch', () => {
+    const flush = () => vi.advanceTimersByTimeAsync(0);
+
+    function launch(store = fakeStore()) {
+      store.saved = SAVED;
+
+      return setup(store);
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    it('stays signed out when nothing was saved', async () => {
+      const { service, tmdb, changes } = setup();
+
+      await expect(service.restore()).resolves.toEqual(ANONYMOUS);
+
+      expect(tmdb.account).not.toHaveBeenCalled();
+      expect(changes).toEqual([]);
+    });
+
+    it('signs in at once with the saved session, and confirms it with TMDB', async () => {
+      const { service, tmdb, changes } = launch();
+      const answer = deferred<Account>();
+      tmdb.account.mockReturnValue(answer.promise);
+
+      await expect(service.restore()).resolves.toEqual(SIGNED_IN);
+      expect(tmdb.account).toHaveBeenCalledExactlyOnceWith(SESSION);
+
+      answer.resolve(ACCOUNT);
+      await flush();
+
+      expect(service.getSession()).toEqual(SIGNED_IN);
+      expect(changes).toEqual([SIGNED_IN]);
+    });
+
+    it('does not start a login over the saved session', async () => {
+      const { service, tmdb } = launch();
+      await service.restore();
+
+      await expect(service.login('en')).resolves.toEqual(SIGNED_IN);
+      expect(tmdb.createRequestToken).not.toHaveBeenCalled();
+    });
+
+    it('saves the account again when it changed on TMDB', async () => {
+      const { service, tmdb, store } = launch();
+      const renamed = { ...ACCOUNT, name: 'Augusta Ada King' };
+      tmdb.account.mockResolvedValue(renamed);
+
+      await service.restore();
+      await flush();
+
+      expect(service.getSession()).toEqual({ ...SIGNED_IN, account: renamed });
+      expect(store.saved).toEqual({ ...SAVED, account: renamed });
+    });
+
+    it('signs out when the session was ended at TMDB', async () => {
+      const { service, tmdb, store, changes } = launch();
+      tmdb.account.mockRejectedValue(sessionOver());
+
+      await service.restore();
+      await flush();
+
+      expect(service.getSession()).toEqual(ANONYMOUS);
+      expect(changes).toEqual([SIGNED_IN, ANONYMOUS]);
+      expect(store.saved).toBeNull();
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it.each([
+      ['TMDB cannot be reached', offline],
+      ['TMDB refuses the app', appRefused],
+    ])('stays signed in when %s, and asks again later', async (_, failure) => {
+      const { service, tmdb, store } = launch();
+      tmdb.account.mockRejectedValueOnce(failure());
+
+      await service.restore();
+      await flush();
+
+      expect(service.getSession()).toEqual({ ...SIGNED_IN, offline: true });
+      expect(store.clear).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(RECHECK_DELAYS_MS[0]);
+
+      expect(tmdb.account).toHaveBeenCalledTimes(2);
+      expect(service.getSession()).toEqual(SIGNED_IN);
+    });
+
+    it('asks less and less often while TMDB stays out of reach', async () => {
+      const { service, tmdb } = launch();
+      tmdb.account.mockRejectedValue(offline());
+      await service.restore();
+      await flush();
+
+      for (const [index, delay] of [
+        ...RECHECK_DELAYS_MS,
+        RECHECK_DELAYS_MS.at(-1)!,
+      ].entries()) {
+        await vi.advanceTimersByTimeAsync(delay - 1);
+        expect(tmdb.account).toHaveBeenCalledTimes(index + 1);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(tmdb.account).toHaveBeenCalledTimes(index + 2);
+      }
+
+      expect(service.getSession()).toEqual({ ...SIGNED_IN, offline: true });
+    });
+
+    it('stops asking once the user signs out', async () => {
+      const { service, tmdb, store } = launch();
+      tmdb.account.mockRejectedValue(offline());
+      await service.restore();
+      await flush();
+
+      await service.logout();
+
+      expect(vi.getTimerCount()).toBe(0);
+      expect(store.saved).toBeNull();
+      expect(tmdb.deleteSession).toHaveBeenCalledExactlyOnceWith(SESSION);
+    });
+
+    it('ignores an answer that arrives after the sign out', async () => {
+      const { service, tmdb, store } = launch();
+      const answer = deferred<Account>();
+      tmdb.account.mockReturnValue(answer.promise);
+      await service.restore();
+
+      await service.logout();
+      answer.resolve({ ...ACCOUNT, name: 'Augusta Ada King' });
+      await flush();
+
+      expect(service.getSession()).toEqual(ANONYMOUS);
+      expect(store.save).not.toHaveBeenCalled();
+    });
+
+    it('keeps a session the user agreed to keep unencrypted', async () => {
+      const { service, tmdb, store } = launch(fakeStore({ keyring: false }));
+      const renamed = { ...ACCOUNT, name: 'Augusta Ada King' };
+      tmdb.account.mockResolvedValue(renamed);
+
+      await expect(service.restore()).resolves.toEqual({
+        ...SIGNED_IN,
+        kept: 'unencrypted',
+      });
+      await flush();
+
+      expect(store.save).toHaveBeenCalledExactlyOnceWith(
+        { ...SAVED, account: renamed },
+        true,
+      );
+      expect(service.getSession()).toEqual({
+        ...SIGNED_IN,
+        account: renamed,
+        kept: 'unencrypted',
+      });
+    });
+
+    it('leaves no timer behind when the app quits', async () => {
+      const { service, tmdb } = launch();
+      tmdb.account.mockRejectedValue(offline());
+      await service.restore();
+      await flush();
+
+      service.dispose();
+
+      expect(vi.getTimerCount()).toBe(0);
     });
   });
 });

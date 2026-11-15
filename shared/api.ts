@@ -123,8 +123,36 @@ export type SessionState =
       /** The page to approve on, for a browser that did not open by itself. */
       authorizeUrl: string;
     }
-  | { status: 'authenticated'; account: Account }
+  | {
+      status: 'authenticated';
+      account: Account;
+      /** Desktop only: how the session is kept for the next launch. */
+      kept?: SessionKeeping;
+      /**
+       * Desktop only: TMDB could not confirm, at this launch, the session
+       * that the last one saved. Whoever it was stays signed in, with the
+       * account saved then, and the app asks again by itself.
+       */
+      offline?: boolean;
+    }
   | { status: 'error'; reason: LoginFailure };
+
+/**
+ * Where the desktop app keeps a session for the next launch. On the web the
+ * site keeps it, in a cookie.
+ */
+export type SessionKeeping =
+  /** Encrypted by the keyring of the system. */
+  | 'encrypted'
+  /** The system has no keyring, and the user agreed to keep it anyway. */
+  | 'unencrypted'
+  /**
+   * The system has no keyring, so it is only kept until the app closes,
+   * unless the user agrees to keep it unencrypted (`auth.remember()`).
+   */
+  | 'ask'
+  /** It could not be written: it lasts until the app closes. */
+  | 'failed';
 
 export interface MediaAppApi {
   /**
@@ -173,6 +201,12 @@ export interface MediaAppApi {
     /** Gives up a login that is waiting, or dismisses one that failed. */
     cancelLogin(): Promise<SessionState>;
     logout(): Promise<SessionState>;
+    /**
+     * Keeps the session for the next launch on a system without a keyring,
+     * where that means saving it unencrypted: only after the user agreed
+     * (`kept` is `ask`). Elsewhere there is nothing to do.
+     */
+    remember(): Promise<SessionState>;
     /** Calls `listener` on every change. Returns how to stop listening. */
     onChange(listener: (state: SessionState) => void): () => void;
   };
@@ -191,6 +225,7 @@ export const IPC = {
   authConfirm: 'auth:confirm',
   authCancel: 'auth:cancel',
   authLogout: 'auth:logout',
+  authRemember: 'auth:remember',
 } as const;
 
 /** Channels the main process sends on, without being asked. */

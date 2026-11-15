@@ -1,5 +1,6 @@
 import {
   TMDB_PAGE_SIZE,
+  type Account,
   type Genre,
   type MediaItem,
   type Paged,
@@ -17,6 +18,8 @@ export class TmdbError extends Error {
     readonly code: TmdbErrorCode,
     readonly status?: number,
     message?: string,
+    /** TMDB's own `status_code`, which tells apart failures of one status. */
+    readonly tmdbStatus?: number,
   ) {
     super(message ?? code);
     this.name = 'TmdbError';
@@ -27,7 +30,14 @@ type FetchResponse = Pick<Response, 'ok' | 'status' | 'headers' | 'json'>;
 
 export type FetchLike = (
   url: string,
-  init: { headers: Record<string, string>; signal: AbortSignal },
+  init: {
+    /** GET when missing. */
+    method?: string;
+    headers: Record<string, string>;
+    /** JSON, sent with the requests that change something at TMDB. */
+    body?: string;
+    signal: AbortSignal;
+  },
 ) => Promise<FetchResponse>;
 
 export interface TmdbClientOptions {
@@ -49,6 +59,16 @@ type SearchBody = {
 };
 
 type GenreBody = { genres?: Partial<Genre>[] };
+
+type AccountBody = {
+  id?: unknown;
+  username?: unknown;
+  name?: unknown;
+  avatar?: { tmdb?: { avatar_path?: unknown } };
+};
+
+/** What a request that changes something at TMDB sends. */
+type Send = { method: 'POST' | 'DELETE'; body: Record<string, string> };
 
 // A v4 "API Read Access Token" is a JWT and goes in the Authorization
 // header; a v3 "API Key" goes in the query string.
@@ -77,16 +97,49 @@ function retryDelayMs(header: string | null) {
   );
 }
 
-async function statusMessage(response: FetchResponse) {
+/** What TMDB says about a request it refused. */
+async function refusal(response: FetchResponse) {
   try {
-    const body = (await response.json()) as { status_message?: unknown };
+    const body = (await response.json()) as {
+      status_code?: unknown;
+      status_message?: unknown;
+    };
 
-    return typeof body.status_message === 'string'
-      ? body.status_message
-      : undefined;
+    return {
+      message:
+        typeof body.status_message === 'string'
+          ? body.status_message
+          : undefined,
+      tmdbStatus:
+        typeof body.status_code === 'number' ? body.status_code : undefined,
+    };
   } catch {
-    return undefined;
+    return {};
   }
+}
+
+function unreadable(): never {
+  throw new TmdbError('server', 200, 'Unreadable answer');
+}
+
+// Only the fields the app uses cross to the renderer.
+function toAccount(body: AccountBody): Account {
+  if (typeof body.id !== 'number' || typeof body.username !== 'string') {
+    return unreadable();
+  }
+
+  const account: Account = { id: body.id, username: body.username };
+  const avatarPath = body.avatar?.tmdb?.avatar_path;
+
+  if (typeof body.name === 'string' && body.name) {
+    account.name = body.name;
+  }
+
+  if (typeof avatarPath === 'string' && avatarPath) {
+    account.avatarPath = avatarPath;
+  }
+
+  return account;
 }
 
 // Only the fields the app uses cross to the renderer.
@@ -114,6 +167,7 @@ export function createTmdbClient(options: TmdbClientOptions) {
   async function request<T>(
     path: string,
     params: Record<string, string | number>,
+    send?: Send,
   ): Promise<T> {
     const credential = options.getCredential();
 
@@ -123,6 +177,13 @@ export function createTmdbClient(options: TmdbClientOptions) {
 
     const url = new URL(`${baseUrl}${path}`);
     const headers: Record<string, string> = { Accept: 'application/json' };
+    const content = send
+      ? { method: send.method, body: JSON.stringify(send.body) }
+      : {};
+
+    if (send) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     for (const [name, value] of Object.entries(params)) {
       url.searchParams.set(name, String(value));
@@ -139,11 +200,13 @@ export function createTmdbClient(options: TmdbClientOptions) {
 
       try {
         response = await options.fetch(url.toString(), {
+          ...content,
           headers,
           signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (error) {
-        // The url holds the key, so it never goes into an error message.
+        // The url may hold the key or a session, so it never goes into an
+        // error message.
         throw new TmdbError(isTimeout(error) ? 'timeout' : 'network');
       }
 
@@ -153,10 +216,13 @@ export function createTmdbClient(options: TmdbClientOptions) {
       }
 
       if (!response.ok) {
+        const { message, tmdbStatus } = await refusal(response);
+
         throw new TmdbError(
           codeForStatus(response.status),
           response.status,
-          await statusMessage(response),
+          message,
+          tmdbStatus,
         );
       }
 
@@ -208,6 +274,54 @@ export function createTmdbClient(options: TmdbClientOptions) {
       }
 
       return [...byId.values()];
+    },
+
+    /**
+     * First step of signing in: a token for the user to approve on the TMDB
+     * website. TMDB forgets it after 60 minutes.
+     */
+    async createRequestToken(): Promise<string> {
+      const body = await request<{ request_token?: unknown }>(
+        '/authentication/token/new',
+        {},
+      );
+
+      return typeof body.request_token === 'string' && body.request_token
+        ? body.request_token
+        : unreadable();
+    },
+
+    /**
+     * Trades an approved request token for a session, once. TMDB answers 401
+     * with `status_code` 17 for a token that was not approved or was already
+     * traded.
+     */
+    async createSession(requestToken: string): Promise<string> {
+      const body = await request<{ session_id?: unknown }>(
+        '/authentication/session/new',
+        {},
+        { method: 'POST', body: { request_token: requestToken } },
+      );
+
+      return typeof body.session_id === 'string' && body.session_id
+        ? body.session_id
+        : unreadable();
+    },
+
+    /** The account a session belongs to. 401 when the session is over. */
+    async account(sessionId: string): Promise<Account> {
+      return toAccount(
+        await request<AccountBody>('/account', { session_id: sessionId }),
+      );
+    },
+
+    /** Ends a session at TMDB: it stops working everywhere. */
+    async deleteSession(sessionId: string): Promise<void> {
+      await request(
+        '/authentication/session',
+        {},
+        { method: 'DELETE', body: { session_id: sessionId } },
+      );
     },
   };
 }

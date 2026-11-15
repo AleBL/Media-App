@@ -247,3 +247,165 @@ describe('genres', () => {
     expect(requestedUrl(0).searchParams.get('language')).toBe('pt-BR');
   });
 });
+
+describe('signing in', () => {
+  const REQUEST_TOKEN = 'a1b2c3d4e5f6';
+  const SESSION = 'the-session-id-works-as-a-password';
+
+  it('asks for a request token', async () => {
+    const { client, fetch, requestedUrl } = setup([
+      answer(200, {
+        success: true,
+        expires_at: '2026-11-14 18:00:00 UTC',
+        request_token: REQUEST_TOKEN,
+      }),
+    ]);
+
+    await expect(client.createRequestToken()).resolves.toBe(REQUEST_TOKEN);
+
+    expect(requestedUrl().pathname).toBe('/3/authentication/token/new');
+    expect(fetch.mock.calls[0][1].method).toBeUndefined();
+    expect(fetch.mock.calls[0][1].body).toBeUndefined();
+  });
+
+  it('trades an approved request token for a session', async () => {
+    const { client, fetch, requestedUrl } = setup(
+      [answer(200, { success: true, session_id: SESSION })],
+      { credential: V4_TOKEN },
+    );
+
+    await expect(client.createSession(REQUEST_TOKEN)).resolves.toBe(SESSION);
+
+    const init = fetch.mock.calls[0][1];
+    expect(requestedUrl().pathname).toBe('/3/authentication/session/new');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body!)).toEqual({ request_token: REQUEST_TOKEN });
+    expect(init.headers).toMatchObject({
+      Authorization: `Bearer ${V4_TOKEN}`,
+      'Content-Type': 'application/json',
+    });
+  });
+
+  it('tells a token that is not approved from a refused credential', async () => {
+    const { client } = setup([
+      answer(401, {
+        success: false,
+        status_code: 17,
+        status_message: 'Session denied.',
+      }),
+      answer(401, {
+        success: false,
+        status_code: 7,
+        status_message: 'Invalid API key: You must be granted a valid key.',
+      }),
+    ]);
+
+    await expect(client.createSession(REQUEST_TOKEN)).rejects.toMatchObject({
+      code: 'unauthorized',
+      status: 401,
+      tmdbStatus: 17,
+    });
+    await expect(client.createSession(REQUEST_TOKEN)).rejects.toMatchObject({
+      code: 'unauthorized',
+      tmdbStatus: 7,
+    });
+  });
+
+  it('reads the account of a session, keeping only what the app shows', async () => {
+    const { client, requestedUrl } = setup([
+      answer(200, {
+        id: 7,
+        username: 'ada',
+        name: 'Ada Lovelace',
+        include_adult: false,
+        iso_639_1: 'en',
+        iso_3166_1: 'GB',
+        avatar: {
+          gravatar: { hash: '0123456789abcdef' },
+          tmdb: { avatar_path: '/ada.jpg' },
+        },
+      }),
+    ]);
+
+    await expect(client.account(SESSION)).resolves.toEqual({
+      id: 7,
+      username: 'ada',
+      name: 'Ada Lovelace',
+      avatarPath: '/ada.jpg',
+    });
+    expect(requestedUrl().pathname).toBe('/3/account');
+    expect(requestedUrl().searchParams.get('session_id')).toBe(SESSION);
+  });
+
+  it('leaves out a name and a picture that the account does not have', async () => {
+    const { client } = setup([
+      answer(200, {
+        id: 7,
+        username: 'ada',
+        name: '',
+        avatar: { gravatar: { hash: null }, tmdb: { avatar_path: null } },
+      }),
+    ]);
+
+    await expect(client.account(SESSION)).resolves.toEqual({
+      id: 7,
+      username: 'ada',
+    });
+  });
+
+  it('reports a session that is over', async () => {
+    const { client } = setup([
+      answer(401, {
+        success: false,
+        status_code: 3,
+        status_message: 'Authentication failed.',
+      }),
+    ]);
+
+    await expect(client.account(SESSION)).rejects.toMatchObject({
+      code: 'unauthorized',
+      tmdbStatus: 3,
+    });
+  });
+
+  it('ends a session', async () => {
+    const { client, fetch, requestedUrl } = setup([
+      answer(200, { success: true }),
+    ]);
+
+    await expect(client.deleteSession(SESSION)).resolves.toBeUndefined();
+
+    const init = fetch.mock.calls[0][1];
+    expect(requestedUrl().pathname).toBe('/3/authentication/session');
+    expect(init.method).toBe('DELETE');
+    expect(JSON.parse(init.body!)).toEqual({ session_id: SESSION });
+    // not in the address, which is what ends up in logs
+    expect(requestedUrl().search).not.toContain(SESSION);
+  });
+
+  it.each([
+    ['a request token', () => ({ success: true })],
+    ['a session', () => ({ success: true, session_id: '' })],
+    ['an account', () => ({ username: 'ada' })],
+  ] as const)('does not accept an answer without %s', async (what, body) => {
+    const { client } = setup([answer(200, body())]);
+    const ask = {
+      'a request token': () => client.createRequestToken(),
+      'a session': () => client.createSession(REQUEST_TOKEN),
+      'an account': () => client.account(SESSION),
+    }[what];
+
+    await expect(ask()).rejects.toMatchObject({ code: 'server' });
+  });
+
+  it('does not put the session in the message of a connection failure', async () => {
+    const { client } = setup([
+      new TypeError(`fetch failed for /account?session_id=${SESSION}`),
+    ]);
+
+    const error = await client.account(SESSION).catch((thrown) => thrown);
+
+    expect(error).toMatchObject({ code: 'network' });
+    expect(error.message).not.toContain(SESSION);
+  });
+});

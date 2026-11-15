@@ -82,6 +82,41 @@ export interface CredentialStatus {
   builtIn: boolean;
 }
 
+/** What the app shows of the TMDB account of whoever signed in. */
+export interface Account {
+  id: number;
+  username: string;
+  /** The name the user gave to TMDB, when there is one. */
+  name?: string;
+  /** Path of the picture the user uploaded to TMDB, when there is one. */
+  avatarPath?: string;
+}
+
+export type LoginFailure =
+  /** The access was refused on the TMDB website. */
+  | 'denied'
+  /** Nobody approved it in time. */
+  | 'timeout'
+  | 'network'
+  /** TMDB would not start or finish the login: nothing the user can fix. */
+  | 'unavailable';
+
+// The session itself (TMDB's session_id) works as a password of the account
+// and stays with whoever holds the credential of the app. The renderer only
+// learns this much about it.
+export type SessionState =
+  | { status: 'anonymous' }
+  | {
+      /** Waiting for the user to approve on the TMDB website. */
+      status: 'pending';
+      /** When the app stops waiting, in milliseconds since the epoch. */
+      expiresAt: number;
+      /** The page to approve on, for a browser that did not open by itself. */
+      authorizeUrl: string;
+    }
+  | { status: 'authenticated'; account: Account }
+  | { status: 'error'; reason: LoginFailure };
+
 export interface MediaAppApi {
   /**
    * Where the app is running: installed, inside Electron, or as a web page.
@@ -107,6 +142,29 @@ export interface MediaAppApi {
     save(apiKey: string): Promise<CredentialStatus>;
     clear(): Promise<CredentialStatus>;
   };
+  /**
+   * Signing in to TMDB. It is optional: searching never needs it. The user
+   * approves the access on the TMDB website, in their own browser, so the
+   * app never sees a password.
+   */
+  auth: {
+    getSession(): Promise<SessionState>;
+    /**
+     * Opens the approval page, with the result page in `language`. Answers
+     * `pending` as soon as it is open: the rest arrives through `onChange`.
+     */
+    login(language: string): Promise<SessionState>;
+    /**
+     * For when the browser does not come back by itself: asks TMDB whether
+     * the access was approved. Still `pending` when it was not.
+     */
+    confirmManual(): Promise<SessionState>;
+    /** Gives up a login that is waiting, or dismisses one that failed. */
+    cancelLogin(): Promise<SessionState>;
+    logout(): Promise<SessionState>;
+    /** Calls `listener` on every change. Returns how to stop listening. */
+    onChange(listener: (state: SessionState) => void): () => void;
+  };
 }
 
 /** IPC channel names, shared by the preload and the main process. */
@@ -117,4 +175,14 @@ export const IPC = {
   credentialStatus: 'credentials:status',
   credentialSave: 'credentials:save',
   credentialClear: 'credentials:clear',
+  authSession: 'auth:session',
+  authLogin: 'auth:login',
+  authConfirm: 'auth:confirm',
+  authCancel: 'auth:cancel',
+  authLogout: 'auth:logout',
+} as const;
+
+/** Channels the main process sends on, without being asked. */
+export const IPC_EVENTS = {
+  authChanged: 'auth:changed',
 } as const;

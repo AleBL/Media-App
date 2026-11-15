@@ -77,19 +77,27 @@ The token is compiled into the main process only (`dist-electron/main`), never i
 
 ### The web version 🌐
 
-The same interface also runs as a web page, deployed by Vercel. A page cannot hold the credential (everything a browser loads is public), so there it asks a function of the site, `api/tmdb.ts`, which keeps `TMDB_READ_TOKEN` on the server and only does what the app does: search movies and tv shows, and list genres.
+The same interface also runs as a web page, deployed by Vercel. A page cannot hold the credential (everything a browser loads is public), so there it asks functions of the site, the files in `api`, which keep `TMDB_READ_TOKEN` on the server and only do what the app does: search movies and tv shows, list genres and sign in.
 
 - On Vercel, set `TMDB_READ_TOKEN` in the project's environment variables, for Production and for Preview. Never give it a `VITE_` prefix: that would put it in the page.
-- The web version has no Settings page: a browser has no safe place for a key of the user. For the same reason it has no sign in yet: the site would have to keep the session.
-- Locally, `npm run dev` and `npx vite preview` answer `/api/tmdb` with the same code, so opening the address they print in a browser shows the web version.
+- The web version has no Settings page: a browser has no safe place for a key of the user.
+- Signing in works there too, with the session kept by the site (`api/auth`). It needs no other variable.
+- Locally, `npm run dev` and `npx vite preview` answer `/api/tmdb` and `/api/auth` with the same code, so opening the address they print in a browser shows the web version.
 
 ### Signing in with TMDB 👤
 
-Signing in is optional (the search never needs it) and, for now, only in the desktop app. On the **Sign in** page the app opens the approval page of the TMDB website in the browser of the system, so it never sees a password. It needs no setup beyond the credential above.
+Signing in is optional: the search never needs it. On the **Sign in** page the user is sent to the approval page of the TMDB website, so the app never sees a password. It needs no setup beyond the credential above.
 
-- TMDB sends the browser back to a web server that the app opens for that one login, on `127.0.0.1` and a port picked by the system. It closes after the first callback, on **Cancel**, or after five minutes.
+In the desktop app:
+
+- The approval page opens in the browser of the system. TMDB sends that browser back to a web server that the app opens for that one login, on `127.0.0.1` and a port picked by the system. It closes after the first callback, on **Cancel**, or after five minutes.
 - When the browser does not come back by itself, **I already approved in the browser** asks TMDB directly. When the browser does not even open, the page shows the address to copy.
 - The session lasts until the app closes or **Sign out**, which also ends it at TMDB.
+
+In the web version:
+
+- The page itself goes to the TMDB website and comes back through the site (`/api/auth/login`, then `/api/auth/callback`), which keeps the session in a cookie that scripts cannot read.
+- The browser stays signed in for 180 days after the last visit, or until **Sign out**, which also ends the session at TMDB. Ending it on the TMDB website signs out here on the next visit.
 
 ### Start developing ⚒️
 
@@ -147,8 +155,9 @@ npm run deps:update # run taze major -I
 ## Project Structure
 
 ```bash
-📦api
- ┗ 📜tmdb.ts # Vercel Function: answers TMDB requests for the web version
+📦api # Vercel Functions: what the web version asks of the site
+ ┣ 📦auth # signing in: login, callback, session and logout
+ ┗ 📜tmdb.ts # answers the TMDB requests
 📦config # build helpers shared by the Vite and Vitest configs
 📦e2e # end-to-end tests: the built app against a local stand-in for TMDB
  ┗ 📦web # the same for the web version, in a browser
@@ -162,7 +171,7 @@ npm run deps:update # run taze major -I
  ┗ 📦preload
    ┗ 📜index.ts # exposes window.api to the renderer, loading screen
 📦shared # used by more than one of: main process, renderer, web function
- ┣ 📦tmdb # TMDB client, input validation and the proxy behind the web version
+ ┣ 📦tmdb # TMDB client, input validation and what the functions of the site do
  ┗ 📜api.ts # what the renderer can ask, on the desktop and on the web
 📦src
  ┣ 📦assets
@@ -188,7 +197,9 @@ In the desktop app, TMDB is only reached from the main process. The renderer ask
 
 Signing in follows the same rule. TMDB's `session_id` works as a password of the account, so it stays in the main process (`electron/main/auth/service.ts`) and the renderer is only told who signed in. The callback from the browser (`electron/main/auth/loopback.ts`) can be reached by any program or page on the computer, so it proves nothing: it is only the signal to ask TMDB whether the request token was approved. Requests that are not the callback of the login in progress get a 404.
 
-The web version has no main process, so the same `shared/api.ts` is implemented over HTTP (`src/services/webApi.ts`) on top of `api/tmdb.ts`. That function is not a general proxy: it accepts only the requests of the app, validates them with the code the main process uses (`shared/tmdb/validation.ts`) and lets the CDN cache the answers. A capability added to `shared/api.ts` has to be implemented there too, or the web version loses it.
+The web version has no main process, so the same `shared/api.ts` is implemented over HTTP (`src/services/webApi.ts`) on top of the functions in `api`. `api/tmdb.ts` is not a general proxy: it accepts only the requests of the app, validates them with the code the main process uses (`shared/tmdb/validation.ts`) and lets the CDN cache the answers. A capability added to `shared/api.ts` has to be implemented there too, or the web version loses it.
+
+On the web the `session_id` stays with the site (`shared/tmdb/web-auth.ts`, behind `api/auth`): in a cookie that is `HttpOnly`, so no script of the page can read it, `Secure`, `SameSite=Lax` and named with the `__Host-` prefix, so no other site on the same domain can plant one. The page is only told who signed in, and those answers are never cached. The way back from TMDB (`/api/auth/callback`) can be opened by anyone, like the one of the desktop app, so its parameters decide nothing: the token traded is the one in the cookie of the login, and TMDB says whether it was approved. Signing out is a `POST` that has to come from the site itself.
 
 The window only shows the app itself: other links open in the system browser (https only), permission requests are denied and the Content-Security-Policy is generated by `vite.config.mts`.
 

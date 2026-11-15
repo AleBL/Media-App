@@ -93,7 +93,9 @@ In the desktop app:
 
 - The approval page opens in the browser of the system. TMDB sends that browser back to a web server that the app opens for that one login, on `127.0.0.1` and a port picked by the system. It closes after the first callback, on **Cancel**, or after five minutes.
 - When the browser does not come back by itself, **I already approved in the browser** asks TMDB directly. When the browser does not even open, the page shows the address to copy.
-- The session lasts until the app closes or **Sign out**, which also ends it at TMDB.
+- The session is kept for the next launch, encrypted by the keyring of the system (Keychain, DPAPI, Secret Service or KWallet), in `tmdb-session.bin` inside the app's profile folder. The next launch shows who is signed in at once and asks TMDB whether the session still works: ended on the TMDB website, it signs out; TMDB out of reach, it stays signed in, says so, and asks again by itself.
+- On a system without a keyring (some Linux setups, WSL) the session only lasts until the app closes, unless the user presses **Keep me signed in**, which saves it unencrypted in a file only that user can read.
+- **Sign out** removes the saved session and ends it at TMDB.
 
 In the web version:
 
@@ -165,10 +167,11 @@ npm run deps:update # run taze major -I
  ┗ 📦web # the same for the web version, in a browser
 📦electron
  ┣ 📦main
- ┃ ┣ 📦auth # signing in to TMDB: the login and the way back from the browser
+ ┃ ┣ 📦auth # signing in to TMDB: the login, the way back from the browser, the saved session
  ┃ ┣ 📦tmdb # credentials and genre cache of the desktop app
  ┃ ┣ 📜index.ts # entry of Electron-Main
  ┃ ┣ 📜ipc.ts # handlers behind window.api
+ ┃ ┣ 📜secret-file.ts # a value of the user on disk, encrypted when the system can
  ┃ ┗ 📜security.ts # rules for navigation, external links and IPC input
  ┗ 📦preload
    ┗ 📜index.ts # exposes window.api to the renderer, loading screen

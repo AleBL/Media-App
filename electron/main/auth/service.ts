@@ -1,16 +1,16 @@
 import type { Account, LoginFailure, SessionState } from '../../../shared/api';
-import { TmdbError, type TmdbClient } from '../../../shared/tmdb/client';
+import type { TmdbClient } from '../../../shared/tmdb/client';
+import {
+  authorizeUrl,
+  isSessionDenied,
+  isTemporary,
+  loginFailure,
+} from '../../../shared/tmdb/login';
 import { callbackPage } from './callback-page';
 import type { CallbackOutcome, Loopback, LoopbackOptions } from './loopback';
 
 /** How long the user has to approve on the TMDB website. */
 export const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
-
-export const TMDB_AUTHORIZE_URL = 'https://www.themoviedb.org/authenticate';
-
-// TMDB's status_code for a request token that cannot become a session: not
-// approved (not yet, or because the user refused) or already traded.
-const SESSION_DENIED = 17;
 
 export interface AuthServiceOptions {
   tmdb: Pick<
@@ -42,17 +42,6 @@ type Trade =
   | 'retry'
   /** The login ended in some other way, already reflected in the state. */
   | 'over';
-
-/** A failure that says nothing about the login: asking again may work. */
-function isTemporary(error: unknown) {
-  return (
-    error instanceof TmdbError &&
-    ['network', 'timeout', 'rate-limited', 'server'].includes(error.code)
-  );
-}
-
-const reasonFor = (error: unknown): LoginFailure =>
-  isTemporary(error) ? 'network' : 'unavailable';
 
 /**
  * Signing in to TMDB, the way TMDB asks apps to do it: the app gets a
@@ -113,7 +102,7 @@ export function createAuthService(options: AuthServiceOptions) {
         return 'over';
       }
 
-      if (error instanceof TmdbError && error.tmdbStatus === SESSION_DENIED) {
+      if (isSessionDenied(error)) {
         return 'refused';
       }
 
@@ -142,7 +131,7 @@ export function createAuthService(options: AuthServiceOptions) {
       await discard(id);
 
       if (attempt === current) {
-        fail(current, reasonFor(error));
+        fail(current, loginFailure(error));
       }
 
       return 'over';
@@ -194,7 +183,7 @@ export function createAuthService(options: AuthServiceOptions) {
     try {
       requestToken = await tmdb.createRequestToken();
     } catch (error) {
-      return set({ status: 'error', reason: reasonFor(error) });
+      return set({ status: 'error', reason: loginFailure(error) });
     }
 
     const current: Attempt = { requestToken, loopback: null };
@@ -210,18 +199,12 @@ export function createAuthService(options: AuthServiceOptions) {
       // the user says when the approval is done (confirmManual).
     }
 
-    const url = new URL(
-      `${TMDB_AUTHORIZE_URL}/${encodeURIComponent(requestToken)}`,
-    );
-
-    if (current.loopback) {
-      url.searchParams.set('redirect_to', current.loopback.url);
-    }
+    const url = authorizeUrl(requestToken, current.loopback?.url);
 
     attempt = current;
 
     try {
-      await options.openExternal(url.toString());
+      await options.openExternal(url);
     } catch {
       // The renderer shows the address, to be opened by hand.
     }
@@ -240,7 +223,7 @@ export function createAuthService(options: AuthServiceOptions) {
     return set({
       status: 'pending',
       expiresAt: now() + timeoutMs,
-      authorizeUrl: url.toString(),
+      authorizeUrl: url,
     });
   }
 

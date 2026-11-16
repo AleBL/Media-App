@@ -83,15 +83,16 @@ type ListClient = Pick<
 >;
 
 export function createWatched(tmdb: ListClient) {
-  async function find(access: UserAccess) {
+  /** The list, among those of the user; never `gone`, one that is no more. */
+  async function find(access: UserAccess, gone?: number) {
     for (let page = 1; page <= MAX_LIST_PAGES; page += 1) {
       const { lists, totalPages } = await tmdb.userLists(
         access.accessToken,
         access.accountObjectId,
         page,
       );
-      const found = lists.find((list) =>
-        list.description.includes(WATCHED_MARKER),
+      const found = lists.find(
+        (list) => list.id !== gone && list.description.includes(WATCHED_MARKER),
       );
 
       if (found) {
@@ -111,6 +112,7 @@ export function createWatched(tmdb: ListClient) {
     access: UserAccess,
     cache: ListCache,
     language?: string,
+    gone?: number,
   ) {
     const kept = cache.get();
 
@@ -118,7 +120,7 @@ export function createWatched(tmdb: ListClient) {
       return kept;
     }
 
-    let id = await find(access);
+    let id = await find(access, gone);
 
     if (id === undefined && language) {
       id = await tmdb.createList(access.accessToken, {
@@ -136,8 +138,9 @@ export function createWatched(tmdb: ListClient) {
   }
 
   /**
-   * Runs `work` on the list. A kept id that is no longer a list (deleted on
-   * the TMDB website) is looked for once more. Without a list, `none`.
+   * Runs `work` on the list. A list that is no more (deleted on the TMDB
+   * website) is looked for once more, leaving it out: TMDB still lists a
+   * list for a while after it is deleted. Without a list, `none`.
    */
   async function withList<T>(
     access: UserAccess,
@@ -146,7 +149,6 @@ export function createWatched(tmdb: ListClient) {
     none: T,
     language?: string,
   ): Promise<T> {
-    const kept = cache.get() !== undefined;
     const id = await listId(access, cache, language);
 
     if (id === undefined) {
@@ -156,13 +158,13 @@ export function createWatched(tmdb: ListClient) {
     try {
       return await work(id);
     } catch (error) {
-      if (!(kept && error instanceof TmdbError && error.code === 'not-found')) {
+      if (!(error instanceof TmdbError && error.code === 'not-found')) {
         throw error;
       }
 
       cache.set(undefined);
 
-      const again = await listId(access, cache, language);
+      const again = await listId(access, cache, language, id);
 
       return again === undefined ? none : work(again);
     }

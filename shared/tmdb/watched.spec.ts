@@ -203,6 +203,34 @@ describe('watched titles', () => {
     expect(cache.get()).toBe(88);
   });
 
+  it('leaves out a deleted list that TMDB still lists for a while', async () => {
+    // deleted on the website, and still among the lists of the user
+    const { watched, tmdb, cache } = setup([[WATCHED]]);
+    cache.set(WATCHED.id);
+    tmdb.addToList.mockRejectedValueOnce(new TmdbError('not-found', 404));
+
+    await watched.mark(ACCESS, cache, mark(true));
+
+    // made again at the first click, not at the second
+    expect(tmdb.createList).toHaveBeenCalledOnce();
+    expect(tmdb.addToList.mock.calls.map(([, id]) => id)).toEqual([
+      WATCHED.id,
+      88,
+    ]);
+    expect(cache.get()).toBe(88);
+  });
+
+  it('looks again when the list it just found is gone, without a list it kept', async () => {
+    const { watched, tmdb, cache } = setup([[WATCHED]]);
+    tmdb.listItems.mockRejectedValueOnce(new TmdbError('not-found', 404));
+
+    // reading: nothing is made for it
+    await expect(
+      watched.list(ACCESS, cache, { page: 1, language: 'en' }),
+    ).resolves.toMatchObject({ results: [], totalResults: 0 });
+    expect(tmdb.createList).not.toHaveBeenCalled();
+  });
+
   it('asks to sign in again when TMDB no longer takes the access token', async () => {
     const { watched, tmdb, cache } = setup([[WATCHED]]);
     tmdb.listItemStatus.mockRejectedValue(

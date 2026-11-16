@@ -20,8 +20,6 @@ export default defineConfigWithVueTs(
       'release/**',
       'public/**',
       '**/*.d.ts',
-      // vendored code
-      'src/presets/**',
     ],
   },
 

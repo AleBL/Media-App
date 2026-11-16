@@ -13,6 +13,7 @@ test.describe('renderer isolation', () => {
       api: Object.keys(window.api ?? {}).sort(),
       credentials: Object.keys(window.api?.credentials ?? {}).sort(),
       account: Object.keys(window.api?.account ?? {}).sort(),
+      watched: Object.keys(window.api?.watched ?? {}).sort(),
     }));
 
     expect(seen).toEqual({
@@ -26,11 +27,14 @@ test.describe('renderer isolation', () => {
         'setNativeTheme',
         'tmdb',
         'versions',
+        'watched',
       ],
       // no way to read the key back
       credentials: ['clear', 'save', 'status'],
-      // and none to get at the session: it is used in the main process
+      // and none to get at the session or the access token of the user:
+      // they are used in the main process
       account: ['list', 'mark', 'rate', 'states'],
+      watched: ['list', 'mark', 'state'],
     });
   });
 

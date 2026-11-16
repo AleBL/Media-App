@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { computed } from 'vue';
   import { storeToRefs } from 'pinia';
-  import Button from 'primevue/button';
+  import AppButton from '@/components/ui/AppButton.vue';
   import { useSessionStore } from '@/stores/session';
 
   const { t, locale } = useI18n();
@@ -53,7 +53,7 @@
         <p class="mb-2 text-sm text-surface-600 dark:text-surface-400">
           {{ t('account.notRemembered') }}
         </p>
-        <Button
+        <AppButton
           :label="t('account.rememberAnyway')"
           icon="pi pi-bookmark"
           severity="secondary"
@@ -69,7 +69,7 @@
           t(kept === 'failed' ? 'account.notSaved' : 'account.savedUnencrypted')
         }}
       </p>
-      <Button
+      <AppButton
         :label="t('account.signOut')"
         icon="pi pi-sign-out"
         severity="secondary"
@@ -84,14 +84,14 @@
         {{ t('account.waiting') }}
       </p>
       <div class="flex flex-wrap justify-center gap-3">
-        <Button
+        <AppButton
           :label="t('account.alreadyApproved')"
           icon="pi pi-check"
           :disabled="busy"
           @click="session.confirm()"
         />
         <!-- Never disabled: giving up must work while TMDB is being asked -->
-        <Button
+        <AppButton
           :label="t('account.cancel')"
           severity="secondary"
           @click="session.cancel()"
@@ -128,7 +128,7 @@
       </p>
       <p class="mb-2">{{ t('account.intro') }}</p>
       <p class="mb-4">{{ t('account.howItWorks') }}</p>
-      <Button
+      <AppButton
         :label="failure ? t('account.tryAgain') : t('account.signInWithTmdb')"
         icon="pi pi-sign-in"
         :disabled="busy"

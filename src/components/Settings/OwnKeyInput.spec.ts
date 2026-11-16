@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import PrimeVue from 'primevue/config';
 import i18n from '@/plugins/i18n';
 import OwnKeyInput from '@/components/Settings/OwnKeyInput.vue';
 import { installFakeApi, NO_KEY, SAVED_KEY } from '@/test/fakeApi';
@@ -16,7 +15,7 @@ describe('OwnKeyInput', () => {
     const pinia = createPinia();
     setActivePinia(pinia);
     wrapper = mount(OwnKeyInput, {
-      global: { plugins: [pinia, i18n, [PrimeVue, { unstyled: true }]] },
+      global: { plugins: [pinia, i18n] },
     });
     await flushPromises();
   }

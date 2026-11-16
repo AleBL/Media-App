@@ -27,5 +27,4 @@ export const dependencyVersions = {
   pinia: installedVersion('pinia'),
   tailwindcss: installedVersion('tailwindcss'),
   eslint: installedVersion('eslint'),
-  primevue: installedVersion('primevue'),
 };

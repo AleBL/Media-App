@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
-import PrimeVue from 'primevue/config';
 import { TMDB_PAGE_SIZE, type MediaItem } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import router from '@/router';
@@ -32,7 +31,7 @@ describe('SearchPage', () => {
   async function mountPage() {
     wrapper = mount(SearchPage, {
       global: {
-        plugins: [pinia, i18n, router, [PrimeVue, { unstyled: true }]],
+        plugins: [pinia, i18n, router],
       },
     });
     await flushPromises();
@@ -99,7 +98,7 @@ describe('SearchPage', () => {
     expect(wrapper.findAll('img.poster')).toHaveLength(TMDB_PAGE_SIZE);
     expect(wrapper.text()).toContain('Action');
     expect(
-      wrapper.findAll('[data-pc-section="pagebutton"]').map((b) => b.text()),
+      wrapper.findAll('.paginator-pages button').map((b) => b.text()),
     ).toEqual(['1', '2', '3']);
   });
 
@@ -112,7 +111,7 @@ describe('SearchPage', () => {
     store.searched = true;
     await mountPage();
 
-    await wrapper.findAll('[data-pc-section="pagebutton"]')[1].trigger('click');
+    await wrapper.findAll('.paginator-pages button')[1].trigger('click');
     await flushPromises();
 
     expect(api.tmdb.search).toHaveBeenCalledWith({
@@ -130,7 +129,7 @@ describe('SearchPage', () => {
 
     await mountPage();
 
-    expect(wrapper.find('[data-pc-name="paginator"]').exists()).toBe(false);
+    expect(wrapper.find('.paginator').exists()).toBe(false);
   });
 
   describe('when TMDB cannot be reached with the current credential', () => {

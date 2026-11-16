@@ -3,10 +3,6 @@
   import { storeToRefs } from 'pinia';
   import { watchDebounced } from '@vueuse/core';
   import { SEARCH_DEBOUNCE_MS, useSearchStore } from '@/stores/search';
-  import IconField from 'primevue/iconfield';
-  import InputIcon from 'primevue/inputicon';
-  import InputText from 'primevue/inputtext';
-  import RadioButton from 'primevue/radiobutton';
   import { MEDIA_TYPES } from '@/util/constants';
 
   const { t, locale } = useI18n();
@@ -26,22 +22,27 @@
 
 <template>
   <div class="inset-y-1 left-1/3 my-2 flex flex-wrap justify-center gap-3">
-    <IconField icon-position="right">
-      <InputIcon>
-        <i class="pi pi-search" />
-      </InputIcon>
-      <InputText
+    <div class="relative">
+      <input
         v-model="query"
+        type="search"
+        class="field pr-10 [&::-webkit-search-cancel-button]:appearance-none"
         :placeholder="t('pageTitles.search')"
         :aria-label="t('pageTitles.search')"
       />
-    </IconField>
+      <span
+        class="pi pi-search pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 dark:text-surface-500"
+        aria-hidden="true"
+      />
+    </div>
 
     <div class="flex items-center">
-      <RadioButton
+      <input
+        id="mediaTypeMovie"
         v-model="mediaType"
-        input-id="mediaTypeMovie"
+        type="radio"
         name="mediaType"
+        class="h-4 w-4 accent-primary-500 dark:accent-primary-400 dark:[color-scheme:dark]"
         :value="MEDIA_TYPES.MOVIE"
       />
       <label for="mediaTypeMovie" class="ml-2">{{
@@ -50,10 +51,12 @@
     </div>
 
     <div class="flex items-center">
-      <RadioButton
+      <input
+        id="mediaTypeTVShow"
         v-model="mediaType"
-        input-id="mediaTypeTVShow"
+        type="radio"
         name="mediaType"
+        class="h-4 w-4 accent-primary-500 dark:accent-primary-400 dark:[color-scheme:dark]"
         :value="MEDIA_TYPES.TV_SHOW"
       />
       <label for="mediaTypeTVShow" class="ml-2">{{

@@ -12,7 +12,6 @@ declare const __DEPENDENCY_VERSIONS__: {
   pinia: string;
   tailwindcss: string;
   eslint: string;
-  primevue: string;
 };
 
 declare module '*.vue' {

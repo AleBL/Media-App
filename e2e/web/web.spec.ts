@@ -1,5 +1,5 @@
-import { APP_TOKEN } from '../support/fake-tmdb';
-import { cards, openPage, searchBox } from '../support/fixtures';
+import { APP_TOKEN, TRAILER_KEY } from '../support/fake-tmdb';
+import { cards, heading, openPage, searchBox } from '../support/fixtures';
 import { expect, test } from './fixtures';
 
 // The same interface as a web page, in a browser: no Electron, no preload
@@ -54,6 +54,47 @@ test.describe('web version', () => {
     await expect(cards(page).first()).toContainText('[pt-BR]');
     await expect(cards(page).first()).toContainText('Ação');
     expect(tmdb.lastSearch()?.language).toBe('pt-BR');
+  });
+
+  test.describe('the page of a title', () => {
+    // The region for where to watch comes from the languages of the browser.
+    test.use({ locale: 'en-US' });
+
+    test('opens through the site, and goes back to the results', async ({
+      page,
+      site,
+      tmdb,
+      received,
+    }) => {
+      await page.goto(site.url);
+      await openPage(page, 'search');
+      await searchBox(page).fill('matrix');
+      await cards(page).first().getByRole('link').click();
+
+      await expect(heading(page)).toHaveText('Movie 1 [en] (2020)');
+      await expect(
+        page.getByRole('heading', { name: 'Where to watch in United States' }),
+      ).toBeVisible();
+      await expect(page.getByText('Stream US')).toBeVisible();
+      await expect(
+        page.getByRole('link', { name: 'Watch the trailer' }),
+      ).toHaveAttribute(
+        'href',
+        `https://www.youtube.com/watch?v=${TRAILER_KEY}`,
+      );
+      expect(tmdb.pages().at(-1)).toMatchObject({
+        path: '/3/movie/1',
+        credential: 'app',
+        language: 'en',
+      });
+
+      await page.getByRole('button', { name: 'Back' }).click();
+
+      await expect(cards(page)).toHaveCount(20);
+      for (const address of received.keys()) {
+        expect(address.startsWith(site.url), address).toBe(true);
+      }
+    });
   });
 
   test('the credential of the site never reaches the browser', async ({

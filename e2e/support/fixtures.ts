@@ -81,6 +81,9 @@ export const test = base.extend<Fixtures>({
           // Needed on CI runners and when running as root. The renderer
           // keeps its own sandbox setting (see e2e/security.spec.ts).
           '--no-sandbox',
+          // The same languages on every machine, and with them the same
+          // region for where to watch: the United States.
+          '--lang=en-US',
           `--user-data-dir=${userDataDir}`,
           // On Linux the app can run without any display, so nothing shows
           // up on the desktop and CI needs no virtual screen.
@@ -183,4 +186,5 @@ export async function removeKey(page: Page) {
 }
 
 export const cards = (page: Page) => page.getByRole('article');
+export const heading = (page: Page) => page.getByRole('heading', { level: 1 });
 export const searchBox = (page: Page) => page.getByRole('searchbox');

@@ -932,12 +932,21 @@ export function createTmdbClient(options: TmdbClientOptions) {
       );
       const id = typeof body.id === 'number' ? body.id : unreadable();
 
-      // TMDB makes it first and sorts it after. In another order the list
-      // still works: only the page of the list shows it differently.
+      // TMDB makes it public whatever `public` says (seen on 2026-11-16), and
+      // sorts it its own way: both are set after, with the whole list, as
+      // TMDB shows an update. In another order the list still works.
       await request(
         `/list/${id}`,
         {},
-        { method: 'PUT', body: { sort_by: 'original_order.desc' } },
+        {
+          method: 'PUT',
+          body: {
+            name,
+            description,
+            public: false,
+            sort_by: 'original_order.desc',
+          },
+        },
         4,
         accessToken,
       ).catch(() => {});

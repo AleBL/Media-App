@@ -947,7 +947,7 @@ describe('lists of the user (v4)', () => {
     expect(request.authorization).toBe(`Bearer ${USER}`);
   });
 
-  it('makes a private list, then sorts it by the last added first', async () => {
+  it('makes a list, then makes it private and sorts it by the last added first', async () => {
     const { client, fetch } = setup([
       answer(201, { success: true, status_code: 1, id: 88 }),
       answer(201, { success: true, status_code: 12 }),
@@ -972,9 +972,16 @@ describe('lists of the user (v4)', () => {
       },
     });
     expect(asked(fetch, 0).url.pathname).toBe('/4/list');
+    // TMDB makes it public whatever `public` said: it is set again, with the
+    // whole list, as TMDB shows an update
     expect(asked(fetch, 1)).toMatchObject({
       method: 'PUT',
-      body: { sort_by: 'original_order.desc' },
+      body: {
+        name: 'Assistidos',
+        description: 'Media App',
+        public: false,
+        sort_by: 'original_order.desc',
+      },
     });
     expect(asked(fetch, 1).url.pathname).toBe('/4/list/88');
   });

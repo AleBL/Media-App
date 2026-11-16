@@ -95,7 +95,7 @@ describe('SearchPage', () => {
 
     await mountPage();
 
-    expect(wrapper.findAll('img.poster')).toHaveLength(TMDB_PAGE_SIZE);
+    expect(wrapper.findAll('article img')).toHaveLength(TMDB_PAGE_SIZE);
     expect(wrapper.text()).toContain('Action');
     expect(
       wrapper.findAll('.paginator-pages button').map((b) => b.text()),
@@ -205,7 +205,7 @@ describe('SearchPage', () => {
         language: 'en',
       });
       expect(wrapper.find('[role="alert"]').exists()).toBe(false);
-      expect(wrapper.findAll('img.poster')).toHaveLength(1);
+      expect(wrapper.findAll('article img')).toHaveLength(1);
     });
   });
 

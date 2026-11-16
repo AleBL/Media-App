@@ -81,7 +81,7 @@
 
   // In the green of the links of the app, as with PrimeVue.
   const ITEM =
-    'flex w-full cursor-pointer select-none items-center rounded-md px-3 py-2 font-medium text-[#42b983] no-underline transition-all duration-200 hover:bg-surface-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 sm:w-auto sm:text-sm dark:hover:bg-surface-800 dark:focus-visible:ring-primary-400';
+    'flex w-full cursor-pointer select-none items-center rounded-md px-3 py-2 font-medium text-[#42b983] no-underline transition-all duration-200 hover:bg-surface-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 sm:w-auto sm:text-sm dark:hover:bg-surface-800 dark:focus-visible:ring-primary-400';
   const CURRENT =
     'aria-[current=page]:bg-surface-100 dark:aria-[current=page]:bg-surface-700';
 </script>
@@ -94,7 +94,7 @@
     >
       <button
         type="button"
-        class="flex h-8 w-8 items-center justify-center rounded-full text-surface-500 transition duration-200 hover:bg-surface-50 hover:text-surface-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 sm:hidden dark:text-white/80 dark:hover:bg-surface-800/80"
+        class="flex h-8 w-8 items-center justify-center rounded-full text-surface-500 transition duration-200 hover:bg-surface-50 hover:text-surface-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 sm:hidden dark:text-white/80 dark:hover:bg-surface-800/80 dark:hover:text-white/80"
         :aria-label="t('menu.toggle')"
         :aria-expanded="menuOpen"
         aria-controls="main-menu"
@@ -140,7 +140,7 @@
           >
             <span class="pi pi-language" aria-hidden="true" />
             <span class="sr-only">{{ t('language.label') }}</span>
-            <img class="menubar-icon ml-2" :src="currentLocaleBand" alt="" />
+            <img class="ml-2 h-6 w-6" :src="currentLocaleBand" alt="" />
             <span class="pi pi-fw pi-angle-down ml-2" aria-hidden="true" />
           </button>
 
@@ -159,7 +159,7 @@
               >
                 <!-- An <img>: as a CSS background, the flags inlined as
                      data: addresses by the build never showed. -->
-                <img class="menubar-icon" :src="language.imageURL" alt="" />
+                <img class="h-6 w-6" :src="language.imageURL" alt="" />
                 <span class="ml-2">{{ language.label }}</span>
               </button>
             </li>
@@ -180,7 +180,3 @@
     </nav>
   </header>
 </template>
-
-<style lang="scss">
-  @import '@/style/nav_bar.css';
-</style>

@@ -64,7 +64,7 @@ test.describe('watched titles', () => {
     await expect(page.getByText('Nothing watched yet.')).toBeVisible();
   });
 
-  test('makes the list again when it was deleted on the TMDB website', async ({
+  test('makes the list again, at the first click, when it was deleted on the TMDB website', async ({
     running,
     tmdb,
   }) => {
@@ -75,11 +75,17 @@ test.describe('watched titles', () => {
     await watchedButton(page).click();
     await expect.poll(() => tmdb.watched()).toEqual({ 'movie:1': today() });
 
-    tmdb.deleteUserLists();
-    await openMovie(page, 1);
+    // which TMDB goes on listing for a while
+    tmdb.deleteUserLists({ stillListed: true });
+    await page.reload();
+    await expect(watchedButton(page)).toHaveAttribute('aria-pressed', 'false');
     await watchedButton(page).click();
 
-    await expect.poll(() => tmdb.watched()).toEqual({ 'movie:2': today() });
-    expect(tmdb.userLists()).toHaveLength(1);
+    await expect.poll(() => tmdb.watched()).toEqual({ 'movie:1': today() });
+    await expect(watchedButton(page)).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    expect(tmdb.userLists()).toEqual([
+      { name: 'Watched', public: false, sortBy: 'original_order.desc' },
+    ]);
   });
 });

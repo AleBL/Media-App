@@ -137,6 +137,8 @@ export async function startFakeTmdb() {
     }
   >();
   let lastListId = 7000;
+  // Deleted, but still among the lists of the user for a while.
+  const deletedLists = new Map<number, { name: string; description: string }>();
 
   type Title = { id: number; [field: string]: unknown };
 
@@ -169,18 +171,25 @@ export async function startFakeTmdb() {
         return notFound();
       }
 
-      const { slice, ...counts } = paged([...userLists]);
-
-      return send(200, {
-        ...counts,
-        results: slice.map(([id, list]) => ({
+      // As TMDB did when tried: a list deleted on the website is still
+      // listed for a while, though it is no more.
+      const { slice, ...counts } = paged([
+        ...[...userLists].map(([id, list]) => ({
           id,
           name: list.name,
           description: list.description,
           public: list.public ? 1 : 0,
           number_of_items: list.items.size,
         })),
-      });
+        ...[...deletedLists].map(([id, list]) => ({
+          id,
+          ...list,
+          public: 1,
+          number_of_items: 0,
+        })),
+      ]);
+
+      return send(200, { ...counts, results: slice });
     }
 
     if (url.pathname === '/4/list' && method === 'POST') {
@@ -188,7 +197,9 @@ export async function startFakeTmdb() {
       userLists.set(lastListId, {
         name: String(sent.name),
         description: String(sent.description ?? ''),
-        public: sent.public !== false,
+        // As TMDB did when tried: public, whatever `public` says. Only an
+        // update makes it private.
+        public: true,
         sortBy: 'original_order.asc',
         items: new Map(),
       });
@@ -255,6 +266,10 @@ export async function startFakeTmdb() {
     if (method === 'PUT') {
       if (typeof sent.sort_by === 'string') {
         list.sortBy = sent.sort_by;
+      }
+
+      if (typeof sent.public === 'boolean') {
+        list.public = sent.public;
       }
 
       return send(201, { success: true, status_code: 12 });
@@ -876,8 +891,19 @@ export async function startFakeTmdb() {
           )
         : null;
     },
-    /** What the user does on the TMDB website: deletes every list of theirs. */
-    deleteUserLists: () => userLists.clear(),
+    /**
+     * What the user does on the TMDB website: deletes every list of theirs,
+     * which TMDB goes on listing for a while (`stillListed`).
+     */
+    deleteUserLists: ({ stillListed = false } = {}) => {
+      for (const [id, { name, description }] of userLists) {
+        if (stillListed) {
+          deletedLists.set(id, { name, description });
+        }
+      }
+
+      userLists.clear();
+    },
     /** What the user does on the TMDB website: puts a title in a list. */
     addToList: (list: 'watchlist' | 'favorite', title: string) => {
       accountLists[list].set(title, (added += 1));

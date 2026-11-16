@@ -15,6 +15,16 @@
   // new search is loading, the cards still hold results of the old type.
   const title = computed(() => props.item.title ?? props.item.name ?? '');
 
+  const page = computed(() => ({
+    name: 'details',
+    params: {
+      type:
+        props.item.media_type ??
+        (props.item.title !== undefined ? 'movie' : 'tv'),
+      id: props.item.id,
+    },
+  }));
+
   const year = computed(() => {
     const date = props.item.release_date || props.item.first_air_date || '';
 
@@ -36,9 +46,10 @@
 
 <template>
   <!-- Every inner box centered and with the same padding, as the old
-       stylesheet of the cards made them. -->
+       stylesheet of the cards made them. The title is the link to the page
+       of the title, and it covers the whole card. -->
   <article
-    class="flex flex-col rounded-md border border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-900"
+    class="relative flex flex-col rounded-md border border-surface-200 bg-surface-0 p-4 transition-shadow duration-200 hover:shadow-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-500 dark:border-surface-700 dark:bg-surface-900 dark:has-[:focus-visible]:ring-primary-400"
   >
     <div class="flex justify-center p-3">
       <img
@@ -71,7 +82,12 @@
     <div
       class="mt-1 flex justify-center p-3 text-lg font-medium text-surface-900 dark:text-surface-0"
     >
-      {{ title }}<template v-if="year"> ({{ year }})</template>
+      <RouterLink
+        :to="page"
+        class="text-surface-900 no-underline outline-hidden after:absolute after:inset-0 dark:text-surface-0"
+      >
+        {{ title }}<template v-if="year"> ({{ year }})</template>
+      </RouterLink>
     </div>
   </article>
 </template>

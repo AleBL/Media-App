@@ -58,11 +58,42 @@
     "notFound": "No records found",
     "loading": "Searching...",
     "error": "The search failed. Check your connection and try again.",
-    "errorNoAccess": "This copy of the app has no access to TMDB. Save a key of your own in the settings.",
-    "errorAppRefused": "TMDB refused the app's access. Update the app, or use a key of your own.",
-    "errorOwnKeyRefused": "TMDB refused your key. Check it or remove it in the settings.",
-    "errorWebUnavailable": "The search is unavailable at the moment. Please try again later.",
+    "errorWebUnavailable": "The search is unavailable at the moment. Please try again later."
+  },
+
+  "access": {
+    "noAccess": "This copy of the app has no access to TMDB. Save a key of your own in the settings.",
+    "appRefused": "TMDB refused the app's access. Update the app, or use a key of your own.",
+    "ownKeyRefused": "TMDB refused your key. Check it or remove it in the settings.",
     "openSettings": "Open the settings"
+  },
+
+  "details": {
+    "back": "Back",
+    "loading": "Loading...",
+    "notFound": "This title was not found on TMDB.",
+    "error": "The title could not be loaded. Check your connection and try again.",
+    "errorWebUnavailable": "This page is unavailable at the moment. Please try again later.",
+    "tryAgain": "Try again",
+    "released": "Released {date}",
+    "firstAired": "First aired {date}",
+    "hoursMinutes": "{hours} h {minutes} min",
+    "minutes": "{minutes} min",
+    "perEpisode": "{runtime} per episode",
+    "seasons": "{n} season | {n} seasons",
+    "episodes": "{n} episode | {n} episodes",
+    "votes": "{count} vote | {count} votes",
+    "trailer": "Watch the trailer",
+    "imdb": "See on IMDb",
+    "whereToWatch": "Where to watch in {region}",
+    "nowhereToWatch": "JustWatch knows of no service, store or channel that offers it in {region}.",
+    "stream": "Streaming",
+    "free": "Free",
+    "rent": "Rent",
+    "buy": "Buy",
+    "justWatch": "Where to watch: data from JustWatch.",
+    "allOptions": "See the links on TMDB",
+    "cast": "Cast"
   },
 
   "account": {

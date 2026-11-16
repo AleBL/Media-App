@@ -4,11 +4,13 @@ import { mount, VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import type { MediaItem } from '@shared/api';
 import i18n from '@/plugins/i18n';
+import router from '@/router';
 import SearchItemCard from '@/components/Search/SearchItemCard.vue';
 import { useGenresStore } from '@/stores/genres';
 
 const movie: MediaItem = {
   id: 603,
+  media_type: 'movie',
   title: 'The Matrix',
   poster_path: '/matrix.jpg',
   genre_ids: [28],
@@ -23,7 +25,7 @@ describe('SearchItemCard', () => {
   function mountCard(item: MediaItem) {
     wrapper = mount(SearchItemCard, {
       props: { item },
-      global: { plugins: [pinia, i18n] },
+      global: { plugins: [pinia, i18n, router] },
     });
 
     return wrapper;
@@ -62,6 +64,22 @@ describe('SearchItemCard', () => {
     );
     expect(img.attributes('alt')).toBe('The Matrix');
     expect(img.attributes('loading')).toBe('lazy');
+  });
+
+  it('is a link to the page of the title, named by the title', () => {
+    const link = mountCard(movie).get('a');
+
+    expect(link.attributes('href')).toBe('#/movie/603');
+    expect(link.text()).toBe('The Matrix (1999)');
+  });
+
+  it.each([
+    ['the type the search tagged it with', { media_type: 'tv' as const }],
+    ['its fields, without a tag', { media_type: undefined }],
+  ])('links a tv show to its page by %s', (_case, tag) => {
+    const show: MediaItem = { id: 1396, name: 'Breaking Bad', ...tag };
+
+    expect(mountCard(show).get('a').attributes('href')).toBe('#/tv/1396');
   });
 
   it('reads name and first air date from a tv show', () => {

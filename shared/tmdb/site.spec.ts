@@ -10,13 +10,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FetchLike } from './client';
 import { createSite } from './site';
 
-const REQUEST_TOKEN = 'a'.repeat(40);
+// A v4 request token: the credential of the site is an access token.
+const REQUEST_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJ2IjoxfQ.cmVxdWVzdA';
 const SESSION = 'b'.repeat(40);
 
 const tmdb = () =>
   vi.fn<FetchLike>(async (url) => {
     const { pathname } = new URL(url);
-    const body = pathname.endsWith('/token/new')
+    const body = pathname.endsWith('/auth/request_token')
       ? { success: true, request_token: REQUEST_TOKEN }
       : pathname.endsWith('/account')
         ? { id: 7, username: 'ada' }
@@ -99,14 +100,17 @@ describe('site functions on a Node server', () => {
   });
 
   it('starts a login that comes back to this server, each cookie in a header of its own', async () => {
-    const { port } = await start();
+    const { port, fetch } = await start();
 
     const answer = await ask(port, '/api/auth/login');
 
     expect(answer.status).toBe(302);
-    expect(
-      new URL(answer.headers.location!).searchParams.get('redirect_to'),
-    ).toBe(`http://127.0.0.1:${port}/api/auth/callback`);
+    expect(answer.headers.location).toBe(
+      `https://www.themoviedb.org/auth/access?request_token=${REQUEST_TOKEN}`,
+    );
+    expect(JSON.parse(fetch.mock.calls[0][1].body!).redirect_to).toBe(
+      `http://127.0.0.1:${port}/api/auth/callback`,
+    );
     expect(answer.headers['set-cookie']).toEqual([
       `media-app-login=${REQUEST_TOKEN}; Path=/; Max-Age=3600; HttpOnly; SameSite=Lax`,
       'media-app-login-failure=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax',

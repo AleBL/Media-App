@@ -15,6 +15,11 @@ const SESSION: SavedSession = {
   sessionId: '0123456789abcdef0123456789abcdef01234567',
   account: { id: 7, username: 'ada', name: 'Ada Lovelace' },
 };
+// What the v4 login gives besides the session.
+const V4 = {
+  accessToken: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.dXNlcg',
+  accountObjectId: '5f0c4a1b2c3d4e5f6a7b8c9d',
+};
 
 describe('session store', () => {
   let root: string;
@@ -62,6 +67,19 @@ describe('session store', () => {
       await expect(
         createSessionStore(directory, fakeEncryption()).load(),
       ).resolves.toEqual({ session: SESSION, kept: 'encrypted' });
+    });
+
+    it('keeps the access of the user of the v4 login too, encrypted', async () => {
+      const store = createSessionStore(directory, fakeEncryption());
+
+      await store.save({ ...SESSION, ...V4 });
+
+      expect((await readFile(encryptedFile)).toString()).not.toContain(
+        V4.accessToken,
+      );
+      await expect(
+        createSessionStore(directory, fakeEncryption()).load(),
+      ).resolves.toEqual({ session: { ...SESSION, ...V4 }, kept: 'encrypted' });
     });
 
     it('encrypts a session saved when the system had no keyring', async () => {
@@ -169,5 +187,23 @@ describe('session store', () => {
       },
       kept: 'unencrypted',
     });
+  });
+
+  it('drops half of the v4 access: one is of no use without the other', async () => {
+    await createSessionStore(
+      directory,
+      fakeEncryption({ available: false }),
+    ).save(SESSION, true);
+    await writeFile(
+      plainFile,
+      JSON.stringify({ ...SESSION, accessToken: V4.accessToken }),
+    );
+
+    await expect(
+      createSessionStore(
+        directory,
+        fakeEncryption({ available: false }),
+      ).load(),
+    ).resolves.toEqual({ session: SESSION, kept: 'unencrypted' });
   });
 });

@@ -4,7 +4,7 @@ import {
   type Result,
   type SessionState,
 } from '../api';
-import { createTmdbClient, type FetchLike } from './client';
+import { createTmdbClient, type Access, type FetchLike } from './client';
 import {
   authorizeUrl,
   isSessionDenied,
@@ -21,13 +21,13 @@ export interface WebAuthOptions {
    * Where the user approves the access, in place of the TMDB website. For
    * tests, which cannot send a browser there.
    */
-  authorizeUrl?: string;
+  website?: string;
 }
 
 /** The page of the app that shows who is signed in: every login ends there. */
 const ACCOUNT_PAGE = '/#/account';
 
-// TMDB forgets a request token after 60 minutes.
+// TMDB forgets a request token after 60 minutes (v3) or 15 (v4).
 const LOGIN_SECONDS = 60 * 60;
 // Counted from the last visit: every one of them renews the cookie.
 const SESSION_SECONDS = 180 * 24 * 60 * 60;
@@ -39,6 +39,10 @@ const COOKIES = {
   login: 'media-app-login',
   /** TMDB's session_id: a password of the account. */
   session: 'media-app-session',
+  /** With the v4 login, the access token of the user: a password too. */
+  access: 'media-app-access',
+  /** With the v4 login, the id of the account in v4, which its lists take. */
+  accountObject: 'media-app-account',
   /** Why the last login failed, until the app is told. */
   failure: 'media-app-login-failure',
 } as const;
@@ -52,9 +56,10 @@ const FAILURES: readonly string[] = [
   'unavailable',
 ] satisfies LoginFailure[];
 
-// What TMDB hands out is 40 hexadecimal characters. Anything in this shape
-// is safe inside a cookie and inside an address.
-const VALUE = /^[\w-]{1,256}$/;
+// What TMDB hands out is 40 hexadecimal characters (v3) or a JWT of a few
+// hundred (v4). Anything in this shape is safe inside a cookie and inside
+// an address, and a browser keeps a cookie this long.
+const VALUE = /^[\w.-]{1,2048}$/;
 
 const ANONYMOUS: SessionState = { status: 'anonymous' };
 
@@ -162,6 +167,38 @@ export function visit(request: Request) {
 
 type Visit = ReturnType<typeof visit>;
 
+/** What signing in gave, as the cookies of this browser keep it. */
+function accessOf(at: Visit): Access | null {
+  const sessionId = at.cookie('session');
+  const accessToken = at.cookie('access');
+  const accountObjectId = at.cookie('accountObject');
+
+  if (!sessionId) {
+    return null;
+  }
+
+  return accessToken && accountObjectId
+    ? { sessionId, accessToken, accountObjectId }
+    : { sessionId };
+}
+
+/** Keeps (again, for another 180 days) what signing in gave. */
+function keepAccess(at: Visit, access: Access) {
+  at.keep('session', access.sessionId, SESSION_SECONDS);
+
+  if (access.accessToken && access.accountObjectId) {
+    at.keep('access', access.accessToken, SESSION_SECONDS);
+    at.keep('accountObject', access.accountObjectId, SESSION_SECONDS);
+  }
+}
+
+/** Forgets in this browser everything signing in gave. */
+export function dropAccess(at: Visit) {
+  at.drop('session');
+  at.drop('access');
+  at.drop('accountObject');
+}
+
 /**
  * Signing in to TMDB on the web version of the app. A page has no safe
  * place for a session, so the site keeps it: in a cookie that the browser
@@ -184,20 +221,21 @@ export function createWebAuth(options: WebAuthOptions) {
     retries: 0,
   });
 
-  /** Ends at TMDB a session that this site is not going to use. */
-  async function discard(sessionId: string) {
+  /** Ends at TMDB what signing in gave, when this site is not going to use it. */
+  async function discard(ended: Access) {
     try {
-      await tmdb.deleteSession(sessionId);
+      await tmdb.deleteSession(ended);
     } catch {
       // The browser forgets it either way, which is all the site can do.
     }
   }
 
   async function login(at: Visit) {
+    const callback = `${at.origin}${AUTH_PATHS.callback}`;
     let requestToken: string;
 
     try {
-      requestToken = await tmdb.createRequestToken();
+      requestToken = await tmdb.createRequestToken(callback);
     } catch (error) {
       return at.toApp(loginFailure(error));
     }
@@ -210,67 +248,77 @@ export function createWebAuth(options: WebAuthOptions) {
     at.drop('failure');
 
     return at.redirect(
-      authorizeUrl(
-        requestToken,
-        `${at.origin}${AUTH_PATHS.callback}`,
-        options.authorizeUrl || undefined,
-      ),
+      authorizeUrl(requestToken, callback, options.website || undefined),
     );
   }
 
   // Anyone can open this address, with any parameters, so they decide
   // nothing: the token traded is the one of the cookie, which only the login
-  // of this browser could set, and TMDB says whether it was approved.
+  // of this browser could set, and TMDB says whether it was approved. At
+  // worst, a page that sends the browser here early ends a login that was
+  // still waiting, as a refusal.
   async function callback(at: Visit, returned: string | null) {
     const requestToken = at.cookie('login');
 
-    // TMDB comes back with the request token in the address. Without the
-    // one that is waiting, this is no login of this browser, the way back
-    // of an older one, or a page trying to end the login by guessing: the
-    // login that is waiting is left alone.
-    if (!requestToken || returned !== requestToken) {
+    // TMDB v3 comes back with the request token in the address (v4 with
+    // nothing). Another one is the way back of an older login, or a page
+    // trying to end the login by guessing: the login that is waiting is
+    // left alone.
+    if (!requestToken || (returned !== null && returned !== requestToken)) {
       return at.toApp();
     }
 
     // A request token is traded once.
     at.drop('login');
 
-    let sessionId: string;
+    let given: Access;
 
     try {
-      sessionId = await tmdb.createSession(requestToken);
+      given = await tmdb.createSession(requestToken);
     } catch (error) {
       // TMDB only sends the browser back after the user answered, so a
       // token it refuses is one the user did not approve.
       return at.toApp(isSessionDenied(error) ? 'denied' : loginFailure(error));
     }
 
-    if (!VALUE.test(sessionId)) {
+    if (
+      ![given.sessionId, given.accessToken, given.accountObjectId].every(
+        (value) => value === undefined || VALUE.test(value),
+      )
+    ) {
+      await discard(given);
+
       return at.toApp('unavailable');
     }
 
-    const previous = at.cookie('session');
+    const previous = accessOf(at);
 
-    if (previous && previous !== sessionId) {
+    if (previous && previous.sessionId !== given.sessionId) {
       await discard(previous);
     }
 
-    at.keep('session', sessionId, SESSION_SECONDS);
+    keepAccess(at, given);
     at.drop('failure');
+
+    // Signed in with a key (v3): nothing of a v4 login before it stays.
+    if (!given.accessToken) {
+      at.drop('access');
+      at.drop('accountObject');
+    }
 
     return at.toApp();
   }
 
   async function session(at: Visit) {
     const failure = at.cookie('failure');
-    const sessionId = at.cookie('session');
+    const kept = accessOf(at);
 
     // A login that failed is told once.
     if (failure) {
       at.drop('failure');
     }
 
-    if (!sessionId) {
+    if (!kept) {
       return at.answer(
         failure && FAILURES.includes(failure)
           ? { status: 'error', reason: failure as LoginFailure }
@@ -279,14 +327,14 @@ export function createWebAuth(options: WebAuthOptions) {
     }
 
     try {
-      const account = await tmdb.account(sessionId);
+      const account = await tmdb.account(kept.sessionId);
 
-      at.keep('session', sessionId, SESSION_SECONDS);
+      keepAccess(at, kept);
 
       return at.answer({ status: 'authenticated', account });
     } catch (error) {
       if (isSessionOver(error)) {
-        at.drop('session');
+        dropAccess(at);
 
         return at.answer(ANONYMOUS);
       }
@@ -305,14 +353,14 @@ export function createWebAuth(options: WebAuthOptions) {
       return at.refuse(403);
     }
 
-    const sessionId = at.cookie('session');
+    const ended = accessOf(at);
 
-    at.drop('session');
+    dropAccess(at);
     at.drop('login');
     at.drop('failure');
 
-    if (sessionId) {
-      await discard(sessionId);
+    if (ended) {
+      await discard(ended);
     }
 
     return at.answer(ANONYMOUS);

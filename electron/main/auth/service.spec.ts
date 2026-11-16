@@ -5,7 +5,7 @@ import type {
   SessionKeeping,
   SessionState,
 } from '../../../shared/api';
-import { TmdbError } from '../../../shared/tmdb/client';
+import { TmdbError, type Access } from '../../../shared/tmdb/client';
 import type { CallbackOutcome, LoopbackOptions } from './loopback';
 import {
   createAuthService,
@@ -15,11 +15,18 @@ import {
 import type { SavedSession, SessionStore } from './session-store';
 
 const NOW = 1_800_000_000_000;
-const TOKEN = 'a1b2c3d4e5f6';
+// A v4 request token, as the access token of the app gets: a JWT.
+const TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJ2IjoxfQ.cmVxdWVzdA';
 const SESSION = 'the-session-id-works-as-a-password';
+const ACCESS: Access = {
+  sessionId: SESSION,
+  accessToken: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.dXNlcg',
+  accountObjectId: '5f0c4a1b2c3d4e5f6a7b8c9d',
+};
 const ACCOUNT: Account = { id: 7, username: 'ada', name: 'Ada Lovelace' };
-const LOOPBACK_URL = 'http://127.0.0.1:50123/callback';
-const AUTHORIZE_URL = `https://www.themoviedb.org/authenticate/${TOKEN}?redirect_to=http%3A%2F%2F127.0.0.1%3A50123%2Fcallback`;
+const LOOPBACK_URL = `http://127.0.0.1:50123/callback/${'a'.repeat(32)}`;
+// The way back is in the token itself.
+const AUTHORIZE_URL = `https://www.themoviedb.org/auth/access?request_token=${TOKEN}`;
 
 const PENDING: SessionState = {
   status: 'pending',
@@ -33,11 +40,16 @@ const SIGNED_IN: SessionState = {
   offline: false,
 };
 const ANONYMOUS: SessionState = { status: 'anonymous' };
-const SAVED: SavedSession = { sessionId: SESSION, account: ACCOUNT };
+const SAVED: SavedSession = { ...ACCESS, account: ACCOUNT };
 
-// What TMDB answers for a request token that is not approved.
+// What TMDB v4 answers for a request token that is not approved.
 const notApproved = () =>
-  new TmdbError('unauthorized', 401, 'Session denied.', 17);
+  new TmdbError(
+    'invalid-request',
+    422,
+    "This request token hasn't been approved by the user.",
+    41,
+  );
 const offline = () => new TmdbError('network');
 const appRefused = () =>
   new TmdbError('unauthorized', 401, 'Invalid API key', 7);
@@ -85,14 +97,18 @@ function deferred<T>() {
 
 function setup(store = fakeStore()) {
   const tmdb = {
-    createRequestToken: vi.fn(async () => TOKEN),
-    createSession: vi.fn<(requestToken: string) => Promise<string>>(
-      async () => SESSION,
+    createRequestToken: vi.fn<(redirectTo?: string) => Promise<string>>(
+      async () => TOKEN,
+    ),
+    createSession: vi.fn<(requestToken: string) => Promise<Access>>(
+      async () => ACCESS,
     ),
     account: vi.fn<(sessionId: string) => Promise<Account>>(
       async () => ACCOUNT,
     ),
-    deleteSession: vi.fn<(sessionId: string) => Promise<void>>(async () => {}),
+    deleteSession: vi.fn<(access: Partial<Access>) => Promise<void>>(
+      async () => {},
+    ),
   };
   const loopback = { url: LOOPBACK_URL, close: vi.fn(async () => {}) };
   let listening: LoopbackOptions | undefined;
@@ -140,14 +156,31 @@ describe('auth service', () => {
 
   describe('starting a login', () => {
     it('opens the approval page of TMDB, with the way back to the app', async () => {
-      const { service, openExternal, startLoopback, changes } = setup();
+      const { service, tmdb, openExternal, changes } = setup();
 
       await expect(service.login('en')).resolves.toEqual(PENDING);
 
+      // the way back is opened first: a v4 token is told it when it is made
+      expect(tmdb.createRequestToken).toHaveBeenCalledExactlyOnceWith(
+        LOOPBACK_URL,
+      );
       expect(openExternal).toHaveBeenCalledExactlyOnceWith(AUTHORIZE_URL);
-      expect(startLoopback.mock.calls[0][0].requestToken).toBe(TOKEN);
       expect(service.getSession()).toEqual(PENDING);
       expect(changes).toEqual([PENDING]);
+    });
+
+    it('signs in through v3 with a key: the way back goes in the address of the approval page', async () => {
+      const { service, tmdb, openExternal, browserComesBack, store } = setup();
+      tmdb.createRequestToken.mockResolvedValue('a1b2c3d4e5f6');
+      tmdb.createSession.mockResolvedValue({ sessionId: SESSION });
+
+      await service.login('en');
+
+      expect(openExternal).toHaveBeenCalledExactlyOnceWith(
+        `https://www.themoviedb.org/authenticate/a1b2c3d4e5f6?redirect_to=${encodeURIComponent(LOOPBACK_URL)}`,
+      );
+      await expect(browserComesBack()).resolves.toBe('done');
+      expect(store.saved).toEqual({ sessionId: SESSION, account: ACCOUNT });
     });
 
     it('asks for one request token however often it is asked to start', async () => {
@@ -170,9 +203,8 @@ describe('auth service', () => {
 
       const state = await service.login('en');
 
-      const bare = `https://www.themoviedb.org/authenticate/${TOKEN}`;
-      expect(state).toEqual({ ...PENDING, authorizeUrl: bare });
-      expect(openExternal).toHaveBeenCalledExactlyOnceWith(bare);
+      expect(state).toEqual(PENDING);
+      expect(openExternal).toHaveBeenCalledExactlyOnceWith(AUTHORIZE_URL);
       await expect(service.confirmManual()).resolves.toEqual(SIGNED_IN);
     });
 
@@ -195,14 +227,15 @@ describe('auth service', () => {
     ] as const)(
       'fails when %s, before opening anything',
       async (_case, error, reason) => {
-        const { service, tmdb, startLoopback, openExternal } = setup();
+        const { service, tmdb, loopback, openExternal } = setup();
         tmdb.createRequestToken.mockRejectedValue(error());
 
         await expect(service.login('en')).resolves.toEqual({
           status: 'error',
           reason,
         });
-        expect(startLoopback).not.toHaveBeenCalled();
+        // nothing stays listening
+        expect(loopback.close).toHaveBeenCalled();
         expect(openExternal).not.toHaveBeenCalled();
       },
     );
@@ -286,7 +319,7 @@ describe('auth service', () => {
 
       await expect(browserComesBack()).resolves.toBe('failed');
 
-      expect(tmdb.deleteSession).toHaveBeenCalledExactlyOnceWith(SESSION);
+      expect(tmdb.deleteSession).toHaveBeenCalledExactlyOnceWith(ACCESS);
       expect(service.getSession()).toEqual({
         status: 'error',
         reason: 'network',
@@ -374,16 +407,16 @@ describe('auth service', () => {
 
     it('ends at TMDB a session that arrives after the cancel', async () => {
       const { service, tmdb, browserComesBack } = setup();
-      const answer = deferred<string>();
+      const answer = deferred<Access>();
       tmdb.createSession.mockReturnValue(answer.promise);
       await service.login('en');
 
       const page = browserComesBack();
       service.cancelLogin();
-      answer.resolve(SESSION);
+      answer.resolve(ACCESS);
 
       await expect(page).resolves.toBe('failed');
-      expect(tmdb.deleteSession).toHaveBeenCalledExactlyOnceWith(SESSION);
+      expect(tmdb.deleteSession).toHaveBeenCalledExactlyOnceWith(ACCESS);
       expect(tmdb.account).not.toHaveBeenCalled();
       expect(service.getSession()).toEqual(ANONYMOUS);
     });
@@ -432,7 +465,7 @@ describe('auth service', () => {
 
       await expect(service.logout()).resolves.toEqual(ANONYMOUS);
 
-      expect(tmdb.deleteSession).toHaveBeenCalledExactlyOnceWith(SESSION);
+      expect(tmdb.deleteSession).toHaveBeenCalledExactlyOnceWith(ACCESS);
       expect(changes.at(-1)).toEqual(ANONYMOUS);
     });
 
@@ -569,7 +602,7 @@ describe('auth service', () => {
       await expect(page).resolves.toBe('failed');
       expect(context.store.saved).toBeNull();
       expect(context.tmdb.deleteSession).toHaveBeenCalledExactlyOnceWith(
-        SESSION,
+        ACCESS,
       );
       expect(context.service.getSession()).toEqual(ANONYMOUS);
     });
@@ -769,7 +802,7 @@ describe('auth service', () => {
 
       expect(vi.getTimerCount()).toBe(0);
       expect(store.saved).toBeNull();
-      expect(tmdb.deleteSession).toHaveBeenCalledExactlyOnceWith(SESSION);
+      expect(tmdb.deleteSession).toHaveBeenCalledExactlyOnceWith(ACCESS);
     });
 
     it('ignores an answer that arrives after the sign out', async () => {

@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
@@ -7,8 +8,6 @@ export const CALLBACK_PATH = '/callback';
 export type CallbackOutcome = 'done' | 'failed';
 
 export interface LoopbackOptions {
-  /** The token being approved. A callback only counts when it brings it. */
-  requestToken: string;
   /** Runs once, when the browser comes back from TMDB. */
   onCallback: () => Promise<CallbackOutcome>;
   /** The HTML to answer the browser with. */
@@ -38,12 +37,14 @@ const HEADERS = {
  *
  * Any program or web page on this computer can also knock on that port, so
  * the callback proves nothing by itself: it is only the signal to go and ask
- * TMDB, which is what `onCallback` does. Everything that is not the callback
- * of this login gets a 404 and changes nothing.
+ * TMDB, which is what `onCallback` does. Its address ends in a value made up
+ * for this login, which only TMDB is given (TMDB v4 brings nothing else
+ * back): everything else gets a 404 and changes nothing.
  */
 export async function startLoopback(
   options: LoopbackOptions,
 ): Promise<Loopback> {
+  const path = `${CALLBACK_PATH}/${randomBytes(16).toString('hex')}`;
   let host = '';
   let used = false;
   let closing: Promise<void> | undefined;
@@ -55,8 +56,7 @@ export async function startLoopback(
       request.method === 'GET' &&
       // Another name for this address (DNS rebinding) is not this server.
       request.headers.host === host &&
-      url.pathname === CALLBACK_PATH &&
-      url.searchParams.get('request_token') === options.requestToken;
+      url.pathname === path;
 
     if (!isCallback) {
       response.writeHead(404, HEADERS).end();
@@ -94,5 +94,5 @@ export async function startLoopback(
 
   host = `127.0.0.1:${(server.address() as AddressInfo).port}`;
 
-  return { url: `http://${host}${CALLBACK_PATH}`, close };
+  return { url: `http://${host}${path}`, close };
 }

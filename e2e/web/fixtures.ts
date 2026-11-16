@@ -34,7 +34,7 @@ async function startSite(tmdb: FakeTmdb, credential: string) {
   const functions = createSite({
     credential,
     baseUrl: tmdb.url,
-    authorizeUrl: tmdb.websiteUrl,
+    website: tmdb.websiteUrl,
   });
 
   const server = createServer(async (request, response) => {

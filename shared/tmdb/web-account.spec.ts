@@ -226,9 +226,12 @@ describe('web account', () => {
 
     expect(response.status).toBe(401);
     expect(body).toEqual({ ok: false, error: { code: 'signed-out' } });
-    expect(response.headers.getSetCookie()).toEqual([
-      `${KEPT}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`,
-    ]);
+    // with what the v4 login kept besides the session
+    expect(response.headers.getSetCookie()).toEqual(
+      [KEPT, '__Host-media-app-access', '__Host-media-app-account'].map(
+        (name) => `${name}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`,
+      ),
+    );
   });
 
   it('keeps the session when TMDB fails in another way', async () => {

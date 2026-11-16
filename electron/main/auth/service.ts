@@ -4,7 +4,11 @@ import type {
   SessionKeeping,
   SessionState,
 } from '../../../shared/api';
-import { TmdbError, type TmdbClient } from '../../../shared/tmdb/client';
+import {
+  TmdbError,
+  type Access,
+  type TmdbClient,
+} from '../../../shared/tmdb/client';
 import {
   authorizeUrl,
   isSessionDenied,
@@ -50,6 +54,7 @@ export interface AuthServiceOptions {
 
 /** One login waiting for the user to approve it. */
 interface Attempt {
+  /** Empty until TMDB gave it: the way back is opened first. */
   requestToken: string;
   loopback: Loopback | null;
   timer?: ReturnType<typeof setTimeout>;
@@ -68,11 +73,13 @@ type Trade =
 /**
  * Signing in to TMDB, the way TMDB asks apps to do it: the app gets a
  * request token, the user approves it on the TMDB website, in their own
- * browser, and the app trades the approved token for a session.
+ * browser, and the app trades the approved token for a session. With the
+ * access token of the app that is TMDB v4, which also gives the access
+ * token of the user (client.ts).
  *
- * The session lives here, in the main process, and on disk for the next
- * launch (session-store.ts), and nowhere else: the renderer is only told
- * who signed in.
+ * What signing in gave lives here, in the main process, and on disk for
+ * the next launch (session-store.ts), and nowhere else: the renderer is
+ * only told who signed in.
  */
 export function createAuthService(options: AuthServiceOptions) {
   const { tmdb, store } = options;
@@ -81,7 +88,7 @@ export function createAuthService(options: AuthServiceOptions) {
   const now = options.now ?? Date.now;
 
   let state: SessionState = { status: 'anonymous' };
-  let sessionId: string | null = null;
+  let access: Access | null = null;
   let kept: SessionKeeping = 'failed';
   let attempt: Attempt | null = null;
   let starting: Promise<SessionState> | null = null;
@@ -118,8 +125,8 @@ export function createAuthService(options: AuthServiceOptions) {
     return next;
   }
 
-  const save = (id: string, account: Account, evenUnencrypted?: boolean) =>
-    keep(() => store.save({ sessionId: id, account }, evenUnencrypted)).catch(
+  const save = (given: Access, account: Account, evenUnencrypted?: boolean) =>
+    keep(() => store.save({ ...given, account }, evenUnencrypted)).catch(
       (): SessionKeeping => 'failed',
     );
 
@@ -127,22 +134,22 @@ export function createAuthService(options: AuthServiceOptions) {
 
   /** TMDB no longer knows the session: whoever it was is signed out. */
   async function over() {
-    sessionId = null;
+    access = null;
     clearTimeout(recheck);
     set({ status: 'anonymous' });
     await forget();
   }
 
   /** Asks TMDB whether the session saved by an earlier launch still works. */
-  async function check(id: string) {
+  async function check(checked: Access) {
     clearTimeout(recheck);
 
     let account: Account;
 
     try {
-      account = await tmdb.account(id);
+      account = await tmdb.account(checked.sessionId);
     } catch (error) {
-      if (sessionId !== id || state.status !== 'authenticated') {
+      if (access !== checked || state.status !== 'authenticated') {
         return;
       }
 
@@ -157,7 +164,7 @@ export function createAuthService(options: AuthServiceOptions) {
       // reason to sign anyone out.
       signIn(state.account, true);
       recheck = setTimeout(
-        () => void check(id),
+        () => void check(checked),
         recheckDelays[Math.min(rechecks, recheckDelays.length - 1)],
       );
       rechecks += 1;
@@ -165,7 +172,7 @@ export function createAuthService(options: AuthServiceOptions) {
       return;
     }
 
-    if (sessionId !== id || state.status !== 'authenticated') {
+    if (access !== checked || state.status !== 'authenticated') {
       return;
     }
 
@@ -173,9 +180,9 @@ export function createAuthService(options: AuthServiceOptions) {
 
     // Changed on TMDB: the next launch shows the new name while offline.
     if (JSON.stringify(account) !== JSON.stringify(state.account)) {
-      const keeping = await save(id, account, kept === 'unencrypted');
+      const keeping = await save(checked, account, kept === 'unencrypted');
 
-      if (sessionId !== id) {
+      if (access !== checked) {
         return;
       }
 
@@ -200,20 +207,20 @@ export function createAuthService(options: AuthServiceOptions) {
     set({ status: 'error', reason });
   }
 
-  /** Ends at TMDB a session that the app is not going to use. */
-  async function discard(id: string) {
+  /** Ends at TMDB what signing in gave, when the app is not going to use it. */
+  async function discard(ended: Access) {
     try {
-      await tmdb.deleteSession(id);
+      await tmdb.deleteSession(ended);
     } catch {
       // It is forgotten here either way, which is all the app can do.
     }
   }
 
   async function trade(current: Attempt): Promise<Trade> {
-    let id: string;
+    let got: Access;
 
     try {
-      id = await tmdb.createSession(current.requestToken);
+      got = await tmdb.createSession(current.requestToken);
     } catch (error) {
       if (attempt !== current) {
         return 'over';
@@ -234,7 +241,7 @@ export function createAuthService(options: AuthServiceOptions) {
 
     // Cancelled or timed out while TMDB was answering.
     if (attempt !== current) {
-      await discard(id);
+      await discard(got);
 
       return 'over';
     }
@@ -242,10 +249,10 @@ export function createAuthService(options: AuthServiceOptions) {
     let account: Account;
 
     try {
-      account = await tmdb.account(id);
+      account = await tmdb.account(got.sessionId);
     } catch (error) {
       // The request token is spent: there is no trying again with it.
-      await discard(id);
+      await discard(got);
 
       if (attempt === current) {
         fail(current, loginFailure(error));
@@ -255,23 +262,23 @@ export function createAuthService(options: AuthServiceOptions) {
     }
 
     if (attempt !== current) {
-      await discard(id);
+      await discard(got);
 
       return 'over';
     }
 
-    const keeping = await save(id, account);
+    const keeping = await save(got, account);
 
     // Cancelled while the session was being saved.
     if (attempt !== current) {
       await forget();
-      await discard(id);
+      await discard(got);
 
       return 'over';
     }
 
     end(current);
-    sessionId = id;
+    access = got;
     kept = keeping;
     rechecks = 0;
     signIn(account);
@@ -307,19 +314,11 @@ export function createAuthService(options: AuthServiceOptions) {
   }
 
   async function start(language: string): Promise<SessionState> {
-    let requestToken: string;
+    const current: Attempt = { requestToken: '', loopback: null };
 
-    try {
-      requestToken = await tmdb.createRequestToken();
-    } catch (error) {
-      return set({ status: 'error', reason: loginFailure(error) });
-    }
-
-    const current: Attempt = { requestToken, loopback: null };
-
+    // Opened first: a v4 request token is told the way back when it is made.
     try {
       current.loopback = await options.startLoopback({
-        requestToken,
         onCallback: () => comeBack(current),
         page: (outcome) => callbackPage(language, outcome),
       });
@@ -328,7 +327,17 @@ export function createAuthService(options: AuthServiceOptions) {
       // the user says when the approval is done (confirmManual).
     }
 
-    const url = authorizeUrl(requestToken, current.loopback?.url);
+    try {
+      current.requestToken = await tmdb.createRequestToken(
+        current.loopback?.url,
+      );
+    } catch (error) {
+      void current.loopback?.close();
+
+      return set({ status: 'error', reason: loginFailure(error) });
+    }
+
+    const url = authorizeUrl(current.requestToken, current.loopback?.url);
 
     attempt = current;
 
@@ -371,11 +380,13 @@ export function createAuthService(options: AuthServiceOptions) {
         return state;
       }
 
-      sessionId = saved.session.sessionId;
+      const { account, ...restored } = saved.session;
+
+      access = restored;
       kept = saved.kept;
       rechecks = 0;
-      signIn(saved.session.account);
-      void check(sessionId);
+      signIn(account);
+      void check(restored);
 
       return state;
     },
@@ -421,16 +432,16 @@ export function createAuthService(options: AuthServiceOptions) {
      * once the user agreed to keep it unencrypted.
      */
     async remember(): Promise<SessionState> {
-      const id = sessionId;
+      const current = access;
 
-      if (!id || state.status !== 'authenticated' || kept !== 'ask') {
+      if (!current || state.status !== 'authenticated' || kept !== 'ask') {
         return state;
       }
 
-      const keeping = await save(id, state.account, true);
+      const keeping = await save(current, state.account, true);
 
       // Signed out meanwhile, which removed what was written.
-      if (sessionId !== id || state.status !== 'authenticated') {
+      if (access !== current || state.status !== 'authenticated') {
         return state;
       }
 
@@ -448,20 +459,20 @@ export function createAuthService(options: AuthServiceOptions) {
     async withSession<T>(
       work: (sessionId: string, account: Account) => Promise<T>,
     ): Promise<T> {
-      const id = sessionId;
+      const current = access;
 
-      if (!id || state.status !== 'authenticated') {
+      if (!current || state.status !== 'authenticated') {
         throw new TmdbError('signed-out');
       }
 
       try {
-        return await work(id, state.account);
+        return await work(current.sessionId, state.account);
       } catch (error) {
         if (!isSessionOver(error)) {
           throw error;
         }
 
-        if (sessionId === id) {
+        if (access === current) {
           await over();
         }
 
@@ -471,9 +482,9 @@ export function createAuthService(options: AuthServiceOptions) {
 
     /** Signs out here first, so being offline never keeps anyone signed in. */
     async logout(): Promise<SessionState> {
-      const id = sessionId;
+      const ended = access;
 
-      sessionId = null;
+      access = null;
       clearTimeout(recheck);
 
       if (attempt) {
@@ -486,8 +497,8 @@ export function createAuthService(options: AuthServiceOptions) {
 
       await forget();
 
-      if (id) {
-        await discard(id);
+      if (ended) {
+        await discard(ended);
       }
 
       return state;

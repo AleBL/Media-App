@@ -910,8 +910,12 @@ describe('lists of the account', () => {
 describe('signing in', () => {
   const REQUEST_TOKEN = 'a1b2c3d4e5f6';
   const SESSION = 'the-session-id-works-as-a-password';
+  // What TMDB v4 hands out is a JWT, in three parts.
+  const V4_REQUEST_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJ2IjoxfQ.cmVxdWVzdA';
+  const USER_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.dXNlcg';
+  const ACCOUNT_OBJECT = '5f0c4a1b2c3d4e5f6a7b8c9d';
 
-  it('asks for a request token', async () => {
+  it('asks for a v3 request token with a key', async () => {
     const { client, fetch, requestedUrl } = setup([
       answer(200, {
         success: true,
@@ -920,20 +924,64 @@ describe('signing in', () => {
       }),
     ]);
 
-    await expect(client.createRequestToken()).resolves.toBe(REQUEST_TOKEN);
+    await expect(
+      client.createRequestToken('http://127.0.0.1:5000/callback/x'),
+    ).resolves.toBe(REQUEST_TOKEN);
 
     expect(requestedUrl().pathname).toBe('/3/authentication/token/new');
     expect(fetch.mock.calls[0][1].method).toBeUndefined();
     expect(fetch.mock.calls[0][1].body).toBeUndefined();
   });
 
-  it('trades an approved request token for a session', async () => {
+  it('asks for a v4 request token, with the way back, with the token of the app', async () => {
+    const { client, fetch, requestedUrl } = setup(
+      [
+        answer(200, {
+          success: true,
+          status_code: 1,
+          request_token: V4_REQUEST_TOKEN,
+        }),
+      ],
+      { credential: V4_TOKEN },
+    );
+
+    await expect(
+      client.createRequestToken('https://media-app.test/api/auth/callback'),
+    ).resolves.toBe(V4_REQUEST_TOKEN);
+
+    const init = fetch.mock.calls[0][1];
+    expect(requestedUrl().href).toBe(
+      'https://api.themoviedb.org/4/auth/request_token',
+    );
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body!)).toEqual({
+      redirect_to: 'https://media-app.test/api/auth/callback',
+    });
+    expect(init.headers.Authorization).toBe(`Bearer ${V4_TOKEN}`);
+  });
+
+  it('asks v4 at the address of v3 given in place of the one of TMDB', async () => {
+    const { client, requestedUrl } = setup(
+      [answer(200, { request_token: V4_REQUEST_TOKEN })],
+      { credential: V4_TOKEN, baseUrl: 'http://127.0.0.1:9999/3' },
+    );
+
+    await client.createRequestToken();
+
+    expect(requestedUrl().href).toBe(
+      'http://127.0.0.1:9999/4/auth/request_token',
+    );
+  });
+
+  it('trades an approved v3 request token for a session', async () => {
     const { client, fetch, requestedUrl } = setup(
       [answer(200, { success: true, session_id: SESSION })],
       { credential: V4_TOKEN },
     );
 
-    await expect(client.createSession(REQUEST_TOKEN)).resolves.toBe(SESSION);
+    await expect(client.createSession(REQUEST_TOKEN)).resolves.toEqual({
+      sessionId: SESSION,
+    });
 
     const init = fetch.mock.calls[0][1];
     expect(requestedUrl().pathname).toBe('/3/authentication/session/new');
@@ -942,6 +990,86 @@ describe('signing in', () => {
     expect(init.headers).toMatchObject({
       Authorization: `Bearer ${V4_TOKEN}`,
       'Content-Type': 'application/json',
+    });
+  });
+
+  it('trades an approved v4 request token for the access of the user and a session made from it', async () => {
+    const { client, fetch, requestedUrl } = setup(
+      [
+        answer(200, {
+          success: true,
+          status_code: 1,
+          access_token: USER_TOKEN,
+          account_id: ACCOUNT_OBJECT,
+        }),
+        answer(200, { success: true, session_id: SESSION }),
+      ],
+      { credential: V4_TOKEN },
+    );
+
+    await expect(client.createSession(V4_REQUEST_TOKEN)).resolves.toEqual({
+      sessionId: SESSION,
+      accessToken: USER_TOKEN,
+      accountObjectId: ACCOUNT_OBJECT,
+    });
+
+    expect(requestedUrl(0).pathname).toBe('/4/auth/access_token');
+    expect(JSON.parse(fetch.mock.calls[0][1].body!)).toEqual({
+      request_token: V4_REQUEST_TOKEN,
+    });
+    expect(requestedUrl(1).pathname).toBe(
+      '/3/authentication/session/convert/4',
+    );
+    expect(JSON.parse(fetch.mock.calls[1][1].body!)).toEqual({
+      access_token: USER_TOKEN,
+    });
+    // both with the token of the app, never the one of the user
+    expect(
+      fetch.mock.calls.map(([, init]) => init.headers.Authorization),
+    ).toEqual([`Bearer ${V4_TOKEN}`, `Bearer ${V4_TOKEN}`]);
+    for (const [url] of fetch.mock.calls) {
+      expect(url).not.toContain(USER_TOKEN);
+    }
+  });
+
+  it('ends the access of the user when TMDB will not make a session of it', async () => {
+    const { client, fetch, requestedUrl } = setup(
+      [
+        answer(200, { access_token: USER_TOKEN, account_id: ACCOUNT_OBJECT }),
+        answer(401, { status_code: 35, status_message: 'Invalid token.' }),
+        answer(200, { success: true, status_code: 13 }),
+      ],
+      { credential: V4_TOKEN },
+    );
+
+    await expect(client.createSession(V4_REQUEST_TOKEN)).rejects.toMatchObject({
+      code: 'unauthorized',
+      tmdbStatus: 35,
+    });
+
+    expect(requestedUrl(2).pathname).toBe('/4/auth/access_token');
+    expect(fetch.mock.calls[2][1].method).toBe('DELETE');
+    expect(JSON.parse(fetch.mock.calls[2][1].body!)).toEqual({
+      access_token: USER_TOKEN,
+    });
+  });
+
+  it('says that a v4 request token is not approved, the way TMDB does', async () => {
+    const { client } = setup(
+      [
+        answer(422, {
+          success: false,
+          status_code: 41,
+          status_message:
+            "This request token hasn't been approved by the user.",
+        }),
+      ],
+      { credential: V4_TOKEN },
+    );
+
+    await expect(client.createSession(V4_REQUEST_TOKEN)).rejects.toMatchObject({
+      status: 422,
+      tmdbStatus: 41,
     });
   });
 
@@ -1032,9 +1160,12 @@ describe('signing in', () => {
       answer(200, { success: true }),
     ]);
 
-    await expect(client.deleteSession(SESSION)).resolves.toBeUndefined();
+    await expect(
+      client.deleteSession({ sessionId: SESSION }),
+    ).resolves.toBeUndefined();
 
     const init = fetch.mock.calls[0][1];
+    expect(fetch).toHaveBeenCalledOnce();
     expect(requestedUrl().pathname).toBe('/3/authentication/session');
     expect(init.method).toBe('DELETE');
     expect(JSON.parse(init.body!)).toEqual({ session_id: SESSION });
@@ -1042,16 +1173,45 @@ describe('signing in', () => {
     expect(requestedUrl().search).not.toContain(SESSION);
   });
 
+  it('ends the session and the access of the user, even when one fails', async () => {
+    const { client, fetch } = setup(
+      [
+        answer(500, { status_code: 11 }),
+        answer(200, { success: true, status_code: 13 }),
+      ],
+      { credential: V4_TOKEN },
+    );
+
+    await expect(
+      client.deleteSession({ sessionId: SESSION, accessToken: USER_TOKEN }),
+    ).rejects.toMatchObject({ code: 'server' });
+
+    expect(
+      fetch.mock.calls.map(([url, init]) => [
+        new URL(url).pathname,
+        init.method,
+        JSON.parse(init.body!),
+      ]),
+    ).toEqual([
+      ['/3/authentication/session', 'DELETE', { session_id: SESSION }],
+      ['/4/auth/access_token', 'DELETE', { access_token: USER_TOKEN }],
+    ]);
+  });
+
   it.each([
     ['a request token', () => ({ success: true })],
     ['a session', () => ({ success: true, session_id: '' })],
     ['an account', () => ({ username: 'ada' })],
+    ['the access of the user', () => ({ account_id: ACCOUNT_OBJECT })],
+    ['the account in v4', () => ({ access_token: USER_TOKEN })],
   ] as const)('does not accept an answer without %s', async (what, body) => {
     const { client } = setup([answer(200, body())]);
     const ask = {
       'a request token': () => client.createRequestToken(),
       'a session': () => client.createSession(REQUEST_TOKEN),
       'an account': () => client.account(SESSION),
+      'the access of the user': () => client.createSession(V4_REQUEST_TOKEN),
+      'the account in v4': () => client.createSession(V4_REQUEST_TOKEN),
     }[what];
 
     await expect(ask()).rejects.toMatchObject({ code: 'server' });

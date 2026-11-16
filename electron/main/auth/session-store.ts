@@ -1,16 +1,23 @@
 import type { Account, SessionKeeping } from '../../../shared/api';
+import type { Access } from '../../../shared/tmdb/client';
 import { createSecretFile, type Encryption } from '../secret-file';
 
 export const ENCRYPTED_FILE = 'tmdb-session.bin';
 export const PLAIN_FILE = 'tmdb-session.txt';
 
-/** What a launch leaves for the next one. */
-export interface SavedSession {
-  /** TMDB's session_id: whoever has it can act as the user. */
-  sessionId: string;
+/**
+ * What a launch leaves for the next one: what signing in gave (the session
+ * and, with the v4 login, the access token of the user), each of them
+ * enough to act as the user. A launch before the v4 login saved the
+ * session alone.
+ */
+export interface SavedSession extends Access {
   /** Who it is, to show while TMDB cannot be asked. */
   account: Account;
 }
+
+const filled = (value: unknown) =>
+  typeof value === 'string' && value ? value : undefined;
 
 function parse(text: string): SavedSession | null {
   let value: unknown;
@@ -21,7 +28,8 @@ function parse(text: string): SavedSession | null {
     return null;
   }
 
-  const { sessionId, account } = (value ?? {}) as Record<string, unknown>;
+  const { sessionId, accessToken, accountObjectId, account } = (value ??
+    {}) as Record<string, unknown>;
   const { id, username, name, avatarPath } = (account ?? {}) as Record<
     string,
     unknown
@@ -36,8 +44,15 @@ function parse(text: string): SavedSession | null {
     return null;
   }
 
+  const v4 = {
+    accessToken: filled(accessToken),
+    accountObjectId: filled(accountObjectId),
+  };
+
   return {
     sessionId,
+    // Both or neither: one is of no use without the other.
+    ...(v4.accessToken && v4.accountObjectId ? v4 : {}),
     account: {
       id,
       username,

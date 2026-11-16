@@ -60,7 +60,7 @@
         <button
           v-if="!hasKey"
           type="button"
-          class="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-surface-500 hover:text-surface-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-surface-400 dark:hover:text-surface-200"
+          class="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-surface-500 hover:text-surface-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-surface-400 dark:hover:text-surface-200"
           :aria-label="t('settings.showKey')"
           :aria-pressed="revealed"
           @click="revealed = !revealed"

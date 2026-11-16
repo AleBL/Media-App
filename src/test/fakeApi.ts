@@ -3,6 +3,7 @@ import type {
   Account,
   CredentialStatus,
   MediaAppApi,
+  MediaDetails,
   MediaItem,
   Paged,
   SessionKeeping,
@@ -45,6 +46,38 @@ export const signedInOnDesktop = (
   offline = false,
 ): SessionState => ({ status: 'authenticated', account: ADA, kept, offline });
 
+/** The page of a movie with everything filled in. */
+export const MATRIX: MediaDetails = {
+  type: 'movie',
+  id: 603,
+  title: 'Matrix',
+  originalTitle: 'The Matrix',
+  tagline: 'Welcome to the Real World.',
+  overview: 'A hacker learns the truth about his reality.',
+  date: '1999-03-31',
+  runtime: 136,
+  genres: [
+    { id: 28, name: 'Action' },
+    { id: 878, name: 'Science Fiction' },
+  ],
+  posterPath: '/matrix.jpg',
+  voteAverage: 8.2,
+  voteCount: 26000,
+  imdbId: 'tt0133093',
+  trailer: { key: 'vKQi3bBA1y8', name: 'Official Trailer' },
+  cast: [
+    { id: 6384, name: 'Keanu Reeves', character: 'Neo', profilePath: '/k.jpg' },
+    { id: 2975, name: 'Laurence Fishburne', character: 'Morpheus' },
+  ],
+  watch: {
+    link: 'https://www.themoviedb.org/movie/603-the-matrix/watch?locale=US',
+    stream: [{ id: 8, name: 'Netflix', logoPath: '/netflix.png' }],
+    free: [],
+    rent: [{ id: 2, name: 'Apple TV' }],
+    buy: [],
+  },
+};
+
 export function pageOf(
   results: MediaItem[] = [],
   overrides: Partial<Paged<MediaItem>> = {},
@@ -76,6 +109,10 @@ export function installFakeApi() {
       genres: vi.fn<MediaAppApi['tmdb']['genres']>(async () => ({
         ok: true,
         data: [],
+      })),
+      details: vi.fn<MediaAppApi['tmdb']['details']>(async ({ type, id }) => ({
+        ok: true,
+        data: { ...MATRIX, type, id },
       })),
     },
     credentials: {

@@ -1,7 +1,9 @@
 import {
   IPC,
   type CredentialStatus,
+  type DetailsRequest,
   type Genre,
+  type MediaDetails,
   type MediaItem,
   type NativeTheme,
   type Paged,
@@ -14,6 +16,7 @@ import { isNativeTheme } from './security';
 import { TmdbError } from '../../shared/tmdb/client';
 import {
   parseApiKey,
+  parseDetailsRequest,
   parseLanguage,
   parseSearchRequest,
 } from '../../shared/tmdb/validation';
@@ -39,7 +42,10 @@ export interface IpcServices {
   /** True when the message comes from the app's own page. */
   isTrustedSender(url: string): boolean;
   setNativeTheme(theme: NativeTheme): void;
-  tmdb: { search(request: SearchRequest): Promise<Paged<MediaItem>> };
+  tmdb: {
+    search(request: SearchRequest): Promise<Paged<MediaItem>>;
+    details(request: DetailsRequest): Promise<MediaDetails>;
+  };
   genres: { get(language: string): Promise<Genre[]> };
   credentials: {
     status(): CredentialStatus;
@@ -113,6 +119,12 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
     const language = trusted(event) ? parseLanguage(value) : null;
 
     return language ? attempt(() => services.genres.get(language)) : invalid();
+  });
+
+  ipc.handle(IPC.tmdbDetails, (event, value) => {
+    const request = trusted(event) ? parseDetailsRequest(value) : null;
+
+    return request ? attempt(() => services.tmdb.details(request)) : invalid();
   });
 
   ipc.handle(IPC.credentialStatus, (event) =>

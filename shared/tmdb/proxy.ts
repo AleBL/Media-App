@@ -3,7 +3,11 @@ import type { Result, TmdbErrorCode, TmdbFailure } from '../api';
 /** The path of the site where this proxy answers. */
 export { TMDB_PROXY_PATH } from '../api';
 import { createTmdbClient, TmdbError, type FetchLike } from './client';
-import { parseLanguage, parseSearchRequest } from './validation';
+import {
+  parseDetailsRequest,
+  parseLanguage,
+  parseSearchRequest,
+} from './validation';
 
 export interface TmdbProxyOptions {
   /** The TMDB credential kept by the server, when one is configured. */
@@ -31,6 +35,9 @@ const SEARCH_CACHE =
   'public, max-age=0, s-maxage=300, stale-while-revalidate=3600';
 const GENRES_CACHE =
   'public, max-age=0, s-maxage=86400, stale-while-revalidate=604800';
+// Where to watch changes from one day to the next, the rest hardly ever.
+const DETAILS_CACHE =
+  'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400';
 
 function respond(status: number, body: Result<unknown>, cache = 'no-store') {
   return new Response(JSON.stringify(body), {
@@ -73,13 +80,14 @@ function toFailure(error: unknown): TmdbFailure {
  * credential that stays on the server.
  *
  * It is not a general proxy. It only does what the app does (searching
- * movies and tv shows, and listing genres), checks every parameter the same
- * way the desktop app checks what its window sends, and answers in the
- * shape of shared/api.ts, so there is nothing to gain from calling it
- * instead of TMDB.
+ * movies and tv shows, listing genres and showing the page of a title),
+ * checks every parameter the same way the desktop app checks what its
+ * window sends, and answers in the shape of shared/api.ts, so there is
+ * nothing to gain from calling it instead of TMDB.
  *
  *   GET ?resource=search&type=movie&query=matrix&page=1&language=en
  *   GET ?resource=genres&language=en
+ *   GET ?resource=details&type=movie&id=603&language=en&region=US
  */
 export function createTmdbProxy(options: TmdbProxyOptions) {
   const credential = options.credential?.trim() || null;
@@ -126,6 +134,23 @@ export function createTmdbProxy(options: TmdbProxyOptions) {
                 200,
                 { ok: true, data: await client.genres(language) },
                 GENRES_CACHE,
+              )
+            : failure({ code: 'invalid-request' });
+        }
+
+        case 'details': {
+          const details = parseDetailsRequest({
+            type: params.get('type'),
+            id: Number(params.get('id')),
+            language: params.get('language'),
+            region: params.get('region'),
+          });
+
+          return details
+            ? respond(
+                200,
+                { ok: true, data: await client.details(details) },
+                DETAILS_CACHE,
               )
             : failure({ code: 'invalid-request' });
         }

@@ -53,7 +53,7 @@ describe('tmdb proxy', () => {
         data: {
           page: 2,
           // only the fields the app uses
-          results: [{ id: 603, title: 'The Matrix' }],
+          results: [{ id: 603, media_type: 'movie', title: 'The Matrix' }],
           totalPages: 3,
           totalResults: 45,
         },
@@ -149,6 +149,75 @@ describe('tmdb proxy', () => {
       const { response, fetch } = await ask('?resource=genres&language=x');
 
       expect(response.status).toBe(400);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('details', () => {
+    const DETAILS =
+      '?resource=details&type=movie&id=603&language=pt-BR&region=BR';
+    const matrix = {
+      id: 603,
+      title: 'Matrix',
+      budget: 63000000,
+      'watch/providers': {
+        results: {
+          BR: { flatrate: [{ provider_id: 8, provider_name: 'Netflix' }] },
+          US: { flatrate: [{ provider_id: 9, provider_name: 'Prime Video' }] },
+        },
+      },
+    };
+
+    it('answers with the page of the title, where to watch in the region', async () => {
+      const fetch = tmdbAnswers(200, matrix);
+
+      const { response, body } = await ask(DETAILS, fetch);
+
+      expect(response.status).toBe(200);
+      expect(body).toEqual({
+        ok: true,
+        data: {
+          type: 'movie',
+          id: 603,
+          title: 'Matrix',
+          genres: [],
+          cast: [],
+          watch: {
+            stream: [{ id: 8, name: 'Netflix' }],
+            free: [],
+            rent: [],
+            buy: [],
+          },
+        },
+      });
+      expect(new URL(fetch.mock.calls[0][0]).pathname).toBe('/3/movie/603');
+      expect(response.headers.get('Cache-Control')).toBe(
+        'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400',
+      );
+    });
+
+    it('answers 404 for a title TMDB does not have, and keeps nothing', async () => {
+      const { response, body } = await ask(
+        DETAILS,
+        tmdbAnswers(404, { status_code: 34, status_message: 'Not found.' }),
+      );
+
+      expect(response.status).toBe(404);
+      expect(body).toMatchObject({ ok: false, error: { code: 'not-found' } });
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
+    });
+
+    it.each([
+      ['a type the app does not show', DETAILS.replace('movie', 'person')],
+      ['no id', DETAILS.replace('id=603&', '')],
+      ['an id that is a path', DETAILS.replace('603', '603%2Fvideos')],
+      ['no region', DETAILS.replace('&region=BR', '')],
+      ['a region that is not a country', DETAILS.replace('BR', 'Brazil')],
+    ])('refuses %s without asking TMDB', async (_case, query) => {
+      const { response, body, fetch } = await ask(query, tmdbAnswers(200, {}));
+
+      expect(response.status).toBe(400);
+      expect(body).toEqual({ ok: false, error: { code: 'invalid-request' } });
       expect(fetch).not.toHaveBeenCalled();
     });
   });

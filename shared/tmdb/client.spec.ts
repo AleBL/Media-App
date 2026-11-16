@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { TMDB_PAGE_SIZE } from '../api';
 import {
+  CAST_SIZE,
   createTmdbClient,
   TMDB_MAX_PAGES,
   TmdbError,
@@ -113,7 +114,7 @@ describe('search', () => {
 
     await expect(client.search(search)).resolves.toEqual({
       page: 1,
-      results: [{ id: 603, title: 'The Matrix' }],
+      results: [{ id: 603, media_type: 'movie', title: 'The Matrix' }],
       totalPages: 3,
       totalResults: 45,
     });
@@ -245,6 +246,296 @@ describe('genres', () => {
     expect(requestedUrl(0).pathname).toBe('/3/genre/movie/list');
     expect(requestedUrl(1).pathname).toBe('/3/genre/tv/list');
     expect(requestedUrl(0).searchParams.get('language')).toBe('pt-BR');
+  });
+});
+
+describe('details', () => {
+  const movie = {
+    id: 603,
+    adult: false,
+    title: 'Matrix',
+    original_title: 'The Matrix',
+    tagline: 'Bem-vindo ao mundo real.',
+    overview: 'Um hacker descobre a verdade sobre a sua realidade.',
+    release_date: '1999-03-31',
+    runtime: 136,
+    budget: 63000000,
+    genres: [{ id: 28, name: 'Ação' }, { id: 'x' }],
+    poster_path: '/matrix.jpg',
+    vote_average: 8.2,
+    vote_count: 26000,
+    imdb_id: 'tt0133093',
+    credits: {
+      cast: [
+        {
+          id: 6384,
+          name: 'Keanu Reeves',
+          character: 'Neo',
+          profile_path: '/k.jpg',
+          popularity: 50,
+        },
+        { id: 2975, name: 'Laurence Fishburne', character: '' },
+        { name: 'Someone without an id' },
+      ],
+      crew: [{ id: 1, name: 'Lana Wachowski', job: 'Director' }],
+    },
+    videos: {
+      results: [
+        { key: 'vimeo123456', site: 'Vimeo', type: 'Trailer', iso_639_1: 'pt' },
+        {
+          key: 'teaserPT001',
+          site: 'YouTube',
+          type: 'Teaser',
+          iso_639_1: 'pt',
+        },
+        {
+          key: 'trailerEN01',
+          site: 'YouTube',
+          type: 'Trailer',
+          iso_639_1: 'en',
+          official: true,
+          name: 'Official Trailer',
+        },
+        {
+          key: 'trailerPT01',
+          site: 'YouTube',
+          type: 'Trailer',
+          iso_639_1: 'pt',
+          name: 'Trailer Legendado',
+        },
+        {
+          key: 'not a key!',
+          site: 'YouTube',
+          type: 'Trailer',
+          iso_639_1: 'pt',
+        },
+        { key: 'making0f001', site: 'YouTube', type: 'Featurette' },
+      ],
+    },
+    'watch/providers': {
+      results: {
+        BR: {
+          link: 'https://www.themoviedb.org/movie/603-the-matrix/watch?locale=BR',
+          flatrate: [
+            { provider_id: 1899, provider_name: 'Max', display_priority: 3 },
+            {
+              provider_id: 8,
+              provider_name: 'Netflix',
+              logo_path: '/netflix.png',
+              display_priority: 1,
+            },
+          ],
+          rent: [{ provider_id: 2, provider_name: 'Apple TV' }],
+          buy: [{ provider_id: 2, provider_name: 'Apple TV' }],
+          ads: [{ provider_id: 300, provider_name: 'Pluto TV' }],
+          free: [
+            { provider_id: 300, provider_name: 'Pluto TV' },
+            { provider_name: 'A service without an id' },
+          ],
+        },
+        US: { flatrate: [{ provider_id: 9, provider_name: 'Prime Video' }] },
+      },
+    },
+    external_ids: { imdb_id: 'tt0133093', facebook_id: null },
+  };
+
+  const show = {
+    id: 1396,
+    name: 'Breaking Bad',
+    original_name: 'Breaking Bad',
+    first_air_date: '2008-01-20',
+    episode_run_time: [],
+    last_episode_to_air: { runtime: 47 },
+    number_of_seasons: 5,
+    number_of_episodes: 62,
+    genres: [{ id: 18, name: 'Drama' }],
+    poster_path: null,
+    vote_average: 8.9,
+    vote_count: 15000,
+    external_ids: { imdb_id: 'tt0903747' },
+    credits: { cast: [] },
+    videos: { results: [] },
+    'watch/providers': { results: {} },
+  };
+
+  const inBrazil = {
+    type: 'movie',
+    id: 603,
+    language: 'pt-BR',
+    region: 'BR',
+  } as const;
+
+  /** The movie, with other places to watch it in Brazil. */
+  const watchInBrazil = (brazil: Record<string, unknown>) => ({
+    ...movie,
+    'watch/providers': { results: { BR: brazil } },
+  });
+
+  it('asks for the page with everything it shows in one request', async () => {
+    const { client, requestedUrl } = setup([answer(200, movie)]);
+
+    await client.details(inBrazil);
+
+    const url = requestedUrl();
+    expect(url.origin + url.pathname).toBe(
+      'https://api.themoviedb.org/3/movie/603',
+    );
+    expect(url.searchParams.get('language')).toBe('pt-BR');
+    expect(url.searchParams.get('append_to_response')).toBe(
+      'credits,videos,watch/providers,external_ids',
+    );
+    // pt-BR and pt are not the same to TMDB: videos in either, then English
+    expect(url.searchParams.get('include_video_language')).toBe(
+      'pt-BR,pt,en,null',
+    );
+  });
+
+  it('keeps only what the page shows, with where to watch in the region', async () => {
+    const { client } = setup([answer(200, movie)]);
+
+    await expect(client.details(inBrazil)).resolves.toEqual({
+      type: 'movie',
+      id: 603,
+      title: 'Matrix',
+      originalTitle: 'The Matrix',
+      tagline: 'Bem-vindo ao mundo real.',
+      overview: 'Um hacker descobre a verdade sobre a sua realidade.',
+      date: '1999-03-31',
+      runtime: 136,
+      genres: [{ id: 28, name: 'Ação' }],
+      posterPath: '/matrix.jpg',
+      voteAverage: 8.2,
+      voteCount: 26000,
+      imdbId: 'tt0133093',
+      // in the language of the app before English, a trailer before a teaser
+      trailer: { key: 'trailerPT01', name: 'Trailer Legendado' },
+      cast: [
+        {
+          id: 6384,
+          name: 'Keanu Reeves',
+          character: 'Neo',
+          profilePath: '/k.jpg',
+        },
+        { id: 2975, name: 'Laurence Fishburne' },
+      ],
+      watch: {
+        link: 'https://www.themoviedb.org/movie/603-the-matrix/watch?locale=BR',
+        // in the order JustWatch ranks them, each service once
+        stream: [
+          { id: 8, name: 'Netflix', logoPath: '/netflix.png' },
+          { id: 1899, name: 'Max' },
+        ],
+        free: [{ id: 300, name: 'Pluto TV' }],
+        rent: [{ id: 2, name: 'Apple TV' }],
+        buy: [{ id: 2, name: 'Apple TV' }],
+      },
+    });
+  });
+
+  it('reads a tv show, whose IMDb id is only in its external ids', async () => {
+    const { client, requestedUrl } = setup([answer(200, show)]);
+
+    await expect(
+      client.details({ type: 'tv', id: 1396, language: 'en', region: 'US' }),
+    ).resolves.toEqual({
+      type: 'tv',
+      id: 1396,
+      title: 'Breaking Bad',
+      date: '2008-01-20',
+      // TMDB often leaves episode_run_time empty
+      runtime: 47,
+      seasons: 5,
+      episodes: 62,
+      genres: [{ id: 18, name: 'Drama' }],
+      voteAverage: 8.9,
+      voteCount: 15000,
+      imdbId: 'tt0903747',
+      cast: [],
+    });
+    expect(requestedUrl().pathname).toBe('/3/tv/1396');
+    expect(requestedUrl().searchParams.get('include_video_language')).toBe(
+      'en,en-US,null',
+    );
+  });
+
+  it('has nowhere to watch in a region JustWatch knows nothing about', async () => {
+    const { client } = setup([answer(200, movie)]);
+
+    const details = await client.details({ ...inBrazil, region: 'PT' });
+
+    expect(details.watch).toBeUndefined();
+  });
+
+  it('drops a link that does not go to TMDB', async () => {
+    const { client } = setup([
+      answer(
+        200,
+        watchInBrazil({
+          link: 'https://elsewhere.test/watch',
+          flatrate: [{ provider_id: 8, provider_name: 'Netflix' }],
+        }),
+      ),
+    ]);
+
+    await expect(client.details(inBrazil)).resolves.toMatchObject({
+      watch: { link: undefined, stream: [{ id: 8, name: 'Netflix' }] },
+    });
+  });
+
+  it('has nothing to show when no service offers the title', async () => {
+    const { client } = setup([
+      answer(
+        200,
+        watchInBrazil({
+          link: 'https://www.themoviedb.org/movie/603-the-matrix/watch',
+          flatrate: [],
+        }),
+      ),
+    ]);
+
+    const details = await client.details(inBrazil);
+
+    expect(details.watch).toBeUndefined();
+  });
+
+  it(`shows the first ${CAST_SIZE} of the cast`, async () => {
+    const cast = Array.from({ length: 30 }, (_, index) => ({
+      id: index + 1,
+      name: `Actor ${index + 1}`,
+    }));
+    const { client } = setup([answer(200, { ...movie, credits: { cast } })]);
+
+    const details = await client.details(inBrazil);
+
+    expect(details.cast).toHaveLength(CAST_SIZE);
+    expect(details.cast[0].name).toBe('Actor 1');
+  });
+
+  it('does not show an adult title, which no search would list', async () => {
+    const { client } = setup([answer(200, { ...movie, adult: true })]);
+
+    await expect(client.details(inBrazil)).rejects.toMatchObject({
+      code: 'not-found',
+    });
+  });
+
+  it('reports a title TMDB does not have', async () => {
+    const { client } = setup([
+      answer(404, { status_code: 34, status_message: 'Not found.' }),
+    ]);
+
+    await expect(client.details(inBrazil)).rejects.toMatchObject({
+      code: 'not-found',
+      status: 404,
+    });
+  });
+
+  it('reports an answer without a title as unreadable', async () => {
+    const { client } = setup([answer(200, { ...movie, title: '' })]);
+
+    await expect(client.details(inBrazil)).rejects.toMatchObject({
+      code: 'server',
+    });
   });
 });
 

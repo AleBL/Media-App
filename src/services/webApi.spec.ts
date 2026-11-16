@@ -246,6 +246,23 @@ describe('web api', () => {
     );
   });
 
+  it('asks the site for the page of a title', async () => {
+    const details = { type: 'tv', id: 1396, title: 'Breaking Bad' };
+    const fetch = answering({ ok: true, data: details });
+
+    await expect(
+      createWebApi(fetch).tmdb.details({
+        type: 'tv',
+        id: 1396,
+        language: 'pt-BR',
+        region: 'BR',
+      }),
+    ).resolves.toEqual({ ok: true, data: details });
+    expect(fetch.mock.calls[0][0]).toBe(
+      '/api/tmdb?resource=details&type=tv&id=1396&language=pt-BR&region=BR',
+    );
+  });
+
   it('hands back a failure of the site as it came', async () => {
     const failure = { ok: false, error: { code: 'rate-limited', status: 429 } };
 
@@ -319,7 +336,9 @@ describe('web api', () => {
         ok: true,
         data: {
           page: 3,
-          results: [{ id: 1, name: 'Tom & Jerry', genre_ids: [16] }],
+          results: [
+            { id: 1, media_type: 'tv', name: 'Tom & Jerry', genre_ids: [16] },
+          ],
           totalPages: 3,
           totalResults: 41,
         },

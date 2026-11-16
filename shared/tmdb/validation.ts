@@ -1,4 +1,4 @@
-import type { SearchRequest } from '../api';
+import type { DetailsRequest, SearchRequest } from '../api';
 import { TMDB_MAX_PAGES } from './client';
 
 // Everything that arrives from the renderer, over IPC in the desktop app or
@@ -6,12 +6,44 @@ import { TMDB_MAX_PAGES } from './client';
 // TMDB credential does not trust the renderer's types.
 
 const LANGUAGE = /^[a-z]{2}(-[A-Z]{2})?$/;
+const REGION = /^[A-Z]{2}$/;
 const API_KEY = /^[\w.-]{16,1024}$/;
 const MAX_QUERY_LENGTH = 200;
+/** TMDB ids are far below this; anything larger is not one of theirs. */
+const MAX_ID = 2_147_483_647;
 
 /** An app locale such as `en` or `pt-BR`. */
 export function parseLanguage(value: unknown): string | null {
   return typeof value === 'string' && LANGUAGE.test(value) ? value : null;
+}
+
+/** A country code such as `BR`. */
+export function parseRegion(value: unknown): string | null {
+  return typeof value === 'string' && REGION.test(value) ? value : null;
+}
+
+export function parseDetailsRequest(value: unknown): DetailsRequest | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const { type, id, language, region } = value as Record<string, unknown>;
+  const locale = parseLanguage(language);
+  const country = parseRegion(region);
+
+  if (
+    (type !== 'movie' && type !== 'tv') ||
+    typeof id !== 'number' ||
+    !Number.isInteger(id) ||
+    id < 1 ||
+    id > MAX_ID ||
+    locale === null ||
+    country === null
+  ) {
+    return null;
+  }
+
+  return { type, id, language: locale, region: country };
 }
 
 export function parseSearchRequest(value: unknown): SearchRequest | null {

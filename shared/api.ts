@@ -29,6 +29,8 @@ export const TMDB_PAGE_SIZE = 20;
 // carry title/release_date, tv shows carry name/first_air_date.
 export interface MediaItem {
   id: number;
+  /** Which of the two it is: the type that was searched for. */
+  media_type?: MediaType;
   title?: string;
   name?: string;
   release_date?: string;
@@ -56,6 +58,74 @@ export interface SearchRequest {
   page: number;
   /** An app locale such as `en` or `pt-BR`. */
   language: string;
+}
+
+export interface DetailsRequest {
+  type: MediaType;
+  id: number;
+  /** An app locale such as `en` or `pt-BR`. */
+  language: string;
+  /** Where the user is, as a country code such as `BR`: for `watch`. */
+  region: string;
+}
+
+/** Someone in the cast of a movie or tv show. */
+export interface CastMember {
+  id: number;
+  name: string;
+  character?: string;
+  profilePath?: string;
+}
+
+/** A streaming service, store or channel. */
+export interface WatchProvider {
+  id: number;
+  name: string;
+  logoPath?: string;
+}
+
+/**
+ * Where a title can be watched in one country, from JustWatch. Whoever
+ * shows it must say that it comes from JustWatch.
+ */
+export interface WatchOptions {
+  /** The page of TMDB with a link to each of the services. */
+  link?: string;
+  /** Included in a subscription. */
+  stream: WatchProvider[];
+  /** Free, with or without ads. */
+  free: WatchProvider[];
+  rent: WatchProvider[];
+  buy: WatchProvider[];
+}
+
+/** What the page of a movie or tv show shows. */
+export interface MediaDetails {
+  type: MediaType;
+  id: number;
+  title: string;
+  /** The title in its own language, when it is not the same. */
+  originalTitle?: string;
+  tagline?: string;
+  overview?: string;
+  /** YYYY-MM-DD: the release of a movie, the first episode of a tv show. */
+  date?: string;
+  /** In minutes: the movie, or an episode of the tv show. */
+  runtime?: number;
+  seasons?: number;
+  episodes?: number;
+  genres: Genre[];
+  posterPath?: string;
+  voteAverage?: number;
+  voteCount?: number;
+  /** Such as `tt0133093`, for a link to IMDb. */
+  imdbId?: string;
+  /** A video on YouTube. */
+  trailer?: { key: string; name: string };
+  /** The first names of the cast, in billing order. */
+  cast: CastMember[];
+  /** In the region of the request, when JustWatch knows of any. */
+  watch?: WatchOptions;
 }
 
 export type TmdbErrorCode =
@@ -172,6 +242,7 @@ export interface MediaAppApi {
   tmdb: {
     search(request: SearchRequest): Promise<Result<Paged<MediaItem>>>;
     genres(language: string): Promise<Result<Genre[]>>;
+    details(request: DetailsRequest): Promise<Result<MediaDetails>>;
   };
   /** The TMDB key never comes back to the renderer once it is saved. */
   credentials: {
@@ -217,6 +288,7 @@ export const IPC = {
   setNativeTheme: 'theme:set-native',
   tmdbSearch: 'tmdb:search',
   tmdbGenres: 'tmdb:genres',
+  tmdbDetails: 'tmdb:details',
   credentialStatus: 'credentials:status',
   credentialSave: 'credentials:save',
   credentialClear: 'credentials:clear',

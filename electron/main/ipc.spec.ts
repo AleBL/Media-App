@@ -75,6 +75,16 @@ describe('ipc handlers', () => {
         list: vi.fn(async () => [{ id: 603, media_type: 'movie' as const }]),
       },
       genres: { get: vi.fn(async () => [{ id: 28, name: 'Action' }]) },
+      account: {
+        states: vi.fn(async () => ({ watchlist: true, favorite: false })),
+        mark: vi.fn(async () => null),
+        list: vi.fn(async () => ({
+          page: 1,
+          results: [{ id: 603, media_type: 'movie' as const }],
+          totalPages: 1,
+          totalResults: 1,
+        })),
+      },
       credentials: {
         status: vi.fn(() => NONE),
         save: vi.fn(async () => SAVED),
@@ -157,6 +167,69 @@ describe('ipc handlers', () => {
         { ok: false, error: { code: 'invalid-request' } },
       );
       expect(services.tmdb.search).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('lists of the account', () => {
+    const title = { type: 'movie', id: 603 };
+    const mark = { ...title, list: 'watchlist', value: true };
+    const page = { list: 'favorite', type: 'tv', page: 2, language: 'pt-BR' };
+
+    it('answers where a title is, puts it in a list and reads a list', async () => {
+      await expect(call(IPC.accountStates, fromApp, title)).resolves.toEqual({
+        ok: true,
+        data: { watchlist: true, favorite: false },
+      });
+      await expect(call(IPC.accountMark, fromApp, mark)).resolves.toEqual({
+        ok: true,
+        data: null,
+      });
+      await expect(call(IPC.accountList, fromApp, page)).resolves.toMatchObject(
+        { ok: true, data: { results: [{ id: 603 }] } },
+      );
+      expect(services.account.states).toHaveBeenCalledWith(title);
+      expect(services.account.mark).toHaveBeenCalledWith(mark);
+      expect(services.account.list).toHaveBeenCalledWith(page);
+    });
+
+    it('says when nobody is signed in', async () => {
+      vi.mocked(services.account.mark).mockRejectedValue(
+        new TmdbError('signed-out'),
+      );
+
+      await expect(call(IPC.accountMark, fromApp, mark)).resolves.toMatchObject(
+        { ok: false, error: { code: 'signed-out' } },
+      );
+    });
+
+    it.each([
+      [IPC.accountStates, { ...title, id: -1 }],
+      [IPC.accountMark, { ...mark, value: 'yes' }],
+      [IPC.accountMark, { ...mark, list: 'rated' }],
+      [IPC.accountList, { ...page, type: 'person' }],
+      [IPC.accountList, { ...page, page: 0 }],
+    ])('rejects a malformed request on %s', async (channel, request) => {
+      await expect(call(channel, fromApp, request)).resolves.toEqual({
+        ok: false,
+        error: { code: 'invalid-request' },
+      });
+      expect(services.account.states).not.toHaveBeenCalled();
+      expect(services.account.mark).not.toHaveBeenCalled();
+      expect(services.account.list).not.toHaveBeenCalled();
+    });
+
+    it('rejects a sender that is not the app', async () => {
+      for (const [channel, request] of [
+        [IPC.accountStates, title],
+        [IPC.accountMark, mark],
+        [IPC.accountList, page],
+      ] as const) {
+        await expect(call(channel, fromElsewhere, request)).resolves.toEqual({
+          ok: false,
+          error: { code: 'invalid-request' },
+        });
+      }
+      expect(services.account.mark).not.toHaveBeenCalled();
     });
   });
 

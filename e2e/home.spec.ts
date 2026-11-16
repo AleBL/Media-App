@@ -25,10 +25,16 @@ test.describe('home page', () => {
       3,
     );
     await expect(list(page, 'Popular TV shows')).toContainText('Show 11 [en]');
-    expect(tmdb.lists().map(({ path, language }) => [path, language])).toEqual([
-      ['/3/trending/all/week', 'en'],
-      ['/3/movie/popular', 'en'],
-      ['/3/tv/popular', 'en'],
+    // asked at the same time, so in any order
+    expect(
+      tmdb
+        .lists()
+        .map(({ path, language }) => `${path} ${language}`)
+        .sort(),
+    ).toEqual([
+      '/3/movie/popular en',
+      '/3/trending/all/week en',
+      '/3/tv/popular en',
     ]);
   });
 

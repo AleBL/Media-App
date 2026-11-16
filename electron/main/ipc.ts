@@ -1,9 +1,12 @@
 import {
   IPC,
+  type AccountListRequest,
+  type AccountStates,
   type CredentialStatus,
   type DetailsRequest,
   type Genre,
   type ListRequest,
+  type MarkRequest,
   type MediaDetails,
   type MediaItem,
   type NativeTheme,
@@ -12,16 +15,20 @@ import {
   type SearchItem,
   type SearchRequest,
   type SessionState,
+  type TitleRequest,
   type TmdbFailure,
 } from '../../shared/api';
 import { isNativeTheme } from './security';
 import { TmdbError } from '../../shared/tmdb/client';
 import {
+  parseAccountListRequest,
   parseApiKey,
   parseDetailsRequest,
   parseLanguage,
   parseListRequest,
+  parseMarkRequest,
   parseSearchRequest,
+  parseTitleRequest,
 } from '../../shared/tmdb/validation';
 
 /** The part of an IPC event that the handlers look at. */
@@ -51,6 +58,12 @@ export interface IpcServices {
     list(request: ListRequest): Promise<MediaItem[]>;
   };
   genres: { get(language: string): Promise<Genre[]> };
+  /** With the session of whoever signed in; `signed-out` otherwise. */
+  account: {
+    states(request: TitleRequest): Promise<AccountStates>;
+    mark(request: MarkRequest): Promise<null>;
+    list(request: AccountListRequest): Promise<Paged<MediaItem>>;
+  };
   credentials: {
     status(): CredentialStatus;
     save(apiKey: string): Promise<CredentialStatus>;
@@ -135,6 +148,26 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
     const request = trusted(event) ? parseListRequest(value) : null;
 
     return request ? attempt(() => services.tmdb.list(request)) : invalid();
+  });
+
+  ipc.handle(IPC.accountStates, (event, value) => {
+    const request = trusted(event) ? parseTitleRequest(value) : null;
+
+    return request
+      ? attempt(() => services.account.states(request))
+      : invalid();
+  });
+
+  ipc.handle(IPC.accountMark, (event, value) => {
+    const request = trusted(event) ? parseMarkRequest(value) : null;
+
+    return request ? attempt(() => services.account.mark(request)) : invalid();
+  });
+
+  ipc.handle(IPC.accountList, (event, value) => {
+    const request = trusted(event) ? parseAccountListRequest(value) : null;
+
+    return request ? attempt(() => services.account.list(request)) : invalid();
   });
 
   ipc.handle(IPC.credentialStatus, (event) =>

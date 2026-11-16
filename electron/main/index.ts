@@ -174,6 +174,19 @@ app.whenReady().then(async () => {
     },
     tmdb,
     genres,
+    // The lists of the account, with the session that the auth service keeps.
+    account: {
+      states: (title) =>
+        auth.withSession((id) => tmdb.accountStates(id, title)),
+      mark: (request) =>
+        auth
+          .withSession((id, account) => tmdb.mark(id, account.id, request))
+          .then(() => null),
+      list: (request) =>
+        auth.withSession((id, account) =>
+          tmdb.accountList(id, account.id, request),
+        ),
+    },
     credentials,
     auth,
   });

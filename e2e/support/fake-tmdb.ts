@@ -85,6 +85,13 @@ export async function startFakeTmdb() {
   };
   let appTokenRevoked = false;
   let unreachable = false;
+  // What the account has in each list, as "movie:603", with when it was
+  // added: a count, which puts the titles added last first.
+  const accountLists = {
+    watchlist: new Map<string, number>(),
+    favorite: new Map<string, number>(),
+  };
+  let added = 0;
 
   const server = createServer(async (request, response) => {
     // Like a computer without a connection: no answer at all.
@@ -309,6 +316,81 @@ export async function startFakeTmdb() {
       return send(200, { page: 1, results: [11, 12, 13].map(show) });
     }
 
+    // The lists of the account, which only a session that is open reaches,
+    // under the id of its account, as at TMDB.
+    const states = /^\/3\/(movie|tv)\/(\d+)\/account_states$/.exec(
+      url.pathname,
+    );
+    const marked = /^\/3\/account\/(\d+)\/(watchlist|favorite)$/.exec(
+      url.pathname,
+    );
+    const listed =
+      /^\/3\/account\/(\d+)\/(watchlist|favorite)\/(movies|tv)$/.exec(
+        url.pathname,
+      );
+
+    if (states || marked || listed) {
+      if (!sessions.has(sessionId)) {
+        return send(401, {
+          success: false,
+          status_code: 3,
+          status_message:
+            'Authentication failed: You do not have permissions to access the service.',
+        });
+      }
+
+      if (Number((marked ?? listed)?.[1] ?? ACCOUNT.id) !== ACCOUNT.id) {
+        return send(404, { status_code: 34, status_message: 'Not found.' });
+      }
+    }
+
+    if (states) {
+      const title = `${states[1]}:${states[2]}`;
+
+      return send(200, {
+        id: Number(states[2]),
+        favorite: accountLists.favorite.has(title),
+        rated: false,
+        watchlist: accountLists.watchlist.has(title),
+      });
+    }
+
+    if (marked && method === 'POST') {
+      const list = accountLists[marked[2] as 'watchlist' | 'favorite'];
+      const title = `${String(sent.media_type)}:${Number(sent.media_id)}`;
+
+      if (sent[marked[2]] === true) {
+        list.set(title, (added += 1));
+      } else {
+        list.delete(title);
+      }
+
+      return send(201, { success: true, status_code: 1 });
+    }
+
+    if (listed) {
+      const type = listed[3] === 'movies' ? 'movie' : 'tv';
+      // the titles added last first, as the app asks with sort_by
+      const titles = [...accountLists[listed[2] as 'watchlist' | 'favorite']]
+        .filter(([title]) => title.startsWith(`${type}:`))
+        .sort(([, a], [, b]) => b - a)
+        .map(([title]) => Number(title.split(':')[1]));
+      const page = Number(query.page);
+
+      return send(200, {
+        page,
+        results: titles
+          .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+          .map((id) =>
+            type === 'movie'
+              ? { ...movie(id), genre_ids: [28] }
+              : { ...show(id - 9000), genre_ids: [18] },
+          ),
+        total_pages: Math.ceil(titles.length / PAGE_SIZE),
+        total_results: titles.length,
+      });
+    }
+
     // The page of a title: the one the search listed, with two people in
     // the cast, a trailer and a service in the United States and another in
     // Brazil, so a test can tell which region the app showed.
@@ -432,6 +514,11 @@ export async function startFakeTmdb() {
     },
     /** The sessions that are open at TMDB right now. */
     sessions: () => [...sessions],
+    /** What a list of the account has, such as "movie:1", last added first. */
+    listed: (list: 'watchlist' | 'favorite') =>
+      [...accountLists[list]]
+        .sort(([, a], [, b]) => b - a)
+        .map(([title]) => title),
     /** What the user does on the TMDB website to sign out everywhere. */
     endSessions: () => sessions.clear(),
     /** From now on nothing reaches TMDB, as if the computer were offline. */

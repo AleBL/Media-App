@@ -3,6 +3,7 @@
   import { useRouter } from 'vue-router';
   import { storeToRefs } from 'pinia';
   import type { MediaType, WatchProvider } from '@shared/api';
+  import AccountButtons from '@/components/Account/AccountButtons.vue';
   import AppButton from '@/components/ui/AppButton.vue';
   import { isDesktop } from '@/services/api';
   import { useCredentialsStore } from '@/stores/credentials';
@@ -268,7 +269,9 @@
             {{ details.overview }}
           </p>
 
-          <div v-if="trailerUrl || imdbUrl" class="mt-6 flex flex-wrap gap-3">
+          <AccountButtons :id="details.id" class="mt-6" :type="details.type" />
+
+          <div v-if="trailerUrl || imdbUrl" class="mt-4 flex flex-wrap gap-3">
             <AppButton
               v-if="trailerUrl"
               :href="trailerUrl"

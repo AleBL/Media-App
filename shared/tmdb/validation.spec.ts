@@ -1,13 +1,60 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
+  parseAccountListRequest,
   parseApiKey,
   parseDetailsRequest,
   parseLanguage,
   parseListRequest,
+  parseMarkRequest,
   parseRegion,
   parseSearchRequest,
+  parseTitleRequest,
 } from './validation';
+
+describe('requests about the lists of the account', () => {
+  const title = { type: 'movie', id: 603 };
+  const mark = { ...title, list: 'favorite', value: false };
+  const page = { list: 'watchlist', type: 'tv', page: 1, language: 'pt-BR' };
+
+  it('accepts them and drops fields they do not know', () => {
+    expect(parseTitleRequest({ ...title, sessionId: 'x' })).toEqual(title);
+    expect(parseMarkRequest({ ...mark, accountId: 1 })).toEqual(mark);
+    expect(parseAccountListRequest({ ...page, sort: 'x' })).toEqual(page);
+  });
+
+  it.each([
+    ['nothing', undefined],
+    ['a person', { ...title, type: 'person' }],
+    ['an id that is not one', { ...title, id: '603/account_states' }],
+    ['id zero', { ...title, id: 0 }],
+  ])('refuses a title of %s', (_case, request) => {
+    expect(parseTitleRequest(request)).toBeNull();
+    expect(
+      parseMarkRequest(
+        request && { ...request, list: 'favorite', value: true },
+      ),
+    ).toBeNull();
+  });
+
+  it.each([
+    ['a list the app does not use', { ...mark, list: 'rated' }],
+    ['a value that is not true or false', { ...mark, value: 'true' }],
+    ['no value', { ...title, list: 'watchlist' }],
+  ])('refuses a change with %s', (_case, request) => {
+    expect(parseMarkRequest(request)).toBeNull();
+  });
+
+  it.each([
+    ['a list the app does not use', { ...page, list: 'rated' }],
+    ['a type of everything', { ...page, type: 'multi' }],
+    ['page zero', { ...page, page: 0 }],
+    ['a page past the last one', { ...page, page: 501 }],
+    ['a language that is not a locale', { ...page, language: '../x' }],
+  ])('refuses a page of a list with %s', (_case, request) => {
+    expect(parseAccountListRequest(request)).toBeNull();
+  });
+});
 
 describe('parseLanguage', () => {
   it.each(['en', 'es', 'pt-BR'])('accepts %s', (language) => {

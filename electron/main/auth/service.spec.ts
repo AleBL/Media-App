@@ -594,6 +594,63 @@ describe('auth service', () => {
     });
   });
 
+  describe('requests of the account', () => {
+    async function signedIn() {
+      const store = fakeStore();
+      store.saved = SAVED;
+      const running = setup(store);
+
+      await running.service.restore();
+
+      return running;
+    }
+
+    it('runs them with the session, which never leaves the service', async () => {
+      const { service } = await signedIn();
+      const work = vi.fn(async (sessionId: string, account: Account) => [
+        sessionId,
+        account.id,
+      ]);
+
+      await expect(service.withSession(work)).resolves.toEqual([SESSION, 7]);
+    });
+
+    it('refuses them when nobody is signed in', async () => {
+      const { service } = setup();
+      const work = vi.fn(async () => 'never');
+
+      await expect(service.withSession(work)).rejects.toMatchObject({
+        code: 'signed-out',
+      });
+      expect(work).not.toHaveBeenCalled();
+    });
+
+    it('signs out when TMDB says the session is over', async () => {
+      const { service, store, changes } = await signedIn();
+
+      await expect(
+        service.withSession(async () => Promise.reject(sessionOver())),
+      ).rejects.toMatchObject({ code: 'signed-out', status: 401 });
+
+      expect(service.getSession()).toEqual(ANONYMOUS);
+      expect(changes.at(-1)).toEqual(ANONYMOUS);
+      expect(store.saved).toBeNull();
+    });
+
+    it('stays signed in after any other failure', async () => {
+      const { service } = await signedIn();
+
+      await expect(
+        service.withSession(async () => Promise.reject(appRefused())),
+      ).rejects.toMatchObject({ code: 'unauthorized', tmdbStatus: 7 });
+      await expect(
+        service.withSession(async () => Promise.reject(offline())),
+      ).rejects.toMatchObject({ code: 'network' });
+
+      expect(service.getSession()).toMatchObject({ status: 'authenticated' });
+    });
+  });
+
   describe('at launch', () => {
     const flush = () => vi.advanceTimersByTimeAsync(0);
 

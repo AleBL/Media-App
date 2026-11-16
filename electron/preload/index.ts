@@ -22,6 +22,11 @@ const api: MediaAppApi = {
     details: (request) => ipcRenderer.invoke(IPC.tmdbDetails, request),
     list: (request) => ipcRenderer.invoke(IPC.tmdbList, request),
   },
+  account: {
+    states: (request) => ipcRenderer.invoke(IPC.accountStates, request),
+    mark: (request) => ipcRenderer.invoke(IPC.accountMark, request),
+    list: (request) => ipcRenderer.invoke(IPC.accountList, request),
+  },
   credentials: {
     status: () => ipcRenderer.invoke(IPC.credentialStatus),
     save: (apiKey) => ipcRenderer.invoke(IPC.credentialSave, apiKey),

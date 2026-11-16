@@ -10,6 +10,12 @@
 /** Where the site answers TMDB requests for the web version of the app. */
 export const TMDB_PROXY_PATH = '/api/tmdb';
 
+/**
+ * Where the site answers, for whoever signed in on the web version, what
+ * their TMDB account has: the watchlist and the favorites.
+ */
+export const ACCOUNT_PATH = '/api/account';
+
 /** Where the site answers the sign-in requests of the web version. */
 export const AUTH_PATHS = {
   login: '/api/auth/login',
@@ -96,6 +102,33 @@ export interface DetailsRequest {
   region: string;
 }
 
+/** A movie or tv show, by its id at TMDB. */
+export interface TitleRequest {
+  type: MediaType;
+  id: number;
+}
+
+/** The lists of titles of the TMDB account of whoever signed in. */
+export type AccountList = 'watchlist' | 'favorite';
+
+/** Whether a title is in each list of the account. */
+export type AccountStates = Record<AccountList, boolean>;
+
+/** Puts a title in a list of the account (`value`), or takes it out. */
+export interface MarkRequest extends TitleRequest {
+  list: AccountList;
+  value: boolean;
+}
+
+export interface AccountListRequest {
+  list: AccountList;
+  /** TMDB keeps the movies and the tv shows of a list apart. */
+  type: MediaType;
+  page: number;
+  /** An app locale such as `en` or `pt-BR`. */
+  language: string;
+}
+
 /** Someone in the cast of a movie or tv show. */
 export interface CastMember {
   id: number;
@@ -163,7 +196,9 @@ export type TmdbErrorCode =
   | 'invalid-request'
   | 'server'
   | 'network'
-  | 'timeout';
+  | 'timeout'
+  /** Nobody is signed in, or TMDB says the session is over. */
+  | 'signed-out';
 
 export interface TmdbFailure {
   code: TmdbErrorCode;
@@ -273,6 +308,16 @@ export interface MediaAppApi {
     /** The first page of a list, each title tagged with its type. */
     list(request: ListRequest): Promise<Result<MediaItem[]>>;
   };
+  /**
+   * The lists of the TMDB account of whoever signed in. Each call answers
+   * `signed-out` when nobody is.
+   */
+  account: {
+    states(request: TitleRequest): Promise<Result<AccountStates>>;
+    mark(request: MarkRequest): Promise<Result<null>>;
+    /** A page of a list, the titles added last first. */
+    list(request: AccountListRequest): Promise<Result<Paged<MediaItem>>>;
+  };
   /** The TMDB key never comes back to the renderer once it is saved. */
   credentials: {
     status(): Promise<CredentialStatus>;
@@ -319,6 +364,9 @@ export const IPC = {
   tmdbGenres: 'tmdb:genres',
   tmdbDetails: 'tmdb:details',
   tmdbList: 'tmdb:list',
+  accountStates: 'account:states',
+  accountMark: 'account:mark',
+  accountList: 'account:list',
   credentialStatus: 'credentials:status',
   credentialSave: 'credentials:save',
   credentialClear: 'credentials:clear',

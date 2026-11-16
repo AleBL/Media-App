@@ -106,6 +106,24 @@
     "cast": "Cast"
   },
 
+  "lists": {
+    "watchlist": "My list",
+    "favorites": "Favorites",
+    "watchlistButton": "My list",
+    "favoriteButton": "Favorite",
+    "signInToSave": "Sign in to keep this title in your list or favorites",
+    "statesFailed": "Your lists could not be checked for this title. Try again later.",
+    "saveFailed": "The change could not be saved. Try again.",
+    "kind": "Movies or TV shows",
+    "movies": "Movies",
+    "tvShows": "TV shows",
+    "error": "Your list could not be loaded. Check your connection and try again.",
+    "tryAgain": "Try again",
+    "loading": "Loading...",
+    "emptyWatchlist": "Nothing here yet. Add movies and TV shows to your list from their pages.",
+    "emptyFavorites": "No favorites here yet. Mark movies and TV shows as favorites from their pages."
+  },
+
   "account": {
     "signIn": "Sign in",
     "intro": "Signing in with your TMDB account is optional: the search works without it.",

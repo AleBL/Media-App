@@ -3,6 +3,7 @@ import { flushPromises, mount, VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import type { LoginFailure } from '@shared/api';
 import i18n from '@/plugins/i18n';
+import router from '@/router';
 import AccountPage from '@/views/AccountPage.vue';
 import { useSessionStore } from '@/stores/session';
 import {
@@ -17,9 +18,10 @@ describe('AccountPage', () => {
   let store: ReturnType<typeof useSessionStore>;
   let wrapper: VueWrapper;
 
-  async function mountPage() {
+  async function mountPage(address = '/account') {
+    await router.replace(address);
     wrapper = mount(AccountPage, {
-      global: { plugins: [i18n] },
+      global: { plugins: [i18n, router] },
     });
     await flushPromises();
   }
@@ -172,7 +174,40 @@ describe('AccountPage', () => {
     );
   });
 
+  describe('when a page of the account sent the user here', () => {
+    it('goes back to it once signed in', async () => {
+      await mountPage('/account?next=/favorites');
+      expect(button('Sign in with TMDB')).toBeDefined();
+
+      await click('Sign in with TMDB');
+      await click('I already approved in the browser');
+
+      expect(router.currentRoute.value.fullPath).toBe('/favorites');
+    });
+
+    it.each([
+      ['another site', '//evil.test/x'],
+      ['an address that is no page', '/nowhere'],
+      ['the sign in itself', '/account?next=/account'],
+    ])('stays here when next is %s', async (_case, next) => {
+      store.state = SIGNED_IN;
+
+      await mountPage(`/account?next=${encodeURIComponent(next)}`);
+
+      expect(router.currentRoute.value.name).toBe('account');
+    });
+  });
+
   describe('with someone signed in', () => {
+    it('leads to the lists of the account', async () => {
+      store.state = SIGNED_IN;
+      await mountPage();
+
+      expect(
+        wrapper.findAll('li a').map((link) => link.attributes('href')),
+      ).toEqual(['#/watchlist', '#/favorites']);
+    });
+
     it('shows who, by the username when TMDB has no name', async () => {
       store.state = {
         status: 'authenticated',

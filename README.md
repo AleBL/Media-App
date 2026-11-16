@@ -74,12 +74,12 @@ The token is compiled into the main process only (`dist-electron/main`), never i
 
 ### The web version 🌐
 
-The same interface also runs as a web page, deployed by Vercel. A page cannot hold the credential (everything a browser loads is public), so there it asks functions of the site, the files in `api`, which keep `TMDB_READ_TOKEN` on the server and only do what the app does: search movies, tv shows and people, list genres, show the lists of the home page and the page of a title, and sign in.
+The same interface also runs as a web page, deployed by Vercel. A page cannot hold the credential (everything a browser loads is public), so there it asks functions of the site, the files in `api`, which keep `TMDB_READ_TOKEN` on the server and only do what the app does: search movies, tv shows and people, list genres, show the lists of the home page and the page of a title, sign in, and read and change the watchlist and the favorites of whoever signed in.
 
 - On Vercel, set `TMDB_READ_TOKEN` in the project's environment variables, for Production and for Preview. Never give it a `VITE_` prefix: that would put it in the page.
 - The web version has no Settings page: a browser has no safe place for a key of the user.
 - Signing in works there too, with the session kept by the site (`api/auth`). It needs no other variable.
-- Locally, `npm run dev` and `npx vite preview` answer `/api/tmdb` and `/api/auth` with the same code, so opening the address they print in a browser shows the web version.
+- Locally, `npm run dev` and `npx vite preview` answer `/api/tmdb`, `/api/auth` and `/api/account` with the same code, so opening the address they print in a browser shows the web version.
 - Vercel does not build the functions with Vite: it compiles them with `api/tsconfig.json`, which makes them CommonJS, the only format in which Node finds the files they import without an extension. `shared/tmdb/vercel.spec.ts` builds and loads them the same way.
 
 ### Signing in with TMDB 👤
@@ -98,6 +98,12 @@ In the web version:
 
 - The page itself goes to the TMDB website and comes back through the site (`/api/auth/login`, then `/api/auth/callback`), which keeps the session in a cookie that scripts cannot read.
 - The browser stays signed in for 180 days after the last visit, or until **Sign out**, which also ends the session at TMDB. Ending it on the TMDB website signs out here on the next visit.
+
+### My list and favorites 🔖
+
+Whoever signed in has a menu of their own under their name, in the menu bar: **My list** (the watchlist of the TMDB account), **Favorites**, **Account** and **Sign out**. The page of a title has a **My list** and a **Favorite** button: a change shows at once and is undone, with a message, if TMDB does not take it. The two lists have pages of their own, movies or tv shows, the titles added last first. They live at TMDB, so they are the same on the TMDB website and in any other app of the same account.
+
+Nobody signed in: the page of a title offers to sign in instead, and the pages of the lists lead to the sign in. In the desktop app the sign in then goes back to the page the user was on; on the web the browser comes back from TMDB to the account page, which links to both lists.
 
 ### The page of a title 🎬
 
@@ -163,6 +169,7 @@ Keep `primeicons` on 7: version 8, like the other PrimeTek libraries since mid 2
 ```bash
 📦api # Vercel Functions: what the web version asks of the site
  ┣ 📦auth # signing in: login, callback, session and logout
+ ┣ 📜account.ts # the watchlist and the favorites of whoever signed in
  ┣ 📜tmdb.ts # answers the TMDB requests
  ┗ 📜tsconfig.json # how Vercel compiles the functions
 📦config # build helpers shared by the Vite and Vitest configs
@@ -189,7 +196,7 @@ Keep `primeicons` on 7: version 8, like the other PrimeTek libraries since mid 2
  ┣ 📦plugins
  ┣ 📦router
  ┣ 📦services # the api of the renderer: window.api, or HTTP on the web
- ┣ 📦stores # Pinia stores: search, genres, TMDB credential status, session
+ ┣ 📦stores # Pinia stores: search, genres, TMDB credential status, session, lists of the account
  ┣ 📦test # helpers for the unit tests
  ┣ 📦types
  ┣ 📦util
@@ -207,7 +214,7 @@ Signing in follows the same rule. TMDB's `session_id` works as a password of the
 
 The web version has no main process, so the same `shared/api.ts` is implemented over HTTP (`src/services/webApi.ts`) on top of the functions in `api`. `api/tmdb.ts` is not a general proxy: it accepts only the requests of the app, validates them with the code the main process uses (`shared/tmdb/validation.ts`) and lets the CDN cache the answers. A capability added to `shared/api.ts` has to be implemented there too, or the web version loses it.
 
-On the web the `session_id` stays with the site (`shared/tmdb/web-auth.ts`, behind `api/auth`): in a cookie that is `HttpOnly`, so no script of the page can read it, `Secure`, `SameSite=Lax` and named with the `__Host-` prefix, so no other site on the same domain can plant one. The page is only told who signed in, and those answers are never cached. The way back from TMDB (`/api/auth/callback`) can be opened by anyone, like the one of the desktop app, so its parameters decide nothing: the token traded is the one in the cookie of the login, and TMDB says whether it was approved. Signing out is a `POST` that has to come from the site itself.
+On the web the `session_id` stays with the site (`shared/tmdb/web-auth.ts`, behind `api/auth`): in a cookie that is `HttpOnly`, so no script of the page can read it, `Secure`, `SameSite=Lax` and named with the `__Host-` prefix, so no other site on the same domain can plant one. The page is only told who signed in, and those answers are never cached. The way back from TMDB (`/api/auth/callback`) can be opened by anyone, like the one of the desktop app, so its parameters decide nothing: the token traded is the one in the cookie of the login, and TMDB says whether it was approved. Signing out is a `POST` that has to come from the site itself. The lists of the account (`shared/tmdb/web-account.ts`, behind `api/account`) work with the same cookie: reading is a `GET`, a change a `POST` that has to come from the site itself, and nothing they answer is cached. TMDB keeps the lists under the id of the account, which the site asks TMDB for with the session.
 
 The window only shows the app itself: other links open in the system browser (https only), permission requests are denied and the Content-Security-Policy is generated by `vite.config.mts`.
 

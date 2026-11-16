@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { AUTH_PATHS, TMDB_PROXY_PATH } from '../api';
+import { ACCOUNT_PATH, AUTH_PATHS, TMDB_PROXY_PATH } from '../api';
 import { createTmdbProxy, type TmdbProxyOptions } from './proxy';
+import { createWebAccount } from './web-account';
 import { createWebAuth, type WebAuthOptions } from './web-auth';
 
 /**
@@ -15,6 +16,7 @@ import { createWebAuth, type WebAuthOptions } from './web-auth';
 export function createSite(options: TmdbProxyOptions & WebAuthOptions) {
   const proxy = createTmdbProxy(options);
   const auth = createWebAuth(options);
+  const account = createWebAccount(options);
   const authPaths: readonly string[] = Object.values(AUTH_PATHS);
 
   return async function answer(
@@ -28,9 +30,11 @@ export function createSite(options: TmdbProxyOptions & WebAuthOptions) {
     const handle =
       url.pathname === TMDB_PROXY_PATH
         ? proxy
-        : authPaths.includes(url.pathname)
-          ? auth
-          : null;
+        : url.pathname === ACCOUNT_PATH
+          ? account
+          : authPaths.includes(url.pathname)
+            ? auth
+            : null;
 
     if (!handle) {
       return false;

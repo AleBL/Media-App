@@ -1,6 +1,8 @@
 import {
   TMDB_PAGE_SIZE,
   type Account,
+  type AccountListRequest,
+  type AccountStates,
   type CastMember,
   type DetailsRequest,
   type Genre,
@@ -8,11 +10,13 @@ import {
   type MediaDetails,
   type MediaItem,
   type MediaList,
+  type MarkRequest,
   type MediaType,
   type Paged,
   type PersonItem,
   type SearchItem,
   type SearchRequest,
+  type TitleRequest,
   type TmdbErrorCode,
   type WatchOptions,
   type WatchProvider,
@@ -128,7 +132,10 @@ type DetailsBody = {
 type Fields = Record<string, unknown>;
 
 /** What a request that changes something at TMDB sends. */
-type Send = { method: 'POST' | 'DELETE'; body: Record<string, string> };
+type Send = {
+  method: 'POST' | 'DELETE';
+  body: Record<string, string | number | boolean>;
+};
 
 // A v4 "API Read Access Token" is a JWT and goes in the Authorization
 // header; a v3 "API Key" goes in the query string.
@@ -242,6 +249,23 @@ function toTitles(item: Fields, type: unknown): MediaItem[] {
     item.adult !== true
     ? [toMediaItem(item as MediaItem & Fields, type)]
     : [];
+}
+
+/** A page of results, with the totals TMDB allows to page through. */
+function toPaged<T>(
+  body: SearchBody,
+  page: number,
+  read: (item: Fields) => T[],
+): Paged<T> {
+  return {
+    page: body.page ?? page,
+    results: (body.results ?? []).flatMap(read),
+    totalPages: Math.min(body.total_pages ?? 0, TMDB_MAX_PAGES),
+    totalResults: Math.min(
+      body.total_results ?? 0,
+      TMDB_MAX_PAGES * TMDB_PAGE_SIZE,
+    ),
+  };
 }
 
 /** Someone a search of everything found, with what they are known for. */
@@ -514,23 +538,15 @@ export function createTmdbClient(options: TmdbClientOptions) {
         include_adult: 'false',
       });
 
-      return {
-        page: body.page ?? search.page,
-        results: (body.results ?? []).flatMap((item): SearchItem[] => {
-          if (search.type !== 'multi') {
-            return toTitles(item, search.type);
-          }
+      return toPaged(body, search.page, (item): SearchItem[] => {
+        if (search.type !== 'multi') {
+          return toTitles(item, search.type);
+        }
 
-          return item.media_type === 'person'
-            ? toPeople(item)
-            : toTitles(item, item.media_type);
-        }),
-        totalPages: Math.min(body.total_pages ?? 0, TMDB_MAX_PAGES),
-        totalResults: Math.min(
-          body.total_results ?? 0,
-          TMDB_MAX_PAGES * TMDB_PAGE_SIZE,
-        ),
-      };
+        return item.media_type === 'person'
+          ? toPeople(item)
+          : toTitles(item, item.media_type);
+      });
     },
 
     /** Movie and tv genres in one list, without repeated ids. */
@@ -627,6 +643,59 @@ export function createTmdbClient(options: TmdbClientOptions) {
       return typeof body.session_id === 'string' && body.session_id
         ? body.session_id
         : unreadable();
+    },
+
+    /** Whether a title is in the watchlist and in the favorites of a session. */
+    async accountStates(
+      sessionId: string,
+      { type, id }: TitleRequest,
+    ): Promise<AccountStates> {
+      const body = await request<Fields>(`/${type}/${id}/account_states`, {
+        session_id: sessionId,
+      });
+
+      return typeof body.watchlist === 'boolean' &&
+        typeof body.favorite === 'boolean'
+        ? { watchlist: body.watchlist, favorite: body.favorite }
+        : unreadable();
+    },
+
+    /** Puts a title in a list of the account, or takes it out. */
+    async mark(
+      sessionId: string,
+      accountId: number,
+      { list, type, id, value }: MarkRequest,
+    ): Promise<void> {
+      await request(
+        `/account/${accountId}/${list}`,
+        { session_id: sessionId },
+        {
+          method: 'POST',
+          body: { media_type: type, media_id: id, [list]: value },
+        },
+      );
+    },
+
+    /**
+     * A page of a list of the account, the titles added last first. Adult
+     * titles are left out, as everywhere else in the app.
+     */
+    async accountList(
+      sessionId: string,
+      accountId: number,
+      { list, type, page, language }: AccountListRequest,
+    ): Promise<Paged<MediaItem>> {
+      const body = await request<SearchBody>(
+        `/account/${accountId}/${list}/${type === 'movie' ? 'movies' : 'tv'}`,
+        {
+          session_id: sessionId,
+          page,
+          language,
+          sort_by: 'created_at.desc',
+        },
+      );
+
+      return toPaged(body, page, (item) => toTitles(item, type));
     },
 
     /** The account a session belongs to. 401 when the session is over. */

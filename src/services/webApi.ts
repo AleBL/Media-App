@@ -1,4 +1,5 @@
 import {
+  ACCOUNT_PATH,
   AUTH_PATHS,
   TMDB_PROXY_PATH,
   type CredentialStatus,
@@ -141,10 +142,12 @@ export function createWebApi(
     }
   }
 
-  async function ask<T>(params: Record<string, string>): Promise<Result<T>> {
-    const answer = await send(
-      `${TMDB_PROXY_PATH}?${new URLSearchParams(params)}`,
-    );
+  async function ask<T>(
+    params: Record<string, string>,
+    path = TMDB_PROXY_PATH,
+    method?: string,
+  ): Promise<Result<T>> {
+    const answer = await send(`${path}?${new URLSearchParams(params)}`, method);
 
     if ('failed' in answer) {
       return { ok: false, error: { code: answer.failed } };
@@ -191,6 +194,29 @@ export function createWebApi(
       details: ({ type, id, language, region }) =>
         ask({ resource: 'details', type, id: String(id), language, region }),
       list: ({ list, language }) => ask({ resource: 'list', list, language }),
+    },
+    // With the session in the cookie of the site, which the browser sends
+    // along (shared/tmdb/web-account.ts).
+    account: {
+      states: ({ type, id }) =>
+        ask({ resource: 'states', type, id: String(id) }, ACCOUNT_PATH),
+      mark: ({ list, type, id, value }) =>
+        ask(
+          {
+            resource: 'mark',
+            list,
+            type,
+            id: String(id),
+            value: String(value),
+          },
+          ACCOUNT_PATH,
+          'POST',
+        ),
+      list: ({ list, type, page, language }) =>
+        ask(
+          { resource: 'list', list, type, page: String(page), language },
+          ACCOUNT_PATH,
+        ),
     },
     credentials: {
       status: async () => SERVER_CREDENTIAL,

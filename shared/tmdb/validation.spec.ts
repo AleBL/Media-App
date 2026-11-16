@@ -38,6 +38,10 @@ describe('parseSearchRequest', () => {
     );
   });
 
+  it.each(['tv', 'multi'])('accepts a search of type %s', (type) => {
+    expect(parseSearchRequest({ ...valid, type })).toEqual({ ...valid, type });
+  });
+
   it.each([
     ['a missing request', undefined],
     ['a string', 'matrix'],

@@ -3,6 +3,7 @@ import type {
   ListRequest,
   MediaList,
   SearchRequest,
+  SearchType,
 } from '../api';
 import { TMDB_MAX_PAGES } from './client';
 
@@ -70,6 +71,8 @@ export function parseDetailsRequest(value: unknown): DetailsRequest | null {
   return { type, id, language: locale, region: country };
 }
 
+const SEARCH_TYPES: readonly SearchType[] = ['movie', 'tv', 'multi'];
+
 export function parseSearchRequest(value: unknown): SearchRequest | null {
   if (typeof value !== 'object' || value === null) {
     return null;
@@ -80,7 +83,7 @@ export function parseSearchRequest(value: unknown): SearchRequest | null {
   const locale = parseLanguage(language);
 
   if (
-    (type !== 'movie' && type !== 'tv') ||
+    !SEARCH_TYPES.includes(type as SearchType) ||
     text.length === 0 ||
     text.length > MAX_QUERY_LENGTH ||
     typeof page !== 'number' ||
@@ -92,7 +95,7 @@ export function parseSearchRequest(value: unknown): SearchRequest | null {
     return null;
   }
 
-  return { type, query: text, page, language: locale };
+  return { type: type as SearchType, query: text, page, language: locale };
 }
 
 /** A v3 API key or a v4 access token, without surrounding spaces. */

@@ -4,6 +4,7 @@ import { TMDB_PAGE_SIZE } from '../api';
 import {
   CAST_SIZE,
   createTmdbClient,
+  KNOWN_FOR_SIZE,
   TMDB_MAX_PAGES,
   TmdbError,
   type FetchLike,
@@ -141,6 +142,119 @@ describe('search', () => {
     expect(requestedUrl().href).toMatch(
       /^http:\/\/127\.0\.0\.1:4010\/3\/search\/movie\?/,
     );
+  });
+
+  it('leaves out an adult title and one without an id', async () => {
+    const { client } = setup([
+      answer(200, {
+        ...page,
+        results: [
+          ...page.results,
+          { id: 7, title: 'For adults', adult: true },
+          { title: 'Without an id' },
+        ],
+      }),
+    ]);
+
+    await expect(client.search(search)).resolves.toMatchObject({
+      results: [{ id: 603, media_type: 'movie', title: 'The Matrix' }],
+    });
+  });
+});
+
+describe('search of everything', () => {
+  const keanu = {
+    adult: false,
+    id: 6384,
+    name: 'Keanu Reeves',
+    original_name: 'Keanu Reeves',
+    gender: 2,
+    known_for_department: 'Acting',
+    profile_path: '/keanu.jpg',
+    popularity: 30,
+    media_type: 'person',
+    known_for: [
+      {
+        id: 603,
+        media_type: 'movie',
+        title: 'The Matrix',
+        release_date: '1999-03-31',
+        overview: 'Not shown',
+      },
+      { id: 1396, media_type: 'tv', name: 'Breaking Bad' },
+      { id: 8, media_type: 'movie', title: 'For adults', adult: true },
+      { id: 245891, media_type: 'movie', title: 'John Wick' },
+      { id: 324552, media_type: 'movie', title: 'John Wick: Chapter 2' },
+    ],
+  };
+
+  it('asks the multi endpoint, which also finds people', async () => {
+    const { client, requestedUrl } = setup([answer(200, page)]);
+
+    await client.search({ ...search, type: 'multi' });
+
+    expect(requestedUrl().pathname).toBe('/3/search/multi');
+    expect(requestedUrl().searchParams.get('include_adult')).toBe('false');
+  });
+
+  it('keeps movies, tv shows and people, each saying what it is', async () => {
+    const { client } = setup([
+      answer(200, {
+        ...page,
+        results: [
+          { id: 603, media_type: 'movie', title: 'The Matrix', popularity: 9 },
+          { id: 1396, media_type: 'tv', name: 'Breaking Bad' },
+          keanu,
+          { id: 9, media_type: 'collection', name: 'Not a title' },
+          { id: 10, media_type: 'person', name: 'For adults', adult: true },
+          { id: 11, media_type: 'person', name: '' },
+          { media_type: 'tv', name: 'Without an id' },
+        ],
+      }),
+    ]);
+
+    const { results } = await client.search({ ...search, type: 'multi' });
+
+    expect(results).toEqual([
+      { id: 603, media_type: 'movie', title: 'The Matrix' },
+      { id: 1396, media_type: 'tv', name: 'Breaking Bad' },
+      {
+        id: 6384,
+        media_type: 'person',
+        name: 'Keanu Reeves',
+        profile_path: '/keanu.jpg',
+        known_for: [
+          {
+            id: 603,
+            media_type: 'movie',
+            title: 'The Matrix',
+            release_date: '1999-03-31',
+          },
+          { id: 1396, media_type: 'tv', name: 'Breaking Bad' },
+          { id: 245891, media_type: 'movie', title: 'John Wick' },
+        ],
+      },
+    ]);
+    expect(KNOWN_FOR_SIZE).toBe(3);
+  });
+
+  it('keeps someone without a picture or anything known', async () => {
+    const { client } = setup([
+      answer(200, {
+        ...page,
+        results: [
+          { id: 1, media_type: 'person', name: 'Someone', profile_path: null },
+        ],
+      }),
+    ]);
+
+    await expect(
+      client.search({ ...search, type: 'multi' }),
+    ).resolves.toMatchObject({
+      results: [
+        { id: 1, media_type: 'person', name: 'Someone', known_for: [] },
+      ],
+    });
   });
 });
 

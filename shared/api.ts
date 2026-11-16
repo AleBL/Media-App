@@ -22,6 +22,9 @@ export type NativeTheme = 'system' | 'light' | 'dark';
 
 export type MediaType = 'movie' | 'tv';
 
+/** What a search looks for: `multi` is movies, tv shows and people at once. */
+export type SearchType = MediaType | 'multi';
+
 /** TMDB always answers searches with 20 results per page. */
 export const TMDB_PAGE_SIZE = 20;
 
@@ -29,7 +32,7 @@ export const TMDB_PAGE_SIZE = 20;
 // carry title/release_date, tv shows carry name/first_air_date.
 export interface MediaItem {
   id: number;
-  /** Which of the two it is: the type that was searched for. */
+  /** Which of the two it is, whatever was searched for. */
   media_type?: MediaType;
   title?: string;
   name?: string;
@@ -39,6 +42,19 @@ export interface MediaItem {
   genre_ids?: number[];
   vote_average?: number;
 }
+
+/** Someone found by a search of everything (`multi`). */
+export interface PersonItem {
+  id: number;
+  media_type: 'person';
+  name: string;
+  profile_path?: string;
+  /** A few of the movies and tv shows they are known for. */
+  known_for: MediaItem[];
+}
+
+/** What a search finds: people only when it looks for everything. */
+export type SearchItem = MediaItem | PersonItem;
 
 export interface Genre {
   id: number;
@@ -53,7 +69,7 @@ export interface Paged<T> {
 }
 
 export interface SearchRequest {
-  type: MediaType;
+  type: SearchType;
   query: string;
   page: number;
   /** An app locale such as `en` or `pt-BR`. */
@@ -251,7 +267,7 @@ export interface MediaAppApi {
   setNativeTheme(theme: NativeTheme): void;
   /** TMDB requests run in the main process, which holds the key. */
   tmdb: {
-    search(request: SearchRequest): Promise<Result<Paged<MediaItem>>>;
+    search(request: SearchRequest): Promise<Result<Paged<SearchItem>>>;
     genres(language: string): Promise<Result<Genre[]>>;
     details(request: DetailsRequest): Promise<Result<MediaDetails>>;
     /** The first page of a list, each title tagged with its type. */

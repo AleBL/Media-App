@@ -72,6 +72,7 @@ describe('ipc handlers', () => {
           totalResults: 1,
         })),
         details: vi.fn(async () => MATRIX),
+        list: vi.fn(async () => [{ id: 603, media_type: 'movie' as const }]),
       },
       genres: { get: vi.fn(async () => [{ id: 28, name: 'Action' }]) },
       credentials: {
@@ -196,6 +197,37 @@ describe('ipc handlers', () => {
         call(IPC.tmdbDetails, fromElsewhere, details),
       ).resolves.toEqual({ ok: false, error: { code: 'invalid-request' } });
       expect(services.tmdb.details).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('lists of the home page', () => {
+    const trending = { list: 'trending', language: 'pt-BR' };
+
+    it('answers with the titles of the list', async () => {
+      await expect(call(IPC.tmdbList, fromApp, trending)).resolves.toEqual({
+        ok: true,
+        data: [{ id: 603, media_type: 'movie' }],
+      });
+      expect(services.tmdb.list).toHaveBeenCalledWith(trending);
+    });
+
+    it.each([
+      ['a list the app does not show', { ...trending, list: 'top_rated' }],
+      ['a path of TMDB', { ...trending, list: '/account' }],
+      ['a language that is not a locale', { ...trending, language: '..' }],
+    ])('rejects %s without asking', async (_case, request) => {
+      await expect(call(IPC.tmdbList, fromApp, request)).resolves.toEqual({
+        ok: false,
+        error: { code: 'invalid-request' },
+      });
+      expect(services.tmdb.list).not.toHaveBeenCalled();
+    });
+
+    it('rejects a sender that is not the app', async () => {
+      await expect(
+        call(IPC.tmdbList, fromElsewhere, trending),
+      ).resolves.toEqual({ ok: false, error: { code: 'invalid-request' } });
+      expect(services.tmdb.list).not.toHaveBeenCalled();
     });
   });
 

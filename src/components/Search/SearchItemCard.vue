@@ -3,6 +3,7 @@
   import type { MediaItem } from '@shared/api';
   import { useGenresStore } from '@/stores/genres';
   import { posterUrl } from '@/util/images';
+  import { mediaPage, mediaTitle, mediaYear } from '@/util/media';
 
   const props = defineProps<{
     item: MediaItem;
@@ -11,27 +12,9 @@
   const { locale } = useI18n();
   const genreStore = useGenresStore();
 
-  // Read from the item itself, not from the selected media type: while a
-  // new search is loading, the cards still hold results of the old type.
-  const title = computed(() => props.item.title ?? props.item.name ?? '');
-
-  const page = computed(() => ({
-    name: 'details',
-    params: {
-      type:
-        props.item.media_type ??
-        (props.item.title !== undefined ? 'movie' : 'tv'),
-      id: props.item.id,
-    },
-  }));
-
-  const year = computed(() => {
-    const date = props.item.release_date || props.item.first_air_date || '';
-
-    // TMDB sends YYYY-MM-DD. Going through Date would read it as UTC and
-    // show the previous year for January 1st in timezones behind UTC.
-    return /^\d{4}/.exec(date)?.[0] ?? null;
-  });
+  const title = computed(() => mediaTitle(props.item));
+  const year = computed(() => mediaYear(props.item));
+  const page = computed(() => mediaPage(props.item));
 
   const genres = computed(() =>
     genreStore.names(props.item.genre_ids, locale.value),

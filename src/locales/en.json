@@ -35,7 +35,14 @@
 
   "homePage": {
     "intro": "Find movies and TV shows, with posters, genres and ratings from TMDB.",
-    "startSearching": "Start searching"
+    "startSearching": "Start searching",
+    "trending": "Trending this week",
+    "popularMovies": "Popular movies",
+    "popularTv": "Popular TV shows",
+    "loading": "Loading...",
+    "listError": "This list could not be loaded.",
+    "tryAgain": "Try again",
+    "listsUnavailable": "The lists are unavailable at the moment. Please try again later."
   },
 
   "settings": {

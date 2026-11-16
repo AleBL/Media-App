@@ -4,6 +4,7 @@ import {
   parseApiKey,
   parseDetailsRequest,
   parseLanguage,
+  parseListRequest,
   parseRegion,
   parseSearchRequest,
 } from './validation';
@@ -65,6 +66,28 @@ describe('parseRegion', () => {
       expect(parseRegion(region)).toBeNull();
     },
   );
+});
+
+describe('parseListRequest', () => {
+  it.each(['trending', 'popular-movies', 'popular-tv'])(
+    'accepts the list %s',
+    (list) => {
+      expect(parseListRequest({ list, language: 'es', extra: 1 })).toEqual({
+        list,
+        language: 'es',
+      });
+    },
+  );
+
+  it.each([
+    ['a missing request', undefined],
+    ['a list the app does not show', { list: 'top_rated', language: 'en' }],
+    ['a path', { list: '/trending/all/week', language: 'en' }],
+    ['a name of the prototype', { list: 'constructor', language: 'en' }],
+    ['a language that is not a locale', { list: 'trending', language: 'x' }],
+  ])('rejects %s', (_case, request) => {
+    expect(parseListRequest(request)).toBeNull();
+  });
 });
 
 describe('parseDetailsRequest', () => {

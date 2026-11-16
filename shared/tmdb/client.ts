@@ -4,8 +4,10 @@ import {
   type CastMember,
   type DetailsRequest,
   type Genre,
+  type ListRequest,
   type MediaDetails,
   type MediaItem,
+  type MediaList,
   type MediaType,
   type Paged,
   type SearchRequest,
@@ -26,6 +28,14 @@ const YOUTUBE_KEY = /^[\w-]{6,32}$/;
 const IMDB_ID = /^tt\d{5,10}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TMDB_WEBSITE = 'https://www.themoviedb.org/';
+
+/** Where TMDB has each list, and the type of what it lists. */
+const LISTS: Record<MediaList, { path: string; type?: MediaType }> = {
+  // Each title of it says what it is; people are in it too.
+  trending: { path: '/trending/all/week' },
+  'popular-movies': { path: '/movie/popular', type: 'movie' },
+  'popular-tv': { path: '/tv/popular', type: 'tv' },
+};
 
 export class TmdbError extends Error {
   constructor(
@@ -495,6 +505,27 @@ export function createTmdbClient(options: TmdbClientOptions) {
       }
 
       return [...byId.values()];
+    },
+
+    /**
+     * The first page of a list of the home page: movies and tv shows only,
+     * without adult titles, each tagged with its type.
+     */
+    async list({ list, language }: ListRequest): Promise<MediaItem[]> {
+      const { path, type } = LISTS[list];
+      const body = await request<{ results?: (MediaItem & Fields)[] }>(path, {
+        language,
+      });
+
+      return (body.results ?? []).flatMap((item) => {
+        const itemType = type ?? item.media_type;
+
+        return (itemType === 'movie' || itemType === 'tv') &&
+          typeof item.id === 'number' &&
+          item.adult !== true
+          ? [toMediaItem(item, itemType)]
+          : [];
+      });
     },
 
     /**

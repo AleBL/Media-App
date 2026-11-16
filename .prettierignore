@@ -15,7 +15,6 @@ dist
 public
 pnpm-lock.yaml
 auto-imports.d.ts
-src/presets
 
 # Editor directories and files
 .vscode/*

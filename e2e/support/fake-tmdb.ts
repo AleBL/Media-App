@@ -247,6 +247,43 @@ export async function startFakeTmdb() {
       });
     }
 
+    // The lists of the home page, with titles named like those of a search.
+    // Trending also has a person, as at TMDB, which the app leaves out.
+    const movie = (number: number) => ({
+      id: number,
+      title: `Movie ${number} [${query.language}]`,
+      release_date: '2020-01-01',
+      poster_path: null,
+      vote_average: 7.5,
+    });
+    const show = (number: number) => ({
+      id: 9000 + number,
+      name: `Show ${number} [${query.language}]`,
+      first_air_date: '2008-01-20',
+      poster_path: null,
+      vote_average: 8.9,
+    });
+
+    if (url.pathname === '/3/trending/all/week') {
+      return send(200, {
+        page: 1,
+        results: [
+          { ...movie(1), media_type: 'movie' },
+          { id: 31, name: 'A Trending Person', media_type: 'person' },
+          { ...show(1), media_type: 'tv' },
+          { ...movie(2), media_type: 'movie' },
+        ],
+      });
+    }
+
+    if (url.pathname === '/3/movie/popular') {
+      return send(200, { page: 1, results: [11, 12, 13].map(movie) });
+    }
+
+    if (url.pathname === '/3/tv/popular') {
+      return send(200, { page: 1, results: [11, 12, 13].map(show) });
+    }
+
     // The page of a title: the one the search listed, with two people in
     // the cast, a trailer and a service in the United States and another in
     // Brazil, so a test can tell which region the app showed.
@@ -333,6 +370,12 @@ export async function startFakeTmdb() {
     requests.filter((request) => request.path.startsWith('/3/search/'));
   const pages = () =>
     requests.filter((request) => /^\/3\/(movie|tv)\/\d+$/.test(request.path));
+  const lists = () =>
+    requests.filter((request) =>
+      /^\/3\/(trending\/all\/week|movie\/popular|tv\/popular)$/.test(
+        request.path,
+      ),
+    );
 
   return {
     /** What TMDB_BASE_URL must be for the app to talk to this server. */
@@ -348,6 +391,8 @@ export async function startFakeTmdb() {
     lastSearch: () => searches().at(-1),
     /** The pages of titles the app asked for. */
     pages,
+    /** The lists of the home page the app asked for. */
+    lists,
     /** From now on the app's own token is refused, as if TMDB revoked it. */
     revokeAppToken: () => {
       appTokenRevoked = true;

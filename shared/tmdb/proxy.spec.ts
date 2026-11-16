@@ -153,6 +153,43 @@ describe('tmdb proxy', () => {
     });
   });
 
+  describe('lists of the home page', () => {
+    it('answers with the titles, kept by the CDN for an hour', async () => {
+      const fetch = tmdbAnswers(200, {
+        results: [{ id: 603, title: 'Matrix', popularity: 9 }],
+      });
+
+      const { response, body } = await ask(
+        '?resource=list&list=popular-movies&language=es',
+        fetch,
+      );
+
+      expect(response.status).toBe(200);
+      expect(body).toEqual({
+        ok: true,
+        data: [{ id: 603, media_type: 'movie', title: 'Matrix' }],
+      });
+      expect(new URL(fetch.mock.calls[0][0]).pathname).toBe('/3/movie/popular');
+      expect(response.headers.get('Cache-Control')).toBe(
+        'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400',
+      );
+    });
+
+    it.each([
+      ['no list', '?resource=list&language=en'],
+      [
+        'a list the app does not show',
+        '?resource=list&list=upcoming&language=en',
+      ],
+      ['no language', '?resource=list&list=trending'],
+    ])('refuses %s without asking TMDB', async (_case, query) => {
+      const { response, fetch } = await ask(query, tmdbAnswers(200, {}));
+
+      expect(response.status).toBe(400);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  });
+
   describe('details', () => {
     const DETAILS =
       '?resource=details&type=movie&id=603&language=pt-BR&region=BR';

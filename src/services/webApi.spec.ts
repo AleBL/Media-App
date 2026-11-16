@@ -246,6 +246,18 @@ describe('web api', () => {
     );
   });
 
+  it('asks the site for a list of the home page', async () => {
+    const titles = [{ id: 603, media_type: 'movie', title: 'Matrix' }];
+    const fetch = answering({ ok: true, data: titles });
+
+    await expect(
+      createWebApi(fetch).tmdb.list({ list: 'trending', language: 'es' }),
+    ).resolves.toEqual({ ok: true, data: titles });
+    expect(fetch.mock.calls[0][0]).toBe(
+      '/api/tmdb?resource=list&list=trending&language=es',
+    );
+  });
+
   it('asks the site for the page of a title', async () => {
     const details = { type: 'tv', id: 1396, title: 'Breaking Bad' };
     const fetch = answering({ ok: true, data: details });

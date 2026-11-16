@@ -15,6 +15,10 @@ export const PAGE_SIZE = 20;
 export const TOTAL_RESULTS = 45;
 /** The one query that finds nothing. */
 export const QUERY_WITHOUT_RESULTS = 'nothing like this';
+/** The one movie that TMDB does not have. */
+export const MISSING_MOVIE = 404404;
+/** The trailer of every title, on YouTube. */
+export const TRAILER_KEY = 'e2eTrailer1';
 
 /** Where the stand-in has the approval page of the TMDB website. */
 const WEBSITE_PATH = '/authenticate';
@@ -60,7 +64,8 @@ async function jsonBody(request: IncomingMessage) {
  * Every search has 45 results: two full pages and a last one with five,
  * except QUERY_WITHOUT_RESULTS, which has none. Titles carry their number
  * and the language that was asked for, which lets a test tell what the app
- * requested from what it shows.
+ * requested from what it shows. Each of them has a page, except
+ * MISSING_MOVIE.
  *
  * Signing in works like at TMDB: a request token becomes a session once,
  * and only after it was approved. The approval, which a person gives on the
@@ -242,6 +247,82 @@ export async function startFakeTmdb() {
       });
     }
 
+    // The page of a title: the one the search listed, with two people in
+    // the cast, a trailer and a service in the United States and another in
+    // Brazil, so a test can tell which region the app showed.
+    const page = /^\/3\/(movie|tv)\/(\d+)$/.exec(url.pathname);
+
+    if (page) {
+      const tv = page[1] === 'tv';
+      const id = Number(page[2]);
+      const number = tv ? id - 9000 : id;
+      const language = query.language;
+
+      if (id === MISSING_MOVIE) {
+        return send(404, {
+          success: false,
+          status_code: 34,
+          status_message: 'The resource you requested could not be found.',
+        });
+      }
+
+      return send(200, {
+        id,
+        ...(tv
+          ? {
+              name: `Show ${number} [${language}]`,
+              original_name: `Show ${number}`,
+              first_air_date: '2008-01-20',
+              episode_run_time: [47],
+              number_of_seasons: 5,
+              number_of_episodes: 62,
+              genres: [{ id: 18, name: 'Drama' }],
+            }
+          : {
+              title: `Movie ${number} [${language}]`,
+              original_title: `Movie ${number}`,
+              release_date: '2020-01-01',
+              runtime: 136,
+              imdb_id: 'tt0133093',
+              genres: [
+                { id: 28, name: language === 'pt-BR' ? 'Ação' : 'Action' },
+              ],
+            }),
+        overview: `The story of title ${number}, told in ${language}.`,
+        poster_path: null,
+        vote_average: 7.5,
+        vote_count: 1234,
+        credits: {
+          cast: [
+            { id: 1, name: 'Ada Actor', character: 'Hero', profile_path: null },
+            { id: 2, name: 'Bob Actor', character: 'Villain' },
+          ],
+        },
+        videos: {
+          results: [
+            {
+              key: TRAILER_KEY,
+              site: 'YouTube',
+              type: 'Trailer',
+              iso_639_1: 'en',
+              official: true,
+              name: 'Trailer',
+            },
+          ],
+        },
+        'watch/providers': {
+          results: {
+            US: {
+              link: `https://www.themoviedb.org/${page[1]}/${id}/watch?locale=US`,
+              flatrate: [{ provider_id: 8, provider_name: 'Stream US' }],
+            },
+            BR: { flatrate: [{ provider_id: 9, provider_name: 'Stream BR' }] },
+          },
+        },
+        external_ids: { imdb_id: tv ? 'tt0903747' : 'tt0133093' },
+      });
+    }
+
     return send(404, { status_message: 'Not found' });
   });
 
@@ -250,6 +331,8 @@ export async function startFakeTmdb() {
   const { port } = server.address() as AddressInfo;
   const searches = () =>
     requests.filter((request) => request.path.startsWith('/3/search/'));
+  const pages = () =>
+    requests.filter((request) => /^\/3\/(movie|tv)\/\d+$/.test(request.path));
 
   return {
     /** What TMDB_BASE_URL must be for the app to talk to this server. */
@@ -263,6 +346,8 @@ export async function startFakeTmdb() {
     requests,
     searches,
     lastSearch: () => searches().at(-1),
+    /** The pages of titles the app asked for. */
+    pages,
     /** From now on the app's own token is refused, as if TMDB revoked it. */
     revokeAppToken: () => {
       appTokenRevoked = true;

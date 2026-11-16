@@ -1,6 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { parseApiKey, parseLanguage, parseSearchRequest } from './validation';
+import {
+  parseApiKey,
+  parseDetailsRequest,
+  parseLanguage,
+  parseRegion,
+  parseSearchRequest,
+} from './validation';
 
 describe('parseLanguage', () => {
   it.each(['en', 'es', 'pt-BR'])('accepts %s', (language) => {
@@ -45,6 +51,42 @@ describe('parseSearchRequest', () => {
     ['a language that is not a locale', { ...valid, language: '../x' }],
   ])('rejects %s', (_case, request) => {
     expect(parseSearchRequest(request)).toBeNull();
+  });
+});
+
+describe('parseRegion', () => {
+  it.each(['BR', 'US', 'GB'])('accepts %s', (region) => {
+    expect(parseRegion(region)).toBe(region);
+  });
+
+  it.each(['', 'br', 'BRA', '419', 'pt-BR', '__proto__', 5, null])(
+    'rejects %s',
+    (region) => {
+      expect(parseRegion(region)).toBeNull();
+    },
+  );
+});
+
+describe('parseDetailsRequest', () => {
+  const valid = { type: 'tv', id: 1396, language: 'pt-BR', region: 'BR' };
+
+  it('accepts the page of a title and drops fields it does not know', () => {
+    expect(parseDetailsRequest({ ...valid, path: '/account' })).toEqual(valid);
+  });
+
+  it.each([
+    ['a missing request', undefined],
+    ['an unknown media type', { ...valid, type: 'person' }],
+    ['an id sent as text', { ...valid, id: '1396' }],
+    ['id zero', { ...valid, id: 0 }],
+    ['a fractional id', { ...valid, id: 1.5 }],
+    ['an id that is not finite', { ...valid, id: Infinity }],
+    ['a huge id', { ...valid, id: 2 ** 40 }],
+    ['a language that is not a locale', { ...valid, language: 'x' }],
+    ['no region', { ...valid, region: undefined }],
+    ['a region that is not a country', { ...valid, region: 'Brazil' }],
+  ])('rejects %s', (_case, request) => {
+    expect(parseDetailsRequest(request)).toBeNull();
   });
 });
 

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   IPC,
   type CredentialStatus,
+  type MediaDetails,
   type SessionState,
 } from '../../shared/api';
 import { registerIpc, type IpcEvent, type IpcServices } from './ipc';
@@ -39,6 +40,14 @@ const fromElsewhere: IpcEvent = {
   senderFrame: { url: 'https://example.com/' },
 };
 const search = { type: 'movie', query: 'matrix', page: 1, language: 'en' };
+const details = { type: 'movie', id: 603, language: 'pt-BR', region: 'BR' };
+const MATRIX: MediaDetails = {
+  type: 'movie',
+  id: 603,
+  title: 'Matrix',
+  genres: [],
+  cast: [],
+};
 
 describe('ipc handlers', () => {
   let handlers: Map<string, (event: IpcEvent, ...args: unknown[]) => unknown>;
@@ -62,6 +71,7 @@ describe('ipc handlers', () => {
           totalPages: 1,
           totalResults: 1,
         })),
+        details: vi.fn(async () => MATRIX),
       },
       genres: { get: vi.fn(async () => [{ id: 28, name: 'Action' }]) },
       credentials: {
@@ -146,6 +156,46 @@ describe('ipc handlers', () => {
         { ok: false, error: { code: 'invalid-request' } },
       );
       expect(services.tmdb.search).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('details', () => {
+    it('answers with the page of the title', async () => {
+      await expect(call(IPC.tmdbDetails, fromApp, details)).resolves.toEqual({
+        ok: true,
+        data: MATRIX,
+      });
+      expect(services.tmdb.details).toHaveBeenCalledWith(details);
+    });
+
+    it('turns a title TMDB does not know into a failure', async () => {
+      vi.mocked(services.tmdb.details).mockRejectedValue(
+        new TmdbError('not-found', 404),
+      );
+
+      await expect(call(IPC.tmdbDetails, fromApp, details)).resolves.toEqual({
+        ok: false,
+        error: { code: 'not-found', status: 404, message: 'not-found' },
+      });
+    });
+
+    it.each([
+      ['a type the app does not show', { ...details, type: 'person' }],
+      ['an id that is not a number', { ...details, id: '603/videos' }],
+      ['a region that is not a country', { ...details, region: '../BR' }],
+    ])('rejects %s without asking', async (_case, request) => {
+      await expect(call(IPC.tmdbDetails, fromApp, request)).resolves.toEqual({
+        ok: false,
+        error: { code: 'invalid-request' },
+      });
+      expect(services.tmdb.details).not.toHaveBeenCalled();
+    });
+
+    it('rejects a sender that is not the app', async () => {
+      await expect(
+        call(IPC.tmdbDetails, fromElsewhere, details),
+      ).resolves.toEqual({ ok: false, error: { code: 'invalid-request' } });
+      expect(services.tmdb.details).not.toHaveBeenCalled();
     });
   });
 

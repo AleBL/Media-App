@@ -1,14 +1,19 @@
 <script setup lang="ts">
   // A button of the app. Anything else, such as `disabled`, `aria-label` or
-  // a click listener, goes to the <button> itself.
+  // a click listener, goes to the <button> (or <a>) itself.
   withDefaults(
     defineProps<{
       label?: string;
       /** A PrimeIcons class, such as `pi pi-save`. */
       icon?: string;
       severity?: 'primary' | 'secondary' | 'danger';
+      /**
+       * Makes it a link to a page of another site, which opens in the
+       * browser of the system (a new tab on the web).
+       */
+      href?: string;
     }>(),
-    { label: undefined, icon: undefined, severity: 'primary' },
+    { label: undefined, icon: undefined, severity: 'primary', href: undefined },
   );
 
   const SEVERITY = {
@@ -22,8 +27,13 @@
 </script>
 
 <template>
-  <button
-    type="button"
+  <component
+    :is="href ? 'a' : 'button'"
+    v-bind="
+      href
+        ? { href, target: '_blank', rel: 'noopener noreferrer' }
+        : { type: 'button' }
+    "
     :class="[
       'relative inline-flex items-center justify-center gap-2 rounded-md text-center align-bottom text-sm text-white shadow-xs ring-1 transition duration-200 dark:text-surface-900',
       'focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2',
@@ -34,5 +44,5 @@
   >
     <span v-if="icon" :class="icon" aria-hidden="true" />
     <span v-if="label" class="font-semibold">{{ label }}</span>
-  </button>
+  </component>
 </template>

@@ -6,6 +6,7 @@
   import { useCredentialsStore } from '@/stores/credentials';
   import { useGenresStore } from '@/stores/genres';
   import { useSearchStore } from '@/stores/search';
+  import { accessProblem } from '@/util/access';
   import AppPaginator from '@/components/ui/AppPaginator.vue';
   import SearchItemCard from '@/components/Search/SearchItemCard.vue';
   import SearchBar from '@/components/Search/SearchBar.vue';
@@ -25,33 +26,25 @@
     Math.ceil(totalResults.value / TMDB_PAGE_SIZE),
   );
 
-  // A failure of the credential and not of the search, as the message to
-  // show. In the desktop app the settings page can solve it; on the web
-  // only whoever runs the site can.
-  const accessProblem = computed(() => {
-    const code = error.value?.code;
+  // A failure of the credential and not of the search.
+  const problem = computed(() =>
+    accessProblem(error.value?.code, desktop, credentials.hasKey),
+  );
 
-    if (code !== 'missing-credential' && code !== 'unauthorized') {
-      return null;
+  const errorMessage = computed(() => {
+    if (!problem.value) {
+      return 'search.error';
     }
 
-    if (!desktop) {
-      return 'search.errorWebUnavailable';
-    }
-
-    if (code === 'missing-credential') {
-      return 'search.errorNoAccess';
-    }
-
-    return credentials.hasKey
-      ? 'search.errorOwnKeyRefused'
-      : 'search.errorAppRefused';
+    return problem.value === 'webUnavailable'
+      ? 'search.errorWebUnavailable'
+      : `access.${problem.value}`;
   });
 
   // The user may be coming back from the settings, where the credential
   // changed: ask again instead of showing the old failure.
   onMounted(() => {
-    if (accessProblem.value) {
+    if (problem.value) {
       store.search(currentPage.value);
     }
   });
@@ -72,10 +65,10 @@
     class="p-5 text-center text-red-600 dark:text-red-400"
   >
     <p>
-      {{ t(accessProblem ?? 'search.error') }}
+      {{ t(errorMessage) }}
     </p>
-    <RouterLink v-if="accessProblem && desktop" :to="{ name: 'settings' }">
-      {{ t('search.openSettings') }}
+    <RouterLink v-if="problem && desktop" :to="{ name: 'settings' }">
+      {{ t('access.openSettings') }}
     </RouterLink>
   </div>
 

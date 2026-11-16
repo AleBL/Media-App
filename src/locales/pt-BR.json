@@ -58,11 +58,42 @@
     "notFound": "Nenhum registro foi encontrado",
     "loading": "Buscando...",
     "error": "A busca falhou. Verifique sua conexão e tente novamente.",
-    "errorNoAccess": "Esta cópia do app não tem acesso ao TMDB. Salve uma chave sua nas configurações.",
-    "errorAppRefused": "O TMDB recusou o acesso do app. Atualize o app ou use uma chave sua.",
-    "errorOwnKeyRefused": "O TMDB recusou a sua chave. Confira ou remova a chave nas configurações.",
-    "errorWebUnavailable": "A busca está indisponível no momento. Tente de novo mais tarde.",
+    "errorWebUnavailable": "A busca está indisponível no momento. Tente de novo mais tarde."
+  },
+
+  "access": {
+    "noAccess": "Esta cópia do app não tem acesso ao TMDB. Salve uma chave sua nas configurações.",
+    "appRefused": "O TMDB recusou o acesso do app. Atualize o app ou use uma chave sua.",
+    "ownKeyRefused": "O TMDB recusou a sua chave. Confira ou remova a chave nas configurações.",
     "openSettings": "Abrir as configurações"
+  },
+
+  "details": {
+    "back": "Voltar",
+    "loading": "Carregando...",
+    "notFound": "Este título não foi encontrado no TMDB.",
+    "error": "Não foi possível carregar o título. Verifique sua conexão e tente novamente.",
+    "errorWebUnavailable": "Esta página está indisponível no momento. Tente de novo mais tarde.",
+    "tryAgain": "Tentar de novo",
+    "released": "Lançado em {date}",
+    "firstAired": "Estreou em {date}",
+    "hoursMinutes": "{hours} h {minutes} min",
+    "minutes": "{minutes} min",
+    "perEpisode": "{runtime} por episódio",
+    "seasons": "{n} temporada | {n} temporadas",
+    "episodes": "{n} episódio | {n} episódios",
+    "votes": "{count} voto | {count} votos",
+    "trailer": "Ver o trailer",
+    "imdb": "Ver no IMDb",
+    "whereToWatch": "Onde assistir: {region}",
+    "nowhereToWatch": "O JustWatch não conhece serviço, loja ou canal que ofereça este título em {region}.",
+    "stream": "Streaming",
+    "free": "Grátis",
+    "rent": "Alugar",
+    "buy": "Comprar",
+    "justWatch": "Onde assistir: dados do JustWatch.",
+    "allOptions": "Ver os links no TMDB",
+    "cast": "Elenco"
   },
 
   "account": {

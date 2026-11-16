@@ -1,17 +1,31 @@
 import {
   TMDB_PAGE_SIZE,
   type Account,
+  type CastMember,
+  type DetailsRequest,
   type Genre,
+  type MediaDetails,
   type MediaItem,
+  type MediaType,
   type Paged,
   type SearchRequest,
   type TmdbErrorCode,
+  type WatchOptions,
+  type WatchProvider,
 } from '../api';
 
 export const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
 /** TMDB rejects pages above this one. */
 export const TMDB_MAX_PAGES = 500;
+
+/** How many of the cast the page of a title shows. */
+export const CAST_SIZE = 12;
+
+const YOUTUBE_KEY = /^[\w-]{6,32}$/;
+const IMDB_ID = /^tt\d{5,10}$/;
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const TMDB_WEBSITE = 'https://www.themoviedb.org/';
 
 export class TmdbError extends Error {
   constructor(
@@ -66,6 +80,37 @@ type AccountBody = {
   name?: unknown;
   avatar?: { tmdb?: { avatar_path?: unknown } };
 };
+
+// The page of a movie or tv show, with what append_to_response added. Read
+// field by field: nothing in it is taken on trust.
+type DetailsBody = {
+  id?: unknown;
+  adult?: unknown;
+  title?: unknown;
+  name?: unknown;
+  original_title?: unknown;
+  original_name?: unknown;
+  tagline?: unknown;
+  overview?: unknown;
+  release_date?: unknown;
+  first_air_date?: unknown;
+  runtime?: unknown;
+  episode_run_time?: unknown;
+  last_episode_to_air?: { runtime?: unknown } | null;
+  number_of_seasons?: unknown;
+  number_of_episodes?: unknown;
+  genres?: unknown;
+  poster_path?: unknown;
+  vote_average?: unknown;
+  vote_count?: unknown;
+  imdb_id?: unknown;
+  external_ids?: { imdb_id?: unknown } | null;
+  videos?: { results?: unknown } | null;
+  credits?: { cast?: unknown } | null;
+  'watch/providers'?: { results?: unknown } | null;
+};
+
+type Fields = Record<string, unknown>;
 
 /** What a request that changes something at TMDB sends. */
 type Send = { method: 'POST' | 'DELETE'; body: Record<string, string> };
@@ -143,9 +188,10 @@ function toAccount(body: AccountBody): Account {
 }
 
 // Only the fields the app uses cross to the renderer.
-function toMediaItem(item: MediaItem): MediaItem {
+function toMediaItem(item: MediaItem, type: MediaType): MediaItem {
   return {
     id: item.id,
+    media_type: type,
     title: item.title,
     name: item.name,
     release_date: item.release_date,
@@ -153,6 +199,179 @@ function toMediaItem(item: MediaItem): MediaItem {
     poster_path: item.poster_path,
     genre_ids: item.genre_ids,
     vote_average: item.vote_average,
+  };
+}
+
+const text = (value: unknown) =>
+  typeof value === 'string' && value.trim() ? value : undefined;
+
+const positive = (value: unknown) =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : undefined;
+
+const objects = (value: unknown): Fields[] =>
+  Array.isArray(value)
+    ? value.filter(
+        (entry): entry is Fields => typeof entry === 'object' && entry !== null,
+      )
+    : [];
+
+/**
+ * The trailer to offer: a YouTube video, in the language of the app before
+ * English and before any other, a trailer before a teaser, an official one
+ * before the rest.
+ */
+function pickTrailer(videos: unknown, language: string) {
+  const own = language.slice(0, 2);
+  const score = (video: Fields) => [
+    video.iso_639_1 === own ? 0 : video.iso_639_1 === 'en' ? 1 : 2,
+    video.type === 'Trailer' ? 0 : 1,
+    video.official === true ? 0 : 1,
+  ];
+  const [best] = objects(videos)
+    .filter(
+      (video) =>
+        video.site === 'YouTube' &&
+        (video.type === 'Trailer' || video.type === 'Teaser') &&
+        typeof video.key === 'string' &&
+        YOUTUBE_KEY.test(video.key),
+    )
+    .sort((a, b) => {
+      const [first, second] = [score(a), score(b)];
+      const index = first.findIndex((value, i) => value !== second[i]);
+
+      return index === -1 ? 0 : first[index] - second[index];
+    });
+
+  return best
+    ? { key: best.key as string, name: text(best.name) ?? '' }
+    : undefined;
+}
+
+function toCast(cast: unknown): CastMember[] {
+  return objects(cast)
+    .filter((person) => typeof person.id === 'number' && text(person.name))
+    .slice(0, CAST_SIZE)
+    .map((person) => ({
+      id: person.id as number,
+      name: person.name as string,
+      character: text(person.character),
+      profilePath: text(person.profile_path),
+    }));
+}
+
+/** The services of one or more lists, in the order JustWatch ranks them. */
+function toProviders(...lists: unknown[]): WatchProvider[] {
+  const seen = new Set<number>();
+  const rank = (provider: Fields) =>
+    typeof provider.display_priority === 'number'
+      ? provider.display_priority
+      : Number.MAX_SAFE_INTEGER;
+
+  return lists
+    .flatMap(objects)
+    .filter(
+      (provider) =>
+        typeof provider.provider_id === 'number' &&
+        text(provider.provider_name),
+    )
+    .sort((a, b) => rank(a) - rank(b))
+    .filter((provider) => {
+      const id = provider.provider_id as number;
+
+      return seen.has(id) ? false : (seen.add(id), true);
+    })
+    .map((provider) => ({
+      id: provider.provider_id as number,
+      name: provider.provider_name as string,
+      logoPath: text(provider.logo_path),
+    }));
+}
+
+/** Where to watch in `region`: TMDB sends every country at once. */
+function toWatch(results: unknown, region: string): WatchOptions | undefined {
+  const entry =
+    typeof results === 'object' &&
+    results !== null &&
+    Object.hasOwn(results, region)
+      ? (results as Record<string, unknown>)[region]
+      : undefined;
+
+  if (typeof entry !== 'object' || entry === null) {
+    return undefined;
+  }
+
+  const { link, flatrate, free, ads, rent, buy } = entry as Fields;
+  const options: WatchOptions = {
+    link:
+      typeof link === 'string' && link.startsWith(TMDB_WEBSITE)
+        ? link
+        : undefined,
+    stream: toProviders(flatrate),
+    free: toProviders(free, ads),
+    rent: toProviders(rent),
+    buy: toProviders(buy),
+  };
+  const any =
+    options.stream.length +
+    options.free.length +
+    options.rent.length +
+    options.buy.length;
+
+  return any > 0 ? options : undefined;
+}
+
+function toDetails(body: DetailsBody, request: DetailsRequest): MediaDetails {
+  const { type, language, region } = request;
+  const movie = type === 'movie';
+  const title = text(movie ? body.title : body.name);
+
+  if (typeof body.id !== 'number' || !title) {
+    return unreadable();
+  }
+
+  // Searches leave adult titles out, so their pages are not shown either.
+  if (body.adult === true) {
+    throw new TmdbError('not-found', 404);
+  }
+
+  const original = text(movie ? body.original_title : body.original_name);
+  const date = text(movie ? body.release_date : body.first_air_date);
+  const episodeRuntime = Array.isArray(body.episode_run_time)
+    ? body.episode_run_time[0]
+    : undefined;
+  const voteCount = positive(body.vote_count);
+
+  return {
+    type,
+    id: body.id,
+    title,
+    originalTitle: original !== title ? original : undefined,
+    tagline: text(body.tagline),
+    overview: text(body.overview),
+    date: date && DATE.test(date) ? date : undefined,
+    runtime: movie
+      ? positive(body.runtime)
+      : (positive(episodeRuntime) ??
+        positive(body.last_episode_to_air?.runtime)),
+    seasons: movie ? undefined : positive(body.number_of_seasons),
+    episodes: movie ? undefined : positive(body.number_of_episodes),
+    genres: objects(body.genres).flatMap((genre) =>
+      typeof genre.id === 'number' && text(genre.name)
+        ? [{ id: genre.id, name: genre.name as string }]
+        : [],
+    ),
+    posterPath: text(body.poster_path),
+    voteAverage: voteCount ? positive(body.vote_average) : undefined,
+    voteCount,
+    // Only movies have it in the page itself.
+    imdbId: [body.imdb_id, body.external_ids?.imdb_id].find(
+      (id): id is string => typeof id === 'string' && IMDB_ID.test(id),
+    ),
+    trailer: pickTrailer(body.videos?.results, language),
+    cast: toCast(body.credits?.cast),
+    watch: toWatch(body['watch/providers']?.results, region),
   };
 }
 
@@ -245,7 +464,9 @@ export function createTmdbClient(options: TmdbClientOptions) {
 
       return {
         page: body.page ?? search.page,
-        results: (body.results ?? []).map(toMediaItem),
+        results: (body.results ?? []).map((item) =>
+          toMediaItem(item, search.type),
+        ),
         totalPages: Math.min(body.total_pages ?? 0, TMDB_MAX_PAGES),
         totalResults: Math.min(
           body.total_results ?? 0,
@@ -274,6 +495,35 @@ export function createTmdbClient(options: TmdbClientOptions) {
       }
 
       return [...byId.values()];
+    },
+
+    /**
+     * The page of a movie or tv show, with its cast, trailer, IMDb id and
+     * where to watch it in the region asked for, in one request.
+     */
+    async details(details: DetailsRequest): Promise<MediaDetails> {
+      const own = details.language.slice(0, 2);
+      // TMDB only sends the videos in the language asked for, unless told
+      // which others to add. A language with a country (pt-BR) does not
+      // match one without it (pt), so both go in, then English and the
+      // videos that have no language.
+      const videoLanguages = new Set([
+        details.language,
+        own,
+        `${own}-${details.region}`,
+        'en',
+        'null',
+      ]);
+      const body = await request<DetailsBody>(
+        `/${details.type}/${details.id}`,
+        {
+          language: details.language,
+          append_to_response: 'credits,videos,watch/providers,external_ids',
+          include_video_language: [...videoLanguages].join(','),
+        },
+      );
+
+      return toDetails(body, details);
     },
 
     /**

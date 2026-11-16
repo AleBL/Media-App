@@ -35,7 +35,14 @@
 
   "homePage": {
     "intro": "Encontre filmes e séries, com pôsteres, gêneros e notas do TMDB.",
-    "startSearching": "Começar a procurar"
+    "startSearching": "Começar a procurar",
+    "trending": "Em alta na semana",
+    "popularMovies": "Filmes populares",
+    "popularTv": "Séries populares",
+    "loading": "Carregando...",
+    "listError": "Não foi possível carregar esta lista.",
+    "tryAgain": "Tentar de novo",
+    "listsUnavailable": "As listas estão indisponíveis no momento. Tente de novo mais tarde."
   },
 
   "settings": {

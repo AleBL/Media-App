@@ -1,12 +1,30 @@
 <script setup lang="ts">
-  import { computed } from 'vue';
+  import { computed, watch } from 'vue';
+  import { useRoute, useRouter } from 'vue-router';
   import { storeToRefs } from 'pinia';
   import AppButton from '@/components/ui/AppButton.vue';
   import { useSessionStore } from '@/stores/session';
+  import { pageAfterSignIn } from '@/util/signIn';
 
   const { t, locale } = useI18n();
+  const route = useRoute();
+  const router = useRouter();
   const session = useSessionStore();
   const { state, account, notConfirmed, busy } = storeToRefs(session);
+
+  // Sent here by a page of the account: back to it once signed in. On the
+  // web the sign in reloads the app on this page, without where it was.
+  watch(
+    account,
+    (signedIn) => {
+      const next = signedIn ? pageAfterSignIn(router, route.query.next) : null;
+
+      if (next) {
+        router.replace(next);
+      }
+    },
+    { immediate: true },
+  );
 
   const failure = computed(() =>
     state.value.status === 'error' ? state.value.reason : null,
@@ -42,6 +60,18 @@
           t('account.signedInAs', { name: account.name ?? account.username })
         }}
       </p>
+      <ul class="mb-4 flex list-none flex-wrap justify-center gap-4 p-0">
+        <li>
+          <RouterLink :to="{ name: 'watchlist' }">
+            {{ t('lists.watchlist') }}
+          </RouterLink>
+        </li>
+        <li>
+          <RouterLink :to="{ name: 'favorites' }">
+            {{ t('lists.favorites') }}
+          </RouterLink>
+        </li>
+      </ul>
       <p
         v-if="offline"
         role="status"

@@ -16,6 +16,11 @@ export const useSessionStore = defineStore('session', () => {
   // An answer about the session is on its way.
   const busy = ref(false);
   let stopListening: (() => void) | undefined;
+  let known!: () => void;
+  // Settles once the first answer about the session came, or failed to.
+  const loaded = new Promise<void>((resolve) => {
+    known = resolve;
+  });
 
   const account = computed(() =>
     state.value.status === 'authenticated' ? state.value.account : null,
@@ -46,9 +51,16 @@ export const useSessionStore = defineStore('session', () => {
    * approves it in the browser, not when something is clicked here.
    */
   async function load() {
-    stopListening ??= getApi().auth.onChange(apply);
-    apply(await getApi().auth.getSession());
+    try {
+      stopListening ??= getApi().auth.onChange(apply);
+      apply(await getApi().auth.getSession());
+    } finally {
+      known();
+    }
   }
+
+  /** Waits until the app knows whether anyone is signed in. */
+  const whenLoaded = () => loaded;
 
   /** Opens the approval page of TMDB, with the result page in `language`. */
   const login = (language: string) => ask(() => getApi().auth.login(language));
@@ -74,6 +86,7 @@ export const useSessionStore = defineStore('session', () => {
     notConfirmed,
     busy,
     load,
+    whenLoaded,
     login,
     confirm,
     cancel,

@@ -17,5 +17,8 @@ export function posterUrl(path?: string | null, size: string = POSTER_SIZE) {
 export const profileUrl = (path: string, size: string = PROFILE_SIZE) =>
   `${TMDB_IMAGES}${size}${path}`;
 
+/** The picture of whoever signed in, as small as the menu shows it. */
+export const avatarUrl = (path: string) => `${TMDB_IMAGES}w45${path}`;
+
 /** The logo of a streaming service or store. */
 export const logoUrl = (path: string) => `${TMDB_IMAGES}${LOGO_SIZE}${path}`;

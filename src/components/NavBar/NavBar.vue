@@ -3,6 +3,7 @@
   import { onClickOutside, onKeyStroke } from '@vueuse/core';
   import { isDesktop } from '@/services/api';
   import { useSessionStore } from '@/stores/session';
+  import { avatarUrl } from '@/util/images';
   import { ThemeItem } from './theme';
   import { LanguageItem, type LanguageOption } from './language';
 
@@ -44,26 +45,45 @@
           ]
         : []),
       { to: '/about', icon: 'pi pi-info-circle', label: t('pageTitles.about') },
-      {
-        to: '/account',
-        icon: account ? 'pi pi-user' : 'pi pi-sign-in',
-        label: account
-          ? (account.name ?? account.username)
-          : t('account.signIn'),
-      },
+      ...(account
+        ? []
+        : [
+            {
+              to: '/account',
+              icon: 'pi pi-sign-in',
+              label: t('account.signIn'),
+            },
+          ]),
     ];
   });
 
+  // Whoever signed in has a menu of their own, under their name.
+  const accountLinks = computed(() => [
+    { to: '/watchlist', icon: 'pi pi-bookmark', label: t('lists.watchlist') },
+    { to: '/favorites', icon: 'pi pi-heart', label: t('lists.favorites') },
+    { to: '/account', icon: 'pi pi-user', label: t('pageTitles.account') },
+  ]);
+  const avatar = computed(() =>
+    session.account?.avatarPath ? avatarUrl(session.account.avatarPath) : null,
+  );
+
   // Narrow windows (the web version on a phone) fold the menu behind a
-  // button. Both it and the languages are disclosures: a button that shows
-  // and hides what follows it, the pattern meant for navigation.
+  // button. It, the languages and the account are disclosures: a button
+  // that shows and hides what follows it, the pattern meant for navigation.
   const menuOpen = ref(false);
   const languagesOpen = ref(false);
   const languageMenu = ref<HTMLElement>();
   const languageButton = ref<HTMLButtonElement>();
+  const accountOpen = ref(false);
+  const accountMenu = ref<HTMLElement>();
+  const accountButton = ref<HTMLButtonElement>();
 
   onClickOutside(languageMenu, () => {
     languagesOpen.value = false;
+  });
+
+  onClickOutside(accountMenu, () => {
+    accountOpen.value = false;
   });
 
   onKeyStroke('Escape', () => {
@@ -71,12 +91,27 @@
       languagesOpen.value = false;
       languageButton.value?.focus();
     }
+
+    if (accountOpen.value) {
+      accountOpen.value = false;
+      accountButton.value?.focus();
+    }
   });
 
   function chooseLanguage(language: LanguageOption) {
     language.command();
     languagesOpen.value = false;
     menuOpen.value = false;
+  }
+
+  function closeMenus() {
+    accountOpen.value = false;
+    menuOpen.value = false;
+  }
+
+  async function signOut() {
+    closeMenus();
+    await session.logout();
   }
 
   // In the green of the links of the app, as with PrimeVue.
@@ -175,6 +210,52 @@
             <span :class="link.icon" aria-hidden="true" />
             <span class="ml-2">{{ link.label }}</span>
           </RouterLink>
+        </li>
+
+        <li v-if="session.account" ref="accountMenu" class="sm:relative">
+          <button
+            ref="accountButton"
+            type="button"
+            :class="ITEM"
+            :aria-expanded="accountOpen"
+            aria-controls="account-menu"
+            @click="accountOpen = !accountOpen"
+          >
+            <img
+              v-if="avatar"
+              :src="avatar"
+              alt=""
+              class="h-6 w-6 rounded-full object-cover"
+            />
+            <span v-else class="pi pi-user" aria-hidden="true" />
+            <span class="ml-2">{{
+              session.account.name ?? session.account.username
+            }}</span>
+            <span class="pi pi-fw pi-angle-down ml-2" aria-hidden="true" />
+          </button>
+
+          <ul
+            v-show="accountOpen"
+            id="account-menu"
+            class="static z-10 m-0 w-full list-none rounded-md bg-surface-0 py-1 sm:absolute sm:right-0 sm:w-48 sm:shadow-md dark:bg-surface-900"
+          >
+            <li v-for="link in accountLinks" :key="link.to">
+              <RouterLink
+                :to="link.to"
+                :class="[ITEM, CURRENT]"
+                @click="closeMenus"
+              >
+                <span :class="link.icon" aria-hidden="true" />
+                <span class="ml-2">{{ link.label }}</span>
+              </RouterLink>
+            </li>
+            <li>
+              <button type="button" :class="ITEM" @click="signOut">
+                <span class="pi pi-sign-out" aria-hidden="true" />
+                <span class="ml-2">{{ t('account.signOut') }}</span>
+              </button>
+            </li>
+          </ul>
         </li>
       </ul>
     </nav>

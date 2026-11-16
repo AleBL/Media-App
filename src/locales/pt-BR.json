@@ -106,6 +106,24 @@
     "cast": "Elenco"
   },
 
+  "lists": {
+    "watchlist": "Minha lista",
+    "favorites": "Favoritos",
+    "watchlistButton": "Minha lista",
+    "favoriteButton": "Favorito",
+    "signInToSave": "Entre para guardar este título na sua lista ou nos favoritos",
+    "statesFailed": "Não foi possível ver se este título está nas suas listas. Tente de novo mais tarde.",
+    "saveFailed": "A alteração não foi salva. Tente de novo.",
+    "kind": "Filmes ou séries",
+    "movies": "Filmes",
+    "tvShows": "Séries",
+    "error": "Não foi possível carregar a sua lista. Verifique sua conexão e tente de novo.",
+    "tryAgain": "Tentar de novo",
+    "loading": "Carregando...",
+    "emptyWatchlist": "Nada aqui ainda. Adicione filmes e séries à sua lista nas páginas deles.",
+    "emptyFavorites": "Nenhum favorito aqui ainda. Marque filmes e séries como favoritos nas páginas deles."
+  },
+
   "account": {
     "signIn": "Entrar",
     "intro": "Entrar com a sua conta do TMDB é opcional: a busca funciona sem isso.",

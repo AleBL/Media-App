@@ -67,11 +67,61 @@ describe('NavBar', () => {
     expect(links().map((link) => link.href)).not.toContain('/settings');
   });
 
-  it('shows who is signed in', async () => {
+  it('shows who is signed in, with a menu of their own', async () => {
     useSessionStore().state = SIGNED_IN;
     await mountNavBar();
 
-    expect(wrapper.get('a[href="/account"]').text()).toBe('Ada Lovelace');
+    const button = wrapper.get('[aria-controls="account-menu"]');
+    const menu = wrapper.get('#account-menu');
+
+    expect(button.text()).toBe('Ada Lovelace');
+    expect(links().map((link) => link.href)).not.toContain('/account');
+    expect(menu.isVisible()).toBe(false);
+
+    await button.trigger('click');
+
+    expect(button.attributes('aria-expanded')).toBe('true');
+    expect(
+      menu.findAll('a').map((link) => [link.attributes('href'), link.text()]),
+    ).toEqual([
+      ['/watchlist', 'My list'],
+      ['/favorites', 'Favorites'],
+      ['/account', 'Account'],
+    ]);
+
+    await menu.get('button').trigger('click');
+    await flushPromises();
+
+    expect(api.auth.logout).toHaveBeenCalled();
+    expect(wrapper.find('[aria-controls="account-menu"]').exists()).toBe(false);
+    expect(links().map((link) => link.text)).toContain('Sign in');
+  });
+
+  it('shows the picture of whoever signed in, when TMDB has one', async () => {
+    useSessionStore().state = {
+      status: 'authenticated',
+      account: { id: 7, username: 'ada', avatarPath: '/ada.jpg' },
+    };
+    await mountNavBar();
+
+    expect(
+      wrapper.get('[aria-controls="account-menu"] img').attributes('src'),
+    ).toBe('https://image.tmdb.org/t/p/w45/ada.jpg');
+  });
+
+  it('closes the menu of the account with Escape, back on its button', async () => {
+    useSessionStore().state = SIGNED_IN;
+    await mountNavBar();
+    const button = wrapper.get('[aria-controls="account-menu"]');
+
+    await button.trigger('click');
+    button.element.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+    await flushPromises();
+
+    expect(wrapper.get('#account-menu').isVisible()).toBe(false);
+    expect(document.activeElement).toBe(button.element);
   });
 
   it('switches the language from its own menu', async () => {

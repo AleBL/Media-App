@@ -106,6 +106,24 @@
     "cast": "Reparto"
   },
 
+  "lists": {
+    "watchlist": "Mi lista",
+    "favorites": "Favoritos",
+    "watchlistButton": "Mi lista",
+    "favoriteButton": "Favorito",
+    "signInToSave": "Inicia sesión para guardar este título en tu lista o en favoritos",
+    "statesFailed": "No se pudo comprobar si este título está en tus listas. Inténtalo de nuevo más tarde.",
+    "saveFailed": "No se pudo guardar el cambio. Inténtalo de nuevo.",
+    "kind": "Películas o series",
+    "movies": "Películas",
+    "tvShows": "Series",
+    "error": "No se pudo cargar tu lista. Comprueba tu conexión e inténtalo de nuevo.",
+    "tryAgain": "Intentar de nuevo",
+    "loading": "Cargando...",
+    "emptyWatchlist": "Aún no hay nada aquí. Añade películas y series a tu lista desde sus páginas.",
+    "emptyFavorites": "Aún no hay favoritos aquí. Marca películas y series como favoritas desde sus páginas."
+  },
+
   "account": {
     "signIn": "Iniciar sesión",
     "intro": "Iniciar sesión con tu cuenta de TMDB es opcional: la búsqueda funciona sin ella.",

@@ -74,7 +74,7 @@ The token is compiled into the main process only (`dist-electron/main`), never i
 
 ### The web version 🌐
 
-The same interface also runs as a web page, deployed by Vercel. A page cannot hold the credential (everything a browser loads is public), so there it asks functions of the site, the files in `api`, which keep `TMDB_READ_TOKEN` on the server and only do what the app does: search movies, tv shows and people, list genres, show the lists of the home page and the page of a title, sign in, and read and change the watchlist, the favorites and the ratings of whoever signed in.
+The same interface also runs as a web page, deployed by Vercel. A page cannot hold the credential (everything a browser loads is public), so there it asks functions of the site, the files in `api`, which keep `TMDB_READ_TOKEN` on the server and only do what the app does: search movies, tv shows and people, list genres, show the lists of the home page and the page of a title, sign in, and read and change the watchlist, the favorites, the ratings and the watched titles of whoever signed in.
 
 - On Vercel, set `TMDB_READ_TOKEN` in the project's environment variables, for Production and for Preview. Never give it a `VITE_` prefix: that would put it in the page.
 - The web version has no Settings page: a browser has no safe place for a key of the user.
@@ -103,13 +103,17 @@ In the web version:
 
 ### My list and favorites 🔖
 
-Whoever signed in has a menu of their own under their name, in the menu bar: **My list** (the watchlist of the TMDB account), **Favorites**, **Rated**, **Account** and **Sign out**. The page of a title has a **My list** and a **Favorite** button, and so does every card of the search, of the home page and of the lists, on its poster: a change shows at once and is undone if TMDB does not take it. For the cards the app reads the lists once, at sign in (TMDB only tells it otherwise one title at a time), up to 200 movies and 200 tv shows in each; a title past them shows as not in the list on its card, and as it is on its page, which asks TMDB about it alone. The two lists have pages of their own, movies or tv shows, the titles added last first. They live at TMDB, so they are the same on the TMDB website and in any other app of the same account.
+Whoever signed in has a menu of their own under their name, in the menu bar: **My list** (the watchlist of the TMDB account), **Favorites**, **Rated**, **Watched**, **Account** and **Sign out**. The page of a title has a **My list** and a **Favorite** button, and so does every card of the search, of the home page and of the lists, on its poster: a change shows at once and is undone if TMDB does not take it. For the cards the app reads the lists once, at sign in (TMDB only tells it otherwise one title at a time), up to 200 movies and 200 tv shows in each; a title past them shows as not in the list on its card, and as it is on its page, which asks TMDB about it alone. The two lists have pages of their own, movies or tv shows, the titles added last first. They live at TMDB, so they are the same on the TMDB website and in any other app of the same account.
 
 Nobody signed in: the page of a title offers to sign in instead, and the pages of the lists lead to the sign in. In the desktop app the sign in then goes back to the page the user was on; on the web the browser comes back from TMDB to the account page, which links to the lists.
 
 ### Ratings ⭐
 
 The page of a title also has **Your rating**: a list from 0.5 to 10, in steps of 0.5, the ones TMDB takes, and **Not rated**, which takes the rating away. Like the buttons, a rating shows at once and goes back to what TMDB has if TMDB does not take it; choosing again while one is on its way only sends the last choice. By default TMDB takes a title it rates out of the watchlist (a setting of the TMDB account), so after a rating the page asks TMDB again which lists the title is in. **Rated** lists the rated movies or tv shows, the last rated first, each card with the rating it got.
+
+### Watched titles 👁️
+
+TMDB keeps no "watched", so the app keeps it in a list of the TMDB account: a private one, made the first time a title is marked (**Watched** on the page of the title), named in the language of the app and found again by its description on any computer and on the web. Each title has the day it was marked as its comment. **Watched** lists them, movies and tv shows together, the last marked first. A list of the user takes their v4 access token, so whoever signed in before the v4 login (or with a key of their own) is asked to sign out and in again. Being a list, it shows on the TMDB website too, and deleting it there just makes the app start a new one.
 
 ### The page of a title 🎬
 
@@ -175,7 +179,7 @@ Keep `primeicons` on 7: version 8, like the other PrimeTek libraries since mid 2
 ```bash
 📦api # Vercel Functions: what the web version asks of the site
  ┣ 📦auth # signing in: login, callback, session and logout
- ┣ 📜account.ts # the watchlist, the favorites and the ratings of whoever signed in
+ ┣ 📜account.ts # the watchlist, the favorites, the ratings and the watched titles of whoever signed in
  ┣ 📜tmdb.ts # answers the TMDB requests
  ┗ 📜tsconfig.json # how Vercel compiles the functions
 📦config # build helpers shared by the Vite and Vitest configs
@@ -220,7 +224,7 @@ Signing in follows the same rule. TMDB's `session_id` and the v4 access token of
 
 The web version has no main process, so the same `shared/api.ts` is implemented over HTTP (`src/services/webApi.ts`) on top of the functions in `api`. `api/tmdb.ts` is not a general proxy: it accepts only the requests of the app, validates them with the code the main process uses (`shared/tmdb/validation.ts`) and lets the CDN cache the answers. A capability added to `shared/api.ts` has to be implemented there too, or the web version loses it.
 
-On the web the `session_id` and the access token of the user stay with the site (`shared/tmdb/web-auth.ts`, behind `api/auth`): in cookies that are `HttpOnly`, so no script of the page can read it, `Secure`, `SameSite=Lax` and named with the `__Host-` prefix, so no other site on the same domain can plant one. The page is only told who signed in, and those answers are never cached. The way back from TMDB (`/api/auth/callback`) can be opened by anyone, like the one of the desktop app, so its parameters decide nothing: the token traded is the one in the cookie of the login, and TMDB says whether it was approved (at worst, a page that sends the browser there early ends a login that was still waiting, as a refusal). Signing out is a `POST` that has to come from the site itself. The lists and the ratings of the account (`shared/tmdb/web-account.ts`, behind `api/account`) work with the same cookie: reading is a `GET`, a change (to a list or a rating) a `POST` that has to come from the site itself, and nothing they answer is cached. TMDB keeps the lists under the id of the account, which the site asks TMDB for with the session; a rating is under the title, so the session alone does.
+On the web the `session_id` and the access token of the user stay with the site (`shared/tmdb/web-auth.ts`, behind `api/auth`): in cookies that are `HttpOnly`, so no script of the page can read it, `Secure`, `SameSite=Lax` and named with the `__Host-` prefix, so no other site on the same domain can plant one. The page is only told who signed in, and those answers are never cached. The way back from TMDB (`/api/auth/callback`) can be opened by anyone, like the one of the desktop app, so its parameters decide nothing: the token traded is the one in the cookie of the login, and TMDB says whether it was approved (at worst, a page that sends the browser there early ends a login that was still waiting, as a refusal). Signing out is a `POST` that has to come from the site itself. The lists and the ratings of the account (`shared/tmdb/web-account.ts`, behind `api/account`) work with the same cookie: reading is a `GET`, a change (to a list or a rating) a `POST` that has to come from the site itself, and nothing they answer is cached. TMDB keeps the lists under the id of the account, which the site asks TMDB for with the session; a rating is under the title, so the session alone does. The watched titles take the access token of the user instead, from its cookie; the id of their list is kept in a cookie too, so it is looked for once.
 
 The window only shows the app itself: other links open in the system browser (https only), permission requests are denied and the Content-Security-Policy is generated by `vite.config.mts`.
 

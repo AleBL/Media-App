@@ -1,8 +1,12 @@
 import { ACCOUNT, type FakeTmdb } from './fake-tmdb';
 import { expect, type RunningApp } from './fixtures';
 
-/** The item of the menu that leads to the account page. */
-export const accountLink = 'header nav a[href$="#/account"]';
+/**
+ * The item of the menu for the account: "Sign in", or the name of whoever
+ * signed in, on the button of their own menu.
+ */
+export const accountLink =
+  'header nav > ul > li > :is(a[href$="#/account"], button[aria-controls="account-menu"])';
 
 /**
  * Presses the button and takes apart the page the app asked the browser to

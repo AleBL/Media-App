@@ -1,12 +1,12 @@
 import type { Page } from '@playwright/test';
 import { ACCOUNT, APP_TOKEN } from '../support/fake-tmdb';
 import { openPage } from '../support/fixtures';
+import { accountLink as accountItem } from '../support/login';
 import { expect, test } from './fixtures';
 
 const SESSION_COOKIE = 'media-app-session';
 
-const accountLink = (page: Page) =>
-  page.locator('header nav a[href$="#/account"]');
+const accountLink = (page: Page) => page.locator(accountItem);
 const signInButton = (page: Page) =>
   page.getByRole('button', { name: 'Sign in with TMDB' });
 

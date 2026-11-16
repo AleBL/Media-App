@@ -12,12 +12,14 @@ test.describe('renderer isolation', () => {
       process: typeof (globalThis as { process?: unknown }).process,
       api: Object.keys(window.api ?? {}).sort(),
       credentials: Object.keys(window.api?.credentials ?? {}).sort(),
+      account: Object.keys(window.api?.account ?? {}).sort(),
     }));
 
     expect(seen).toEqual({
       require: 'undefined',
       process: 'undefined',
       api: [
+        'account',
         'auth',
         'credentials',
         'platform',
@@ -27,6 +29,8 @@ test.describe('renderer isolation', () => {
       ],
       // no way to read the key back
       credentials: ['clear', 'save', 'status'],
+      // and none to get at the session: it is used in the main process
+      account: ['list', 'mark', 'states'],
     });
   });
 

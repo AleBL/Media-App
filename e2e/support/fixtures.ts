@@ -161,8 +161,27 @@ export { expect };
 /** Goes to a page through the menu, like a user would. */
 export async function openPage(
   page: Page,
-  name: 'home' | 'search' | 'settings' | 'about' | 'account',
+  name:
+    | 'home'
+    | 'search'
+    | 'settings'
+    | 'about'
+    | 'account'
+    | 'watchlist'
+    | 'favorites',
 ) {
+  const accountMenu = page.locator(
+    'header nav button[aria-controls="account-menu"]',
+  );
+
+  // The pages of whoever signed in are in a menu of their own.
+  if (
+    ['account', 'watchlist', 'favorites'].includes(name) &&
+    (await accountMenu.isVisible())
+  ) {
+    await accountMenu.click();
+  }
+
   await page.locator(`header nav a[href$="#/${name}"]`).click();
   await expect(page).toHaveURL(new RegExp(`#/${name}$`));
 }

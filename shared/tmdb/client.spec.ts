@@ -710,9 +710,112 @@ describe('lists of the account', () => {
 
     await expect(
       client.accountStates(SESSION, { type: 'tv', id: 1396 }),
-    ).resolves.toEqual({ watchlist: false, favorite: true });
+    ).resolves.toEqual({ watchlist: false, favorite: true, rated: null });
     expect(requestedUrl().pathname).toBe('/3/tv/1396/account_states');
     expect(requestedUrl().searchParams.get('session_id')).toBe(SESSION);
+  });
+
+  it.each([
+    ['a rating', { value: 8.5 }, 8.5],
+    ['a rating without its half', { value: 9.0 }, 9],
+    ['no rating', false, null],
+    ['a rating TMDB does not take', { value: 11 }, null],
+    ['something else', 'eight', null],
+  ])('reads %s of a title', async (_case, rated, rating) => {
+    const { client } = setup([
+      answer(200, { id: 603, favorite: false, rated, watchlist: true }),
+    ]);
+
+    await expect(
+      client.accountStates(SESSION, { type: 'movie', id: 603 }),
+    ).resolves.toEqual({ watchlist: true, favorite: false, rated: rating });
+  });
+
+  it('rates a title', async () => {
+    const { client, fetch, requestedUrl } = setup([
+      answer(201, { status_code: 1, status_message: 'Success.' }),
+    ]);
+
+    await client.rate(SESSION, { type: 'tv', id: 1396, value: 7.5 });
+
+    const init = fetch.mock.calls[0][1];
+    expect(requestedUrl().pathname).toBe('/3/tv/1396/rating');
+    expect(requestedUrl().searchParams.get('session_id')).toBe(SESSION);
+    expect(init.method).toBe('POST');
+    expect(init.headers['Content-Type']).toBe('application/json');
+    expect(JSON.parse(init.body!)).toEqual({ value: 7.5 });
+  });
+
+  it('takes the rating of a title away', async () => {
+    const { client, fetch, requestedUrl } = setup([
+      answer(200, {
+        status_code: 13,
+        status_message: 'The item/record was deleted successfully.',
+      }),
+    ]);
+
+    await client.rate(SESSION, { type: 'movie', id: 603, value: null });
+
+    const init = fetch.mock.calls[0][1];
+    expect(requestedUrl().pathname).toBe('/3/movie/603/rating');
+    expect(requestedUrl().searchParams.get('session_id')).toBe(SESSION);
+    expect(init.method).toBe('DELETE');
+    expect(init.body).toBeUndefined();
+    expect(init.headers['Content-Type']).toBeUndefined();
+  });
+
+  it('reads the rated titles, each with its rating', async () => {
+    const { client, requestedUrl } = setup([
+      answer(200, {
+        page: 1,
+        results: [
+          { id: 1396, name: 'Breaking Bad', rating: 10.0 },
+          { id: 1399, name: 'Game of Thrones', rating: 'ten' },
+        ],
+        total_pages: 1,
+        total_results: 2,
+      }),
+    ]);
+
+    await expect(
+      client.accountList(SESSION, 7, {
+        list: 'rated',
+        type: 'tv',
+        page: 1,
+        language: 'en',
+      }),
+    ).resolves.toEqual({
+      page: 1,
+      results: [
+        { id: 1396, media_type: 'tv', name: 'Breaking Bad', rating: 10 },
+        // a rating that is not one is left out, not the title
+        { id: 1399, media_type: 'tv', name: 'Game of Thrones' },
+      ],
+      totalPages: 1,
+      totalResults: 2,
+    });
+    expect(requestedUrl().pathname).toBe('/3/account/7/rated/tv');
+    expect(requestedUrl().searchParams.get('sort_by')).toBe('created_at.desc');
+  });
+
+  it('keeps a rating out of the other lists', async () => {
+    const { client } = setup([
+      answer(200, {
+        page: 1,
+        results: [{ id: 603, title: 'The Matrix', rating: 8 }],
+        total_pages: 1,
+        total_results: 1,
+      }),
+    ]);
+
+    const { results } = await client.accountList(SESSION, 7, {
+      list: 'favorite',
+      type: 'movie',
+      page: 1,
+      language: 'en',
+    });
+
+    expect(results[0]).not.toHaveProperty('rating');
   });
 
   it('reports an answer without the states as unreadable', async () => {

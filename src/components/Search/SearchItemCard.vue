@@ -31,6 +31,16 @@
       ? props.item.vote_average.toFixed(2)
       : null,
   );
+
+  // Only the titles of the list of rated titles have one.
+  const yourRating = computed(() =>
+    typeof props.item.rating === 'number'
+      ? new Intl.NumberFormat(locale.value, {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }).format(props.item.rating)
+      : null,
+  );
 </script>
 
 <template>
@@ -77,6 +87,13 @@
         </div>
       </div>
     </div>
+    <p
+      v-if="yourRating"
+      class="flex items-center justify-center gap-2 text-sm font-semibold text-primary-700 dark:text-primary-300"
+    >
+      <i class="pi pi-star-fill" aria-hidden="true" />
+      {{ t('lists.yourRatingIs', { rating: yourRating }) }}
+    </p>
     <p
       v-if="showType"
       class="text-center text-xs font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400"

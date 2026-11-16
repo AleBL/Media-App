@@ -1,7 +1,6 @@
 import {
   IPC,
   type AccountListRequest,
-  type AccountStates,
   type CredentialStatus,
   type DetailsRequest,
   type Genre,
@@ -11,11 +10,13 @@ import {
   type MediaItem,
   type NativeTheme,
   type Paged,
+  type RateRequest,
   type Result,
   type SearchItem,
   type SearchRequest,
   type SessionState,
   type TitleRequest,
+  type TitleStates,
   type TmdbFailure,
 } from '../../shared/api';
 import { isNativeTheme } from './security';
@@ -27,6 +28,7 @@ import {
   parseLanguage,
   parseListRequest,
   parseMarkRequest,
+  parseRateRequest,
   parseSearchRequest,
   parseTitleRequest,
 } from '../../shared/tmdb/validation';
@@ -60,8 +62,9 @@ export interface IpcServices {
   genres: { get(language: string): Promise<Genre[]> };
   /** With the session of whoever signed in; `signed-out` otherwise. */
   account: {
-    states(request: TitleRequest): Promise<AccountStates>;
+    states(request: TitleRequest): Promise<TitleStates>;
     mark(request: MarkRequest): Promise<null>;
+    rate(request: RateRequest): Promise<null>;
     list(request: AccountListRequest): Promise<Paged<MediaItem>>;
   };
   credentials: {
@@ -162,6 +165,12 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
     const request = trusted(event) ? parseMarkRequest(value) : null;
 
     return request ? attempt(() => services.account.mark(request)) : invalid();
+  });
+
+  ipc.handle(IPC.accountRate, (event, value) => {
+    const request = trusted(event) ? parseRateRequest(value) : null;
+
+    return request ? attempt(() => services.account.rate(request)) : invalid();
   });
 
   ipc.handle(IPC.accountList, (event, value) => {

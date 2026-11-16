@@ -113,7 +113,7 @@
     "favoriteButton": "Favorito",
     "watchlistOf": "Minha lista: {title}",
     "favoriteOf": "Favorito: {title}",
-    "signInToSave": "Entre para guardar este título na sua lista ou nos favoritos",
+    "signInToSave": "Entre para guardar este título na sua lista ou nos favoritos, ou para dar uma nota",
     "statesFailed": "Não foi possível ver se este título está nas suas listas. Tente de novo mais tarde.",
     "saveFailed": "A alteração não foi salva. Tente de novo.",
     "kind": "Filmes ou séries",
@@ -123,7 +123,13 @@
     "tryAgain": "Tentar de novo",
     "loading": "Carregando...",
     "emptyWatchlist": "Nada aqui ainda. Adicione filmes e séries à sua lista nas páginas deles.",
-    "emptyFavorites": "Nenhum favorito aqui ainda. Marque filmes e séries como favoritos nas páginas deles."
+    "emptyFavorites": "Nenhum favorito aqui ainda. Marque filmes e séries como favoritos nas páginas deles.",
+    "rated": "Avaliados",
+    "emptyRated": "Nada avaliado ainda. Dê notas a filmes e séries nas páginas deles.",
+    "yourRating": "Sua nota",
+    "yourRatingIs": "Sua nota: {rating}",
+    "notRated": "Sem nota",
+    "rateFailed": "A nota não foi salva. Tente de novo."
   },
 
   "account": {

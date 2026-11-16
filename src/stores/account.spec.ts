@@ -26,11 +26,13 @@ describe('account store', () => {
     delete window.api;
   });
 
-  it('learns where a title is', async () => {
+  it('learns where a title is, and its rating', async () => {
     api.account.states.mockResolvedValue({
       ok: true,
-      data: { watchlist: true, favorite: false },
+      data: { watchlist: true, favorite: false, rated: 8.5 },
     });
+
+    expect(store.ratingOf(MATRIX)).toBeUndefined();
 
     await store.load(MATRIX);
 
@@ -39,6 +41,7 @@ describe('account store', () => {
       watchlist: true,
       favorite: false,
     });
+    expect(store.ratingOf(MATRIX)).toBe(8.5);
   });
 
   it('shows a change at once, before TMDB answers', async () => {
@@ -126,7 +129,193 @@ describe('account store', () => {
     await nextTick();
 
     expect(store.statesOf(MATRIX)).toBeUndefined();
+    expect(store.ratingOf(MATRIX)).toBeUndefined();
     expect(store.lists).toBeNull();
+  });
+
+  describe('the ratings', () => {
+    /** Ratings that wait for the test to answer them, one by one. */
+    function waitingRatings() {
+      const answers: ((result: Result<null>) => void)[] = [];
+
+      api.account.rate.mockImplementation(
+        () => new Promise((resolve) => answers.push(resolve)),
+      );
+
+      return answers;
+    }
+
+    it('does nothing before TMDB said what the rating is', async () => {
+      await expect(store.rate(MATRIX, 8)).resolves.toBeUndefined();
+
+      expect(api.account.rate).not.toHaveBeenCalled();
+      expect(store.ratingOf(MATRIX)).toBeUndefined();
+    });
+
+    it('shows a rating at once, before TMDB answers', async () => {
+      await store.load(MATRIX);
+      const answers = waitingRatings();
+
+      const rating = store.rate(MATRIX, 7.5);
+
+      expect(store.ratingOf(MATRIX)).toBe(7.5);
+      expect(api.account.rate).toHaveBeenCalledWith({ ...MATRIX, value: 7.5 });
+
+      answers[0]({ ok: true, data: null });
+
+      await expect(rating).resolves.toEqual({ ok: true, data: null });
+      expect(store.ratingOf(MATRIX)).toBe(7.5);
+    });
+
+    it('takes a rating away', async () => {
+      api.account.states.mockResolvedValue({
+        ok: true,
+        data: { watchlist: false, favorite: false, rated: 9 },
+      });
+      await store.load(MATRIX);
+      api.account.states.mockClear();
+
+      await store.rate(MATRIX, null);
+
+      expect(api.account.rate).toHaveBeenCalledWith({ ...MATRIX, value: null });
+      expect(store.ratingOf(MATRIX)).toBeNull();
+      // a removal takes the title out of no list
+      expect(api.account.states).not.toHaveBeenCalled();
+    });
+
+    it('goes back to the rating TMDB has when it refuses', async () => {
+      api.account.states.mockResolvedValue({
+        ok: true,
+        data: { watchlist: false, favorite: false, rated: 6 },
+      });
+      await store.load(MATRIX);
+      api.account.rate.mockResolvedValue({
+        ok: false,
+        error: { code: 'network' },
+      });
+
+      const answer = await store.rate(MATRIX, 10);
+
+      expect(answer).toEqual({ ok: false, error: { code: 'network' } });
+      expect(store.ratingOf(MATRIX)).toBe(6);
+    });
+
+    it('sends only the last of the changes made while one was on its way', async () => {
+      await store.load(MATRIX);
+      const answers = waitingRatings();
+
+      const first = store.rate(MATRIX, 5);
+      await expect(store.rate(MATRIX, 6)).resolves.toBeUndefined();
+      await expect(store.rate(MATRIX, 7)).resolves.toBeUndefined();
+
+      expect(store.ratingOf(MATRIX)).toBe(7);
+      expect(api.account.rate).toHaveBeenCalledOnce();
+
+      answers[0]({ ok: true, data: null });
+      await flushPromises();
+
+      expect(api.account.rate).toHaveBeenCalledTimes(2);
+      expect(api.account.rate).toHaveBeenLastCalledWith({
+        ...MATRIX,
+        value: 7,
+      });
+
+      answers[1]({ ok: true, data: null });
+
+      await expect(first).resolves.toEqual({ ok: true, data: null });
+      expect(api.account.rate).toHaveBeenCalledTimes(2);
+      expect(store.ratingOf(MATRIX)).toBe(7);
+    });
+
+    it('sends nothing when the rating stays the same', async () => {
+      await store.load(MATRIX);
+
+      await expect(store.rate(MATRIX, null)).resolves.toEqual({
+        ok: true,
+        data: null,
+      });
+
+      expect(api.account.rate).not.toHaveBeenCalled();
+    });
+
+    it('takes back, after it, a rating that went while the user undid it', async () => {
+      await store.load(MATRIX);
+      const answers = waitingRatings();
+
+      const first = store.rate(MATRIX, 5);
+      void store.rate(MATRIX, null);
+      answers[0]({ ok: true, data: null });
+      await flushPromises();
+      answers[1]({ ok: true, data: null });
+      await first;
+
+      expect(api.account.rate.mock.calls.map(([{ value }]) => value)).toEqual([
+        5,
+        null,
+      ]);
+      expect(store.ratingOf(MATRIX)).toBeNull();
+    });
+
+    it('learns the lists of the title again, which TMDB may have changed', async () => {
+      api.account.states.mockResolvedValue({
+        ok: true,
+        data: { watchlist: true, favorite: true, rated: null },
+      });
+      await store.load(MATRIX);
+      // TMDB takes a title it rates out of the watchlist
+      api.account.states.mockResolvedValue({
+        ok: true,
+        data: { watchlist: false, favorite: true, rated: 8 },
+      });
+
+      await store.rate(MATRIX, 8);
+
+      expect(store.statesOf(MATRIX)).toEqual({
+        watchlist: false,
+        favorite: true,
+      });
+      expect(store.ratingOf(MATRIX)).toBe(8);
+    });
+
+    it('keeps a rating on its way over what the page of the title learns', async () => {
+      await store.load(MATRIX);
+      const answers = waitingRatings();
+
+      void store.rate(MATRIX, 4);
+      api.account.states.mockResolvedValue({
+        ok: true,
+        data: { watchlist: false, favorite: false, rated: null },
+      });
+      await store.load(MATRIX);
+
+      expect(store.ratingOf(MATRIX)).toBe(4);
+      answers[0]({ ok: true, data: null });
+    });
+
+    it('drops a rating on its way when the user signs out', async () => {
+      await store.load(MATRIX);
+      const answers = waitingRatings();
+
+      const rating = store.rate(MATRIX, 3);
+      session.state = ANONYMOUS;
+      await nextTick();
+      answers[0]({ ok: false, error: { code: 'network' } });
+      await rating;
+
+      expect(store.ratingOf(MATRIX)).toBeUndefined();
+    });
+
+    it('asks who is signed in when TMDB says nobody is', async () => {
+      await store.load(MATRIX);
+      api.account.rate.mockResolvedValue({
+        ok: false,
+        error: { code: 'signed-out' },
+      });
+
+      await store.rate(MATRIX, 8);
+
+      expect(api.auth.getSession).toHaveBeenCalled();
+    });
   });
 
   describe('the lists, read for the cards', () => {
@@ -238,7 +427,7 @@ describe('account store', () => {
       await signIn();
       api.account.states.mockResolvedValue({
         ok: true,
-        data: { watchlist: false, favorite: true },
+        data: { watchlist: false, favorite: true, rated: null },
       });
 
       await store.load(MATRIX);

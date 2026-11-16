@@ -205,7 +205,7 @@ describe('AccountPage', () => {
 
       expect(
         wrapper.findAll('li a').map((link) => link.attributes('href')),
-      ).toEqual(['#/watchlist', '#/favorites']);
+      ).toEqual(['#/watchlist', '#/favorites', '#/rated']);
     });
 
     it('shows who, by the username when TMDB has no name', async () => {

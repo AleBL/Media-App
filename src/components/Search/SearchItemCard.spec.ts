@@ -151,6 +151,17 @@ describe('SearchItemCard', () => {
     );
   });
 
+  it('says the rating the user gave, only in the list of rated titles', () => {
+    expect(mountCard(movie).text()).not.toContain('Your rating');
+    wrapper!.unmount();
+
+    i18n.global.locale.value = 'pt-BR';
+
+    expect(mountCard({ ...movie, rating: 7 }).text()).toContain(
+      'Sua nota: 7,0',
+    );
+  });
+
   it('falls back to the default poster', () => {
     const wrapper = mountCard({ ...movie, poster_path: null });
 

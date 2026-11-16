@@ -277,7 +277,7 @@ describe('web api', () => {
 
   describe('lists of the account', () => {
     it('asks the site where a title is', async () => {
-      const states = { watchlist: true, favorite: false };
+      const states = { watchlist: true, favorite: false, rated: 7 };
       const fetch = answering({ ok: true, data: states });
 
       await expect(
@@ -304,6 +304,23 @@ describe('web api', () => {
         '/api/account?resource=mark&list=favorite&type=tv&id=1396&value=false',
       );
       expect(fetch.mock.calls[0][1].method).toBe('POST');
+    });
+
+    it('rates a title, and takes the rating away, with a POST', async () => {
+      const fetch = answering({ ok: true, data: null });
+      const api = createWebApi(fetch);
+
+      await expect(
+        api.account.rate({ type: 'tv', id: 1396, value: 8.5 }),
+      ).resolves.toEqual({ ok: true, data: null });
+      await api.account.rate({ type: 'tv', id: 1396, value: null });
+
+      expect(fetch.mock.calls.map(([url, init]) => [url, init.method])).toEqual(
+        [
+          ['/api/account?resource=rate&type=tv&id=1396&value=8.5', 'POST'],
+          ['/api/account?resource=unrate&type=tv&id=1396', 'POST'],
+        ],
+      );
     });
 
     it('asks the site for a page of a list', async () => {

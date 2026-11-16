@@ -12,7 +12,7 @@ export const TMDB_PROXY_PATH = '/api/tmdb';
 
 /**
  * Where the site answers, for whoever signed in on the web version, what
- * their TMDB account has: the watchlist and the favorites.
+ * their TMDB account has: the watchlist, the favorites and the ratings.
  */
 export const ACCOUNT_PATH = '/api/account';
 
@@ -47,6 +47,8 @@ export interface MediaItem {
   poster_path?: string | null;
   genre_ids?: number[];
   vote_average?: number;
+  /** The rating whoever signed in gave it: in the list of rated titles. */
+  rating?: number;
 }
 
 /** Someone found by a search of everything (`multi`). */
@@ -114,6 +116,26 @@ export type AccountList = 'watchlist' | 'favorite';
 /** Whether a title is in each list of the account. */
 export type AccountStates = Record<AccountList, boolean>;
 
+/** The ratings TMDB takes: from 0.5 to 10, in steps of 0.5. */
+export const RATINGS: readonly number[] = Array.from(
+  { length: 20 },
+  (_, step) => (step + 1) / 2,
+);
+
+/** What the account has of a title: its lists, and the rating it gave. */
+export interface TitleStates extends AccountStates {
+  /** One of RATINGS, or null when the title has no rating. */
+  rated: number | null;
+}
+
+/** Gives a title a rating (one of RATINGS), or takes it away (`null`). */
+export interface RateRequest extends TitleRequest {
+  value: number | null;
+}
+
+/** The lists the app shows a page at a time: the rated titles too. */
+export type TitleList = AccountList | 'rated';
+
 /** Puts a title in a list of the account (`value`), or takes it out. */
 export interface MarkRequest extends TitleRequest {
   list: AccountList;
@@ -121,7 +143,7 @@ export interface MarkRequest extends TitleRequest {
 }
 
 export interface AccountListRequest {
-  list: AccountList;
+  list: TitleList;
   /** TMDB keeps the movies and the tv shows of a list apart. */
   type: MediaType;
   page: number;
@@ -309,13 +331,14 @@ export interface MediaAppApi {
     list(request: ListRequest): Promise<Result<MediaItem[]>>;
   };
   /**
-   * The lists of the TMDB account of whoever signed in. Each call answers
-   * `signed-out` when nobody is.
+   * The lists and the ratings of the TMDB account of whoever signed in.
+   * Each call answers `signed-out` when nobody is.
    */
   account: {
-    states(request: TitleRequest): Promise<Result<AccountStates>>;
+    states(request: TitleRequest): Promise<Result<TitleStates>>;
     mark(request: MarkRequest): Promise<Result<null>>;
-    /** A page of a list, the titles added last first. */
+    rate(request: RateRequest): Promise<Result<null>>;
+    /** A page of a list, the titles added (or rated) last first. */
     list(request: AccountListRequest): Promise<Result<Paged<MediaItem>>>;
   };
   /** The TMDB key never comes back to the renderer once it is saved. */
@@ -366,6 +389,7 @@ export const IPC = {
   tmdbList: 'tmdb:list',
   accountStates: 'account:states',
   accountMark: 'account:mark',
+  accountRate: 'account:rate',
   accountList: 'account:list',
   credentialStatus: 'credentials:status',
   credentialSave: 'credentials:save',

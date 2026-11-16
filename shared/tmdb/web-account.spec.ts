@@ -15,6 +15,9 @@ const ACCOUNT = 'GET /3/account';
 const STATES = 'GET /3/movie/603/account_states';
 const MARK = 'POST /3/account/7/watchlist';
 const LIST = 'GET /3/account/7/favorite/tv';
+const RATE = 'POST /3/movie/603/rating';
+const UNRATE = 'DELETE /3/movie/603/rating';
+const RATED = 'GET /3/account/7/rated/movies';
 
 const OVER: Answer = [401, { status_code: 3, status_message: 'Failed.' }];
 
@@ -32,6 +35,17 @@ function tmdbWith(answers: Record<string, Answer> = {}) {
       {
         page: 1,
         results: [{ id: 1396, name: 'Breaking Bad' }],
+        total_pages: 1,
+        total_results: 1,
+      },
+    ],
+    [RATE]: [201, { status_code: 1 }],
+    [UNRATE]: [200, { status_code: 13 }],
+    [RATED]: [
+      200,
+      {
+        page: 1,
+        results: [{ id: 603, title: 'The Matrix', rating: 8.5 }],
         total_pages: 1,
         total_results: 1,
       },
@@ -92,6 +106,8 @@ async function visit(query: string, options: Options = {}) {
 const STATES_QUERY = 'resource=states&type=movie&id=603';
 const MARK_QUERY = 'resource=mark&list=watchlist&type=movie&id=603&value=true';
 const LIST_QUERY = 'resource=list&list=favorite&type=tv&page=1&language=pt-BR';
+const RATE_QUERY = 'resource=rate&type=movie&id=603&value=8.5';
+const UNRATE_QUERY = 'resource=unrate&type=movie&id=603';
 
 /** A change, the way the app itself sends it. */
 const change = { method: 'POST', origin: SITE };
@@ -103,7 +119,7 @@ describe('web account', () => {
     expect(response.status).toBe(200);
     expect(body).toEqual({
       ok: true,
-      data: { watchlist: true, favorite: false },
+      data: { watchlist: true, favorite: false, rated: null },
     });
     expect(response.headers.get('Cache-Control')).toBe('no-store');
     expect(asked(fetch)).toEqual([STATES]);
@@ -143,11 +159,48 @@ describe('web account', () => {
     expect(asked(fetch)).toEqual([ACCOUNT, LIST]);
   });
 
+  it('rates a title, with the session alone', async () => {
+    const { response, body, fetch } = await visit(RATE_QUERY, change);
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ ok: true, data: null });
+    // a rating is under the title: no need to ask whose account it is
+    expect(asked(fetch)).toEqual([RATE]);
+    expect(JSON.parse(fetch.mock.calls[0][1].body!)).toEqual({ value: 8.5 });
+    expect(new URL(fetch.mock.calls[0][0]).searchParams.get('session_id')).toBe(
+      SESSION,
+    );
+  });
+
+  it('takes the rating of a title away', async () => {
+    const { response, body, fetch } = await visit(UNRATE_QUERY, change);
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ ok: true, data: null });
+    expect(asked(fetch)).toEqual([UNRATE]);
+  });
+
+  it('reads a page of the rated titles, each with its rating', async () => {
+    const { body, fetch } = await visit(
+      'resource=list&list=rated&type=movie&page=1&language=en',
+    );
+
+    expect(body).toMatchObject({
+      ok: true,
+      data: {
+        results: [{ id: 603, media_type: 'movie', rating: 8.5 }],
+      },
+    });
+    expect(asked(fetch)).toEqual([ACCOUNT, RATED]);
+  });
+
   it('never puts the session in what it answers', async () => {
     for (const [query, options] of [
       [STATES_QUERY, {}],
       [MARK_QUERY, change],
       [LIST_QUERY, {}],
+      [RATE_QUERY, change],
+      [UNRATE_QUERY, change],
     ] as const) {
       const { response, body } = await visit(query, options);
 
@@ -197,10 +250,12 @@ describe('web account', () => {
     ],
     ['a POST that says nothing of where it comes from', { method: 'POST' }],
   ])('changes nothing for %s', async (_case, options) => {
-    const { response, fetch } = await visit(MARK_QUERY, options);
+    for (const query of [MARK_QUERY, RATE_QUERY, UNRATE_QUERY]) {
+      const { response, fetch } = await visit(query, options);
 
-    expect([403, 405]).toContain(response.status);
-    expect(fetch).not.toHaveBeenCalled();
+      expect([403, 405]).toContain(response.status);
+      expect(fetch).not.toHaveBeenCalled();
+    }
   });
 
   it('only reads with a GET', async () => {
@@ -215,7 +270,7 @@ describe('web account', () => {
     ['no resource', 'type=movie&id=603'],
     ['a person', STATES_QUERY.replace('movie', 'person')],
     ['an id that is not a number', STATES_QUERY.replace('603', '603x')],
-    ['a list the app does not use', LIST_QUERY.replace('favorite', 'rated')],
+    ['a list the app does not use', LIST_QUERY.replace('favorite', 'lists')],
     ['a page past the last one', LIST_QUERY.replace('page=1', 'page=501')],
   ])('refuses %s without asking TMDB', async (_case, query) => {
     const { response, body, fetch } = await visit(query);
@@ -230,6 +285,19 @@ describe('web account', () => {
       MARK_QUERY.replace('value=true', 'value=yes'),
       change,
     );
+
+    expect(response.status).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['above 10', RATE_QUERY.replace('8.5', '11')],
+    ['between two steps', RATE_QUERY.replace('8.5', '8.25')],
+    ['zero', RATE_QUERY.replace('8.5', '0')],
+    ['that is not a number', RATE_QUERY.replace('8.5', 'ten')],
+    ['missing', 'resource=rate&type=movie&id=603'],
+  ])('refuses a rating %s, without asking TMDB', async (_case, query) => {
+    const { response, fetch } = await visit(query, change);
 
     expect(response.status).toBe(400);
     expect(fetch).not.toHaveBeenCalled();

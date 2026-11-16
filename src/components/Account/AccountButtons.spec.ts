@@ -42,17 +42,18 @@ describe('AccountButtons', () => {
 
     const link = wrapper.get('a');
     expect(link.text()).toBe(
-      'Sign in to keep this title in your list or favorites',
+      'Sign in to keep this title in your list or favorites, or to rate it',
     );
     expect(link.attributes('href')).toBe('#/account?next=/movie/603');
     expect(api.account.states).not.toHaveBeenCalled();
+    expect(wrapper.find('select').exists()).toBe(false);
   });
 
   it('says whether the title is in each list, as toggle buttons', async () => {
     useSessionStore().state = SIGNED_IN;
     api.account.states.mockResolvedValue({
       ok: true,
-      data: { watchlist: true, favorite: false },
+      data: { watchlist: true, favorite: false, rated: null },
     });
 
     await mountButtons();
@@ -62,6 +63,22 @@ describe('AccountButtons', () => {
     expect(button('My list').find('.pi-bookmark-fill').exists()).toBe(true);
     expect(button('Favorite').attributes('aria-pressed')).toBe('false');
     expect(button('Favorite').find('.pi-heart').exists()).toBe(true);
+  });
+
+  it('has the rating of the title, from the same answer of TMDB', async () => {
+    useSessionStore().state = SIGNED_IN;
+    api.account.states.mockResolvedValue({
+      ok: true,
+      data: { watchlist: false, favorite: false, rated: 7.5 },
+    });
+
+    await mountButtons();
+
+    expect(api.account.states).toHaveBeenCalledOnce();
+    expect(
+      (wrapper.get('select').element as HTMLSelectElement).selectedOptions[0]
+        .text,
+    ).toBe('7.5');
   });
 
   it('waits for TMDB before letting the user change anything', async () => {

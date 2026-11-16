@@ -120,13 +120,18 @@ export function installFakeApi() {
         data: [],
       })),
     },
-    // An account with nothing in its lists, and changes that go through.
+    // An account with nothing in its lists, nothing rated, and changes that
+    // go through.
     account: {
       states: vi.fn<MediaAppApi['account']['states']>(async () => ({
         ok: true,
-        data: { watchlist: false, favorite: false },
+        data: { watchlist: false, favorite: false, rated: null },
       })),
       mark: vi.fn<MediaAppApi['account']['mark']>(async () => ({
+        ok: true,
+        data: null,
+      })),
+      rate: vi.fn<MediaAppApi['account']['rate']>(async () => ({
         ok: true,
         data: null,
       })),

@@ -86,6 +86,7 @@ describe('NavBar', () => {
     ).toEqual([
       ['/watchlist', 'My list'],
       ['/favorites', 'Favorites'],
+      ['/rated', 'Rated'],
       ['/account', 'Account'],
     ]);
 

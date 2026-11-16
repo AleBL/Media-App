@@ -3,6 +3,7 @@
   import { useRoute } from 'vue-router';
   import type { AccountList, MediaType } from '@shared/api';
   import AppButton from '@/components/ui/AppButton.vue';
+  import TitleRating from '@/components/Account/TitleRating.vue';
   import { useAccountStore } from '@/stores/account';
   import { useSessionStore } from '@/stores/session';
 
@@ -22,7 +23,8 @@
     { list: 'favorite', label: 'lists.favoriteButton', icon: 'pi-heart' },
   ];
 
-  // Where the title is, asked again for another title or someone else.
+  // Where the title is, and its rating, asked again for another title or
+  // someone else.
   watch(
     () => [session.account?.id, props.type, props.id] as const,
     async ([signedIn]) => {
@@ -77,6 +79,7 @@
     >
       {{ t(failed === 'load' ? 'lists.statesFailed' : 'lists.saveFailed') }}
     </p>
+    <TitleRating :id="id" class="mt-4" :type="type" />
   </div>
 
   <p v-else class="text-sm">

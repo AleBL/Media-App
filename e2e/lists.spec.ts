@@ -9,7 +9,8 @@ import {
 } from './support/fixtures';
 import { accountLink, comeBack, signIn, startLogin } from './support/login';
 
-const SIGN_IN_TO_SAVE = 'Sign in to keep this title in your list or favorites';
+const SIGN_IN_TO_SAVE =
+  'Sign in to keep this title in your list or favorites, or to rate it';
 
 /** Opens the page of the first movie that a search finds. */
 async function openMovie(page: Page) {

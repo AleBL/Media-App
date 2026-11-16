@@ -57,6 +57,13 @@ const routes: RouteRecordRaw[] = [
     meta: { signedIn: true },
   },
   {
+    path: '/rated',
+    name: 'rated',
+    component: AccountListPage,
+    props: { list: 'rated' },
+    meta: { signedIn: true },
+  },
+  {
     path: '/about',
     name: 'about',
     component: AboutPage,

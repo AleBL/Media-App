@@ -2,9 +2,9 @@ import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
 import {
   TMDB_PAGE_SIZE,
-  type AccountList,
   type MediaItem,
   type MediaType,
+  type TitleList,
   type TmdbFailure,
 } from '@shared/api';
 import i18n from '@/plugins/i18n';
@@ -34,33 +34,41 @@ const fresh = (): ListView => ({
   error: null,
 });
 
+const freshViews = (): Record<TitleList, ListView> => ({
+  watchlist: fresh(),
+  favorite: fresh(),
+  rated: fresh(),
+});
+
 /**
- * The watchlist and the favorites of whoever signed in, a page at a time.
- * What was shown stays while the page is asked again, so coming back to a
- * list finds it where it was.
+ * The watchlist, the favorites and the rated titles of whoever signed in, a
+ * page at a time. What was shown stays while the page is asked again, so
+ * coming back to a list finds it where it was.
  */
 export const useAccountListsStore = defineStore('accountLists', () => {
   const session = useSessionStore();
-  const views = ref<Record<AccountList, ListView>>({
-    watchlist: fresh(),
-    favorite: fresh(),
-  });
+  const views = ref(freshViews());
   // Incremented on every request, so an older answer can be dropped.
-  const latest: Record<AccountList, number> = { watchlist: 0, favorite: 0 };
+  const latest: Record<TitleList, number> = {
+    watchlist: 0,
+    favorite: 0,
+    rated: 0,
+  };
 
   // Someone else signed in, or nobody is: nothing shown holds anymore.
   watch(
     () => session.account?.id,
     () => {
-      views.value = { watchlist: fresh(), favorite: fresh() };
+      views.value = freshViews();
       latest.watchlist += 1;
       latest.favorite += 1;
+      latest.rated += 1;
     },
   );
 
   /** A page of the movies or of the tv shows of a list. */
   async function load(
-    list: AccountList,
+    list: TitleList,
     page = views.value[list].page,
     type = views.value[list].type,
   ): Promise<void> {

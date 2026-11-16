@@ -38,7 +38,7 @@ test.describe('watchlist and favorites', () => {
 
     const { requestToken, redirectTo } = await startLogin(running);
     tmdb.approve(requestToken);
-    await comeBack(redirectTo, requestToken);
+    await comeBack(redirectTo);
 
     await expect(page).toHaveURL(/#\/movie\/1$/);
     await expect(toggle(page, 'My list')).toHaveAttribute(

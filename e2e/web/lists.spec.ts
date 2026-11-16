@@ -55,7 +55,7 @@ test.describe('watchlist and favorites on the web version', () => {
     // talked to the site.
     for (const address of received.keys()) {
       expect(
-        address.startsWith(site.url) || address.startsWith(tmdb.websiteUrl),
+        address.startsWith(site.url) || address.startsWith(tmdb.approvalUrl),
         address,
       ).toBe(true);
     }

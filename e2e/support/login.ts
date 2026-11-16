@@ -1,4 +1,4 @@
-import { ACCOUNT, type FakeTmdb } from './fake-tmdb';
+import { ACCOUNT, wayBackOf, type FakeTmdb } from './fake-tmdb';
 import { expect, type RunningApp } from './fixtures';
 
 /**
@@ -11,6 +11,8 @@ export const accountLink =
 /**
  * Presses the button and takes apart the page the app asked the browser to
  * open. The tests never open it: what a person does there is `tmdb.approve`.
+ * The app signs in through TMDB v4, whose request token keeps the way back,
+ * or through v3 with a key of the user, where the address of the page does.
  */
 export async function startLogin(
   running: RunningApp,
@@ -26,22 +28,30 @@ export async function startLogin(
 
   const url = new URL((await openedInBrowser()).at(-1)!);
 
-  return {
-    url,
-    requestToken: url.pathname.split('/').at(-1)!,
-    redirectTo: url.searchParams.get('redirect_to')!,
-  };
+  if (url.pathname.startsWith('/authenticate/')) {
+    return {
+      url,
+      requestToken: url.pathname.split('/').at(-1)!,
+      redirectTo: url.searchParams.get('redirect_to')!,
+    };
+  }
+
+  const requestToken = url.searchParams.get('request_token')!;
+
+  return { url, requestToken, redirectTo: wayBackOf(requestToken) };
 }
 
-/** What TMDB makes the browser do once the user answered on its website. */
-export const comeBack = (redirectTo: string, requestToken: string) =>
-  fetch(`${redirectTo}?request_token=${requestToken}&approved=true`);
+/**
+ * What TMDB makes the browser do once the user answered on its website: go
+ * to the way back (v3 adds the answer to it, which the app does not read).
+ */
+export const comeBack = (redirectTo: string) => fetch(redirectTo);
 
 /** Signs in from the account page, approving on the "TMDB website". */
 export async function signIn(running: RunningApp, tmdb: FakeTmdb) {
   const { requestToken, redirectTo } = await startLogin(running);
 
   tmdb.approve(requestToken);
-  await comeBack(redirectTo, requestToken);
+  await comeBack(redirectTo);
   await expect(running.page.locator(accountLink)).toHaveText(ACCOUNT.name);
 }

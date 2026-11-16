@@ -1,4 +1,4 @@
-import { computed, watch } from 'vue';
+import { computed, watch, type ComputedRef } from 'vue';
 
 const isDark = useDark();
 const toggleDark = useToggle(isDark);
@@ -25,7 +25,11 @@ export class ThemeItem {
     this.translate = translate;
   }
 
-  public getThemes(): {} {
+  public getThemes(): {
+    label: ComputedRef<string>;
+    icon: ComputedRef<string>;
+    command: () => void;
+  } {
     const themeLabel = computed(() => {
       return (
         this.translate('theme.text') +

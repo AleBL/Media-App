@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import PrimeVue from 'primevue/config';
 import i18n from '@/plugins/i18n';
 import SettingsPage from '@/views/SettingsPage.vue';
 import { installFakeApi, NO_ACCESS, SAVED_KEY } from '@/test/fakeApi';
@@ -14,7 +13,7 @@ describe('SettingsPage', () => {
     const pinia = createPinia();
     setActivePinia(pinia);
     wrapper = mount(SettingsPage, {
-      global: { plugins: [pinia, i18n, [PrimeVue, { unstyled: true }]] },
+      global: { plugins: [pinia, i18n] },
     });
     await flushPromises();
   }

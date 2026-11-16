@@ -43,14 +43,12 @@ test.describe('web version', () => {
     await searchBox(page).fill('matrix');
     await expect(cards(page)).toHaveCount(20);
 
-    await page.locator('[data-pc-section="pagebutton"]').nth(2).click();
+    await page.locator('.paginator-pages button').nth(2).click();
 
     await expect(cards(page)).toHaveCount(5);
     expect(tmdb.lastSearch()?.page).toBe('3');
 
-    await page
-      .locator('[data-pc-section="menuitem"]:has(.pi-language)')
-      .click();
+    await page.locator('header button:has(.pi-language)').click();
     await page.getByText('pt-BR', { exact: true }).click();
 
     await expect(cards(page).first()).toContainText('[pt-BR]');
@@ -90,12 +88,10 @@ test.describe('web version', () => {
   }) => {
     await page.goto(site.url);
 
-    await expect(
-      page.locator('[data-pc-name="menubar"] a[href$="#/search"]'),
-    ).toBeVisible();
-    await expect(
-      page.locator('[data-pc-name="menubar"] a[href$="#/settings"]'),
-    ).toHaveCount(0);
+    await expect(page.locator('header nav a[href$="#/search"]')).toBeVisible();
+    await expect(page.locator('header nav a[href$="#/settings"]')).toHaveCount(
+      0,
+    );
 
     await page.goto(`${site.url}#/settings`);
 

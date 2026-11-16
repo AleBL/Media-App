@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import PrimeVue from 'primevue/config';
 import type { LoginFailure } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import AccountPage from '@/views/AccountPage.vue';
@@ -20,7 +19,7 @@ describe('AccountPage', () => {
 
   async function mountPage() {
     wrapper = mount(AccountPage, {
-      global: { plugins: [i18n, [PrimeVue, { unstyled: true }]] },
+      global: { plugins: [i18n] },
     });
     await flushPromises();
   }

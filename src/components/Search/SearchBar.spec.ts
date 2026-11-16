@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { mount, VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import PrimeVue from 'primevue/config';
 import i18n from '@/plugins/i18n';
 import SearchBar from '@/components/Search/SearchBar.vue';
 import { SEARCH_DEBOUNCE_MS, useSearchStore } from '@/stores/search';
@@ -22,7 +21,7 @@ describe('SearchBar', () => {
     setActivePinia(pinia);
     store = useSearchStore();
     wrapper = mount(SearchBar, {
-      global: { plugins: [pinia, i18n, [PrimeVue, { unstyled: true }]] },
+      global: { plugins: [pinia, i18n] },
     });
   });
 
@@ -33,7 +32,7 @@ describe('SearchBar', () => {
   });
 
   it('searches once after the user stops typing', async () => {
-    const input = wrapper.get('[data-pc-name="inputtext"]');
+    const input = wrapper.get('input[type="search"]');
 
     for (const text of ['ma', 'mat', 'matr', 'matrix']) {
       await input.setValue(text);

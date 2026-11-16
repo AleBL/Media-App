@@ -160,7 +160,7 @@ export async function openPage(
   page: Page,
   name: 'home' | 'search' | 'settings' | 'about' | 'account',
 ) {
-  await page.locator(`[data-pc-name="menubar"] a[href$="#/${name}"]`).click();
+  await page.locator(`header nav a[href$="#/${name}"]`).click();
   await expect(page).toHaveURL(new RegExp(`#/${name}$`));
 }
 
@@ -183,5 +183,4 @@ export async function removeKey(page: Page) {
 }
 
 export const cards = (page: Page) => page.locator('.card-border');
-export const searchBox = (page: Page) =>
-  page.locator('[data-pc-name="inputtext"]');
+export const searchBox = (page: Page) => page.getByRole('searchbox');

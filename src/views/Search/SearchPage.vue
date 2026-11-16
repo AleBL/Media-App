@@ -6,8 +6,7 @@
   import { useCredentialsStore } from '@/stores/credentials';
   import { useGenresStore } from '@/stores/genres';
   import { useSearchStore } from '@/stores/search';
-  import Paginator from 'primevue/paginator';
-  import DataView from 'primevue/dataview';
+  import AppPaginator from '@/components/ui/AppPaginator.vue';
   import SearchItemCard from '@/components/Search/SearchItemCard.vue';
   import SearchBar from '@/components/Search/SearchBar.vue';
 
@@ -19,6 +18,12 @@
     storeToRefs(store);
 
   const desktop = isDesktop();
+
+  // TMDB answers 20 results per page and never more than 500 pages, which
+  // the total already accounts for (shared/tmdb/client.ts).
+  const totalPages = computed(() =>
+    Math.ceil(totalResults.value / TMDB_PAGE_SIZE),
+  );
 
   // A failure of the credential and not of the search, as the message to
   // show. In the desktop app the settings page can solve it; on the web
@@ -79,28 +84,22 @@
     :class="{ 'opacity-50': loading }"
     :aria-busy="loading"
   >
-    <Paginator
+    <AppPaginator
       class="my-4"
-      :first="(currentPage - 1) * TMDB_PAGE_SIZE"
-      :rows="TMDB_PAGE_SIZE"
-      :total-records="totalResults"
-      :always-show="false"
-      @page="store.search($event.page + 1)"
+      :page="currentPage"
+      :total-pages="totalPages"
+      @change="(page) => store.search(page)"
     />
 
-    <DataView :value="results" layout="grid" data-key="id">
-      <template #grid="slotProps">
-        <div class="dataview-cards">
-          <div
-            v-for="item in slotProps.items"
-            :key="item.id"
-            class="w-full p-2 sm:w-2/6 md:w-2/6 xl:w-1/4 2xl:w-1/5"
-          >
-            <SearchItemCard :item="item" />
-          </div>
-        </div>
-      </template>
-    </DataView>
+    <ul class="dataview-cards m-0 list-none p-0">
+      <li
+        v-for="item in results"
+        :key="item.id"
+        class="w-full p-2 sm:w-2/6 md:w-2/6 xl:w-1/4 2xl:w-1/5"
+      >
+        <SearchItemCard :item="item" />
+      </li>
+    </ul>
   </div>
 
   <div v-else-if="loading" role="status" class="search-message">

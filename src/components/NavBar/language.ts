@@ -1,5 +1,14 @@
 import { defaultLocale } from '@/plugins/i18n';
 
+/** A language the menu offers. */
+export interface LanguageOption {
+  /** The locale, such as `pt-BR`. */
+  label: string;
+  /** The flag shown next to it. */
+  imageURL: string;
+  command: () => void;
+}
+
 export class LanguageItem {
   private availableLocales: string[];
   private locale: object;
@@ -27,7 +36,7 @@ export class LanguageItem {
     return this.icons[lang];
   }
 
-  private getLocales(): {} {
+  private getLocales(): LanguageOption[] {
     return this.availableLocales.map((lang) => {
       return {
         label: lang,
@@ -43,10 +52,9 @@ export class LanguageItem {
     defaultLocale.value = lang;
   }
 
-  public getLanguages(): {} {
+  public getLanguages(): { icon: string; items: LanguageOption[] } {
     return {
       icon: 'pi pi-language',
-      showBand: true,
       items: this.getLocales(),
     };
   }

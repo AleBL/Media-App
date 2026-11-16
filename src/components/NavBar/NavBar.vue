@@ -1,112 +1,184 @@
 <script setup lang="ts">
-  import Menubar from 'primevue/menubar';
-  import { ref } from 'vue';
+  import { computed, ref } from 'vue';
+  import { onClickOutside, onKeyStroke } from '@vueuse/core';
   import { isDesktop } from '@/services/api';
   import { useSessionStore } from '@/stores/session';
   import { ThemeItem } from './theme';
-  import { LanguageItem } from './language';
+  import { LanguageItem, type LanguageOption } from './language';
 
   const { t, availableLocales, locale } = useI18n();
   const session = useSessionStore();
 
-  const themeItem = new ThemeItem(t);
+  const {
+    label: themeLabel,
+    icon: themeIcon,
+    command: toggleTheme,
+  } = new ThemeItem(t).getThemes();
   const languageItem = new LanguageItem(availableLocales, locale);
+  const languages = languageItem.getLanguages().items;
 
   const currentLocaleBand = computed(() => {
     return new URL(languageItem.getCurrentLocaleIcon(), import.meta.url).href;
   });
 
-  const menus = ref([
-    {
-      label: computed(() => {
-        return t('pageTitles.home');
-      }),
-      icon: 'pi pi-home',
-      route: '/home',
-    },
-    {
-      label: computed(() => {
-        return `${t('pageTitles.search')}`;
-      }),
-      icon: 'pi pi-search',
-      route: '/search',
-    },
-    themeItem.getThemes(),
-    languageItem.getLanguages(),
-    // The only setting so far is the user's own TMDB key, which a web page
-    // has no safe place to keep.
-    ...(isDesktop()
-      ? [
-          {
-            label: computed(() => {
-              return t('pageTitles.settings');
-            }),
-            icon: 'pi pi-cog',
-            route: '/settings',
-          },
-        ]
-      : []),
-    {
-      label: computed(() => {
-        return t('pageTitles.about');
-      }),
-      icon: 'pi pi-info-circle',
-      route: '/about',
-    },
-    {
-      label: computed(() => {
-        const account = session.account;
+  const desktop = isDesktop();
 
-        return account
-          ? (account.name ?? account.username)
-          : t('account.signIn');
-      }),
-      icon: computed(() => {
-        return session.account ? 'pi pi-user' : 'pi pi-sign-in';
-      }),
-      route: '/account',
-    },
+  const leading = computed(() => [
+    { to: '/home', icon: 'pi pi-home', label: t('pageTitles.home') },
+    { to: '/search', icon: 'pi pi-search', label: t('pageTitles.search') },
   ]);
+
+  const trailing = computed(() => {
+    const account = session.account;
+
+    return [
+      // The only setting so far is the user's own TMDB key, which a web
+      // page has no safe place to keep.
+      ...(desktop
+        ? [
+            {
+              to: '/settings',
+              icon: 'pi pi-cog',
+              label: t('pageTitles.settings'),
+            },
+          ]
+        : []),
+      { to: '/about', icon: 'pi pi-info-circle', label: t('pageTitles.about') },
+      {
+        to: '/account',
+        icon: account ? 'pi pi-user' : 'pi pi-sign-in',
+        label: account
+          ? (account.name ?? account.username)
+          : t('account.signIn'),
+      },
+    ];
+  });
+
+  // Narrow windows (the web version on a phone) fold the menu behind a
+  // button. Both it and the languages are disclosures: a button that shows
+  // and hides what follows it, the pattern meant for navigation.
+  const menuOpen = ref(false);
+  const languagesOpen = ref(false);
+  const languageMenu = ref<HTMLElement>();
+  const languageButton = ref<HTMLButtonElement>();
+
+  onClickOutside(languageMenu, () => {
+    languagesOpen.value = false;
+  });
+
+  onKeyStroke('Escape', () => {
+    if (languagesOpen.value) {
+      languagesOpen.value = false;
+      languageButton.value?.focus();
+    }
+  });
+
+  function chooseLanguage(language: LanguageOption) {
+    language.command();
+    languagesOpen.value = false;
+    menuOpen.value = false;
+  }
+
+  // In the green of the links of the app, as with PrimeVue.
+  const ITEM =
+    'flex w-full cursor-pointer select-none items-center rounded-md px-3 py-2 font-medium text-[#42b983] no-underline transition-all duration-200 hover:bg-surface-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 sm:w-auto sm:text-sm dark:hover:bg-surface-800 dark:focus-visible:ring-primary-400';
+  const CURRENT =
+    'aria-[current=page]:bg-surface-100 dark:aria-[current=page]:bg-surface-700';
 </script>
 
 <template>
-  <Menubar :model="menus">
-    <template #item="{ item, props, hasSubmenu }">
-      <router-link
-        v-if="item.route"
-        v-slot="{ href, navigate }"
-        :to="item.route"
-        custom
+  <header>
+    <nav
+      :aria-label="t('menu.label')"
+      class="relative flex min-h-[4rem] items-center gap-6 rounded-md bg-surface-0 px-6 shadow-md ring-1 ring-inset ring-surface-100 dark:bg-surface-900 dark:ring-surface-800"
+    >
+      <button
+        type="button"
+        class="flex h-8 w-8 items-center justify-center rounded-full text-surface-500 transition duration-200 hover:bg-surface-50 hover:text-surface-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 sm:hidden dark:text-white/80 dark:hover:bg-surface-800/80"
+        :aria-label="t('menu.toggle')"
+        :aria-expanded="menuOpen"
+        aria-controls="main-menu"
+        @click="menuOpen = !menuOpen"
       >
-        <a v-ripple :href="href" v-bind="props.action" @click="navigate">
-          <span :class="item.icon" />
-          <span class="ml-2">{{ item.label }}</span>
-        </a>
-      </router-link>
-      <a
-        v-else
-        v-ripple
-        :href="item.url"
-        :target="item.target"
-        v-bind="props.action"
+        <span class="pi pi-bars" aria-hidden="true" />
+      </button>
+
+      <ul
+        id="main-menu"
+        :class="[
+          menuOpen ? 'flex' : 'hidden',
+          'absolute left-0 top-full z-10 m-0 w-full list-none flex-col gap-1 rounded-md bg-surface-0 px-1.5 py-2 shadow-md dark:bg-surface-900',
+          'sm:relative sm:left-auto sm:top-auto sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none dark:sm:bg-transparent',
+        ]"
       >
-        <span
-          v-if="item.imageURL"
-          class="menubar-icon"
-          :style="{ backgroundImage: `url(${item.imageURL})` }"
-        />
-        <span v-else :class="item.icon" />
-        <span class="ml-2">{{ item.label }}</span>
-        <img
-          v-if="item.showBand"
-          class="menubar-icon"
-          :src="currentLocaleBand"
-          alt="Band"
-        />
-        <span v-if="hasSubmenu" class="pi pi-fw pi-angle-down ml-2" />
-      </a>
-    </template>
-  </Menubar>
+        <li v-for="link in leading" :key="link.to">
+          <RouterLink
+            :to="link.to"
+            :class="[ITEM, CURRENT]"
+            @click="menuOpen = false"
+          >
+            <span :class="link.icon" aria-hidden="true" />
+            <span class="ml-2">{{ link.label }}</span>
+          </RouterLink>
+        </li>
+
+        <li>
+          <button type="button" :class="ITEM" @click="toggleTheme">
+            <span :class="themeIcon" aria-hidden="true" />
+            <span class="ml-2">{{ themeLabel }}</span>
+          </button>
+        </li>
+
+        <li ref="languageMenu" class="sm:relative">
+          <button
+            ref="languageButton"
+            type="button"
+            :class="ITEM"
+            :aria-expanded="languagesOpen"
+            aria-controls="language-menu"
+            @click="languagesOpen = !languagesOpen"
+          >
+            <span class="pi pi-language" aria-hidden="true" />
+            <span class="sr-only">{{ t('language.label') }}</span>
+            <img class="menubar-icon ml-2" :src="currentLocaleBand" alt="" />
+            <span class="pi pi-fw pi-angle-down ml-2" aria-hidden="true" />
+          </button>
+
+          <ul
+            v-show="languagesOpen"
+            id="language-menu"
+            class="static z-10 m-0 w-full list-none rounded-md bg-surface-0 py-1 sm:absolute sm:w-48 sm:shadow-md dark:bg-surface-900"
+          >
+            <li v-for="language in languages" :key="language.label">
+              <button
+                type="button"
+                :class="ITEM"
+                :lang="language.label"
+                :aria-current="language.label === locale ? 'true' : undefined"
+                @click="chooseLanguage(language)"
+              >
+                <!-- An <img>: as a CSS background, the flags inlined as
+                     data: addresses by the build never showed. -->
+                <img class="menubar-icon" :src="language.imageURL" alt="" />
+                <span class="ml-2">{{ language.label }}</span>
+              </button>
+            </li>
+          </ul>
+        </li>
+
+        <li v-for="link in trailing" :key="link.to">
+          <RouterLink
+            :to="link.to"
+            :class="[ITEM, CURRENT]"
+            @click="menuOpen = false"
+          >
+            <span :class="link.icon" aria-hidden="true" />
+            <span class="ml-2">{{ link.label }}</span>
+          </RouterLink>
+        </li>
+      </ul>
+    </nav>
+  </header>
 </template>
 
 <style lang="scss">

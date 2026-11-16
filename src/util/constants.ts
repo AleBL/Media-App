@@ -60,9 +60,4 @@ export const DEPENDENCIES: {
     LINK: 'https://eslint.org/',
     LOGO: 'eslint.png',
   },
-  PRIMEVUE: {
-    VERSION: versions.primevue,
-    LINK: 'https://primevue.org/',
-    LOGO: 'prime.svg',
-  },
 };

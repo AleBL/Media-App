@@ -155,6 +155,8 @@ The run builds the app itself (`e2e/support/global-setup.ts`) with a made up cre
 npm run deps:update # run taze major -I
 ```
 
+Keep `primeicons` on 7: version 8, like the other PrimeTek libraries since mid 2026, is no longer MIT and needs a license key. That is also why the app has no PrimeVue: its components are in `src/components/ui`.
+
 ## Project Structure
 
 ```bash
@@ -181,9 +183,9 @@ npm run deps:update # run taze major -I
 📦src
  ┣ 📦assets
  ┣ 📦components
+ ┃ ┗ 📦ui # buttons and the paginator of the app, in Tailwind CSS
  ┣ 📦locales # i18n messages (en, es, pt-BR)
  ┣ 📦plugins
- ┣ 📦presets # PrimeVue Components Styled with Tailwind CSS - https://github.com/primefaces/primevue-tailwind
  ┣ 📦router
  ┣ 📦services # the api of the renderer: window.api, or HTTP on the web
  ┣ 📦stores # Pinia stores: search, genres, TMDB credential status, session

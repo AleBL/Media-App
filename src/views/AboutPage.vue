@@ -57,12 +57,6 @@
       imgAlt: 'NodeJS logo',
       version: DEPENDENCIES.NODE.VERSION,
     },
-    {
-      href: DEPENDENCIES.PRIMEVUE.LINK,
-      imgSrc: DEPENDENCIES.PRIMEVUE.LOGO,
-      imgAlt: 'Prime logo',
-      version: DEPENDENCIES.PRIMEVUE.VERSION,
-    },
   ];
 </script>
 

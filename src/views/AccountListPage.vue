@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { computed, watch } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
-  import { TMDB_PAGE_SIZE, type AccountList } from '@shared/api';
+  import { TMDB_PAGE_SIZE, type TitleList } from '@shared/api';
   import AppButton from '@/components/ui/AppButton.vue';
   import AppPaginator from '@/components/ui/AppPaginator.vue';
   import SearchItemCard from '@/components/Search/SearchItemCard.vue';
@@ -10,7 +10,7 @@
   import { useSessionStore } from '@/stores/session';
   import { MEDIA_TYPES } from '@/util/constants';
 
-  const props = defineProps<{ list: AccountList }>();
+  const props = defineProps<{ list: TitleList }>();
 
   const { t, locale } = useI18n();
   const route = useRoute();
@@ -23,14 +23,13 @@
   const totalPages = computed(() =>
     Math.ceil(view.value.totalResults / TMDB_PAGE_SIZE),
   );
-  const heading = computed(() =>
-    props.list === 'watchlist' ? 'lists.watchlist' : 'lists.favorites',
-  );
-  const empty = computed(() =>
-    props.list === 'watchlist'
-      ? 'lists.emptyWatchlist'
-      : 'lists.emptyFavorites',
-  );
+  const TEXTS: Record<TitleList, { heading: string; empty: string }> = {
+    watchlist: { heading: 'lists.watchlist', empty: 'lists.emptyWatchlist' },
+    favorite: { heading: 'lists.favorites', empty: 'lists.emptyFavorites' },
+    rated: { heading: 'lists.rated', empty: 'lists.emptyRated' },
+  };
+  const heading = computed(() => TEXTS[props.list].heading);
+  const empty = computed(() => TEXTS[props.list].empty);
 
   const TYPES = [
     { value: MEDIA_TYPES.MOVIE, label: 'lists.movies' },

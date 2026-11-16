@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
-import type { AccountList, MediaItem } from '@shared/api';
+import type { MediaItem, TitleList } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import router from '@/router';
 import AccountListPage from '@/views/AccountListPage.vue';
@@ -20,8 +20,14 @@ describe('AccountListPage', () => {
   let pinia: Pinia;
   let wrapper: VueWrapper;
 
-  async function mountPage(list: AccountList = 'watchlist') {
-    await router.replace(list === 'watchlist' ? '/watchlist' : '/favorites');
+  const PATHS: Record<TitleList, string> = {
+    watchlist: '/watchlist',
+    favorite: '/favorites',
+    rated: '/rated',
+  };
+
+  async function mountPage(list: TitleList = 'watchlist') {
+    await router.replace(PATHS[list]);
     wrapper = mount(AccountListPage, {
       props: { list },
       global: { plugins: [pinia, i18n, router] },
@@ -98,6 +104,32 @@ describe('AccountListPage', () => {
 
     expect(wrapper.text()).toContain('Nothing here yet.');
     expect(wrapper.find('article').exists()).toBe(false);
+  });
+
+  it('shows the rated titles, each with the rating it got', async () => {
+    api.account.list.mockResolvedValue({
+      ok: true,
+      data: {
+        page: 1,
+        results: [{ ...movie(1), rating: 8.5 }],
+        totalPages: 1,
+        totalResults: 1,
+      },
+    });
+
+    await mountPage('rated');
+
+    expect(wrapper.get('h1').text()).toBe('Rated');
+    expect(api.account.list).toHaveBeenCalledWith(
+      expect.objectContaining({ list: 'rated', type: 'movie' }),
+    );
+    expect(wrapper.get('article').text()).toContain('Your rating: 8.5');
+  });
+
+  it('says when nothing was rated', async () => {
+    await mountPage('rated');
+
+    expect(wrapper.text()).toContain('Nothing rated yet.');
   });
 
   it('offers to try again when the list could not be loaded', async () => {

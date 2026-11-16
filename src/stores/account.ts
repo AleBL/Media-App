@@ -39,8 +39,8 @@ export async function settle<T>(
 
 /**
  * Whether titles are in the watchlist and in the favorites of whoever signed
- * in, and the changes to them. A change shows at once and is undone if TMDB
- * does not take it.
+ * in, the ratings they gave, and the changes to them. A change shows at once
+ * and is undone if TMDB does not take it.
  */
 export const useAccountStore = defineStore('account', () => {
   const session = useSessionStore();
@@ -51,8 +51,16 @@ export const useAccountStore = defineStore('account', () => {
   const lists = ref<Record<AccountList, Set<string>> | null>(null);
   // The changes on their way, such as "watchlist:movie-603".
   const saving = ref<Record<string, boolean>>({});
+  // By title: its rating, null for none, as TMDB said on the page of the
+  // title or as the user changed it. Only the pages of titles read them.
+  const ratings = ref<Record<string, number | null>>({});
+  // The titles whose rating is on its way to TMDB.
+  let rating: Record<string, true> = {};
   // Incremented on every reading of the lists, so an older one is dropped.
   let reading = 0;
+  // Incremented whenever someone else signs in, or nobody is, so what was
+  // on its way for the one before does not touch what is known now.
+  let signIns = 0;
 
   /**
    * Reads which titles are in the lists, page by page up to MAX_LIST_PAGES
@@ -116,7 +124,10 @@ export const useAccountStore = defineStore('account', () => {
       states.value = {};
       saving.value = {};
       lists.value = null;
+      ratings.value = {};
+      rating = {};
       reading += 1;
+      signIns += 1;
 
       if (signedIn !== undefined) {
         void loadLists();
@@ -151,11 +162,110 @@ export const useAccountStore = defineStore('account', () => {
   const isSaving = (list: AccountList, title: TitleRequest) =>
     !!saving.value[`${list}:${key(title)}`];
 
+  /** The rating of a title: undefined until TMDB said, null for none. */
+  const ratingOf = (title: TitleRequest): number | null | undefined =>
+    ratings.value[key(title)];
+
   async function load(title: TitleRequest) {
     const answer = check(await settle(() => getApi().account.states(title)));
 
     if (answer.ok) {
-      states.value[key(title)] = answer.data;
+      const { rated, ...inLists } = answer.data;
+
+      states.value[key(title)] = inLists;
+
+      // A rating on its way wins over what TMDB had before it.
+      if (!rating[key(title)]) {
+        ratings.value[key(title)] = rated;
+      }
+    }
+
+    return answer;
+  }
+
+  /**
+   * Asks TMDB again which lists a title is in, and keeps what it says,
+   * except for a change of a list that is on its way.
+   */
+  async function relist(title: TitleRequest) {
+    const started = signIns;
+    const answer = check(await settle(() => getApi().account.states(title)));
+    const now = statesOf(title);
+
+    if (!answer.ok || started !== signIns || !now) {
+      return;
+    }
+
+    states.value[key(title)] = {
+      watchlist: isSaving('watchlist', title)
+        ? now.watchlist
+        : answer.data.watchlist,
+      favorite: isSaving('favorite', title)
+        ? now.favorite
+        : answer.data.favorite,
+    };
+  }
+
+  /**
+   * Gives the title a rating, or takes it away (`null`), at once. A change
+   * made while another is on its way goes after it, only the last one, so
+   * TMDB ends with what the page shows. If TMDB refuses, the page goes back
+   * to the rating TMDB has.
+   */
+  async function rate(
+    title: TitleRequest,
+    value: number | null,
+  ): Promise<Result<null> | undefined> {
+    const at = key(title);
+    const before: number | null | undefined = ratings.value[at];
+
+    // Nothing to change before TMDB said what the rating is.
+    if (before === undefined) {
+      return undefined;
+    }
+
+    ratings.value[at] = value;
+
+    // The change on its way sends this one when it is done.
+    if (rating[at]) {
+      return undefined;
+    }
+
+    const started = signIns;
+    let atTmdb = before;
+    let answer: Result<null> = { ok: true, data: null };
+    // TMDB took a rating (not a removal) of the title.
+    let rated = false;
+
+    rating[at] = true;
+
+    while (ratings.value[at] !== atTmdb) {
+      const wanted = ratings.value[at];
+
+      answer = check(
+        await settle(() => getApi().account.rate({ ...title, value: wanted })),
+      );
+
+      // Signed out, or someone else signed in, meanwhile: nothing to undo.
+      if (started !== signIns) {
+        return answer;
+      }
+
+      if (!answer.ok) {
+        ratings.value[at] = atTmdb;
+        break;
+      }
+
+      atTmdb = wanted;
+      rated ||= wanted !== null;
+    }
+
+    delete rating[at];
+
+    // By default TMDB takes a title it rates out of the watchlist: the
+    // lists of the title are asked again.
+    if (rated) {
+      await relist(title);
     }
 
     return answer;
@@ -200,5 +310,16 @@ export const useAccountStore = defineStore('account', () => {
     return answer;
   }
 
-  return { states, lists, statesOf, isSaving, load, loadLists, toggle };
+  return {
+    states,
+    lists,
+    ratings,
+    statesOf,
+    ratingOf,
+    isSaving,
+    load,
+    loadLists,
+    toggle,
+    rate,
+  };
 });

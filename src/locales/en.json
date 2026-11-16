@@ -113,7 +113,7 @@
     "favoriteButton": "Favorite",
     "watchlistOf": "My list: {title}",
     "favoriteOf": "Favorite: {title}",
-    "signInToSave": "Sign in to keep this title in your list or favorites",
+    "signInToSave": "Sign in to keep this title in your list or favorites, or to rate it",
     "statesFailed": "Your lists could not be checked for this title. Try again later.",
     "saveFailed": "The change could not be saved. Try again.",
     "kind": "Movies or TV shows",
@@ -123,7 +123,13 @@
     "tryAgain": "Try again",
     "loading": "Loading...",
     "emptyWatchlist": "Nothing here yet. Add movies and TV shows to your list from their pages.",
-    "emptyFavorites": "No favorites here yet. Mark movies and TV shows as favorites from their pages."
+    "emptyFavorites": "No favorites here yet. Mark movies and TV shows as favorites from their pages.",
+    "rated": "Rated",
+    "emptyRated": "Nothing rated yet. Rate movies and TV shows from their pages.",
+    "yourRating": "Your rating",
+    "yourRatingIs": "Your rating: {rating}",
+    "notRated": "Not rated",
+    "rateFailed": "The rating could not be saved. Try again."
   },
 
   "account": {

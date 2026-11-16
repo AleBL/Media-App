@@ -14,6 +14,7 @@ describe('router', () => {
     expect(router.resolve({ name: 'account' }).href).toBe('#/account');
     expect(router.resolve({ name: 'watchlist' }).href).toBe('#/watchlist');
     expect(router.resolve({ name: 'favorites' }).href).toBe('#/favorites');
+    expect(router.resolve({ name: 'rated' }).href).toBe('#/rated');
   });
 
   it('redirects the entry route to home', async () => {
@@ -66,14 +67,17 @@ describe('pages of the account', () => {
     delete window.api;
   });
 
-  it('send nobody signed in to the sign in, which comes back to them', async () => {
-    await useSessionStore().load();
+  it.each(['/watchlist', '/favorites', '/rated'])(
+    'send nobody signed in to the sign in, which comes back to %s',
+    async (page) => {
+      await useSessionStore().load();
 
-    await router.push('/watchlist');
+      await router.push(page);
 
-    expect(router.currentRoute.value.name).toBe('account');
-    expect(router.currentRoute.value.query.next).toBe('/watchlist');
-  });
+      expect(router.currentRoute.value.name).toBe('account');
+      expect(router.currentRoute.value.query.next).toBe(page);
+    },
+  );
 
   it('open for whoever signed in', async () => {
     useSessionStore().state = SIGNED_IN;

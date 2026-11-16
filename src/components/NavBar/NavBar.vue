@@ -61,6 +61,7 @@
   const accountLinks = computed(() => [
     { to: '/watchlist', icon: 'pi pi-bookmark', label: t('lists.watchlist') },
     { to: '/favorites', icon: 'pi pi-heart', label: t('lists.favorites') },
+    { to: '/rated', icon: 'pi pi-star', label: t('lists.rated') },
     { to: '/account', icon: 'pi pi-user', label: t('pageTitles.account') },
   ]);
   const avatar = computed(() =>

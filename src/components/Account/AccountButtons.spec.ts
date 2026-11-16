@@ -67,6 +67,8 @@ describe('AccountButtons', () => {
   it('waits for TMDB before letting the user change anything', async () => {
     useSessionStore().state = SIGNED_IN;
     api.account.states.mockReturnValue(new Promise(() => {}));
+    // nor have the lists been read
+    api.account.list.mockReturnValue(new Promise(() => {}));
 
     await mountButtons();
 

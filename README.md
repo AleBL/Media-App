@@ -101,7 +101,7 @@ In the web version:
 
 ### My list and favorites 🔖
 
-Whoever signed in has a menu of their own under their name, in the menu bar: **My list** (the watchlist of the TMDB account), **Favorites**, **Account** and **Sign out**. The page of a title has a **My list** and a **Favorite** button: a change shows at once and is undone, with a message, if TMDB does not take it. The two lists have pages of their own, movies or tv shows, the titles added last first. They live at TMDB, so they are the same on the TMDB website and in any other app of the same account.
+Whoever signed in has a menu of their own under their name, in the menu bar: **My list** (the watchlist of the TMDB account), **Favorites**, **Account** and **Sign out**. The page of a title has a **My list** and a **Favorite** button, and so does every card of the search, of the home page and of the lists, on its poster: a change shows at once and is undone if TMDB does not take it. For the cards the app reads the lists once, at sign in (TMDB only tells it otherwise one title at a time), up to 200 movies and 200 tv shows in each; a title past them shows as not in the list on its card, and as it is on its page, which asks TMDB about it alone. The two lists have pages of their own, movies or tv shows, the titles added last first. They live at TMDB, so they are the same on the TMDB website and in any other app of the same account.
 
 Nobody signed in: the page of a title offers to sign in instead, and the pages of the lists lead to the sign in. In the desktop app the sign in then goes back to the page the user was on; on the web the browser comes back from TMDB to the account page, which links to both lists.
 

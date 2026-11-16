@@ -91,6 +91,49 @@ test.describe('watchlist and favorites', () => {
     await expect(page.getByText('No favorites here yet.')).toBeVisible();
   });
 
+  test('the cards say what is in the lists, and change them', async ({
+    running,
+    tmdb,
+  }) => {
+    const { page } = running;
+    // On the TMDB website, before signing in here.
+    tmdb.addToList('favorite', 'movie:3');
+    await openPage(page, 'account');
+    await signIn(running, tmdb);
+
+    await openPage(page, 'search');
+    await searchBox(page).fill('matrix');
+
+    const favorite = page.getByRole('button', {
+      name: 'Favorite: Movie 3 [en]',
+    });
+    const myList = page.getByRole('button', { name: 'My list: Movie 2 [en]' });
+    await expect(favorite).toHaveAttribute('aria-pressed', 'true');
+    await expect(myList).toHaveAttribute('aria-pressed', 'false');
+
+    await myList.click();
+
+    await expect(myList).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => tmdb.listed('watchlist')).toEqual(['movie:2']);
+    // the button is above the link of the card, not part of it
+    await expect(page).toHaveURL(/#\/search$/);
+
+    // The page of the title, and the home page, agree.
+    await cards(page).nth(1).getByRole('link').click();
+    await expect(toggle(page, 'My list')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    await openPage(page, 'home');
+
+    await expect(
+      page
+        .getByRole('region', { name: 'Trending this week' })
+        .getByRole('button', { name: 'My list: Movie 2 [en]' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+  });
+
   test('a session ended on the TMDB website signs the user out at the next change', async ({
     running,
     tmdb,

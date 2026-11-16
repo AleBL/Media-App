@@ -514,6 +514,10 @@ export async function startFakeTmdb() {
     },
     /** The sessions that are open at TMDB right now. */
     sessions: () => [...sessions],
+    /** What the user does on the TMDB website: puts a title in a list. */
+    addToList: (list: 'watchlist' | 'favorite', title: string) => {
+      accountLists[list].set(title, (added += 1));
+    },
     /** What a list of the account has, such as "movie:1", last added first. */
     listed: (list: 'watchlist' | 'favorite') =>
       [...accountLists[list]]

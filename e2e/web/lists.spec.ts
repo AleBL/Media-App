@@ -61,6 +61,29 @@ test.describe('watchlist and favorites on the web version', () => {
     }
   });
 
+  test('the cards change the lists, through the site', async ({
+    page,
+    site,
+    tmdb,
+  }) => {
+    tmdb.addToList('watchlist', 'movie:1');
+    await page.goto(site.url);
+    await openPage(page, 'account');
+    await page.getByRole('button', { name: 'Sign in with TMDB' }).click();
+    await expect(page.getByText(`Signed in as ${ACCOUNT.name}`)).toBeVisible();
+
+    await openPage(page, 'search');
+    await searchBox(page).fill('matrix');
+
+    const myList = page.getByRole('button', { name: 'My list: Movie 1 [en]' });
+    await expect(myList).toHaveAttribute('aria-pressed', 'true');
+
+    await myList.click();
+
+    await expect(myList).toHaveAttribute('aria-pressed', 'false');
+    await expect.poll(() => tmdb.listed('watchlist')).toEqual([]);
+  });
+
   test('the pages of the lists ask to sign in first', async ({
     page,
     site,

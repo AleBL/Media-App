@@ -10,10 +10,13 @@ updates:
       dev-minor-and-patch:
         dependency-type: development
         update-types: [minor, patch]
-    # Major upgrades are migrated by hand (phase 2 of the improvement plan).
-    # Remove this block once the stack is on current majors.
+    # Majors that cannot be taken yet. Every other major gets a pull request.
     ignore:
-      - dependency-name: '*'
+      # Version 8 is no longer MIT and needs a license key (see the README).
+      - dependency-name: primeicons
+        update-types: ['version-update:semver-major']
+      # typescript-eslint 8 supports TypeScript below 6.1 only.
+      - dependency-name: typescript
         update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions

@@ -111,6 +111,8 @@
     "favorites": "Favorites",
     "watchlistButton": "My list",
     "favoriteButton": "Favorite",
+    "watchlistOf": "My list: {title}",
+    "favoriteOf": "Favorite: {title}",
     "signInToSave": "Sign in to keep this title in your list or favorites",
     "statesFailed": "Your lists could not be checked for this title. Try again later.",
     "saveFailed": "The change could not be saved. Try again.",

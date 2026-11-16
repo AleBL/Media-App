@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { computed } from 'vue';
   import type { MediaItem } from '@shared/api';
+  import CardButtons from '@/components/Account/CardButtons.vue';
   import { useGenresStore } from '@/stores/genres';
   import { posterUrl } from '@/util/images';
   import { mediaPage, mediaTitle, mediaType, mediaYear } from '@/util/media';
@@ -35,17 +36,26 @@
 <template>
   <!-- Every inner box centered and with the same padding, as the old
        stylesheet of the cards made them. The title is the link to the page
-       of the title, and it covers the whole card. -->
+       of the title, and it covers the whole card; the buttons of the lists
+       of the account sit above it, on the poster. -->
   <article
-    class="relative flex flex-col rounded-md border border-surface-200 bg-surface-0 p-4 transition-shadow duration-200 hover:shadow-md has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-500 dark:border-surface-700 dark:bg-surface-900 dark:has-[:focus-visible]:ring-primary-400"
+    class="relative flex flex-col rounded-md border border-surface-200 bg-surface-0 p-4 transition-shadow duration-200 hover:shadow-md has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-primary-500 dark:border-surface-700 dark:bg-surface-900 dark:has-[a:focus-visible]:ring-primary-400"
   >
     <div class="flex justify-center p-3">
-      <img
-        class="w-full max-w-[400px] rounded-md"
-        :src="posterUrl(item.poster_path)"
-        :alt="title"
-        loading="lazy"
-      />
+      <div class="relative w-full max-w-[400px]">
+        <img
+          class="w-full rounded-md"
+          :src="posterUrl(item.poster_path)"
+          :alt="title"
+          loading="lazy"
+        />
+        <CardButtons
+          :id="item.id"
+          class="absolute right-2 top-2 z-10"
+          :type="mediaType(item)"
+          :name="title"
+        />
+      </div>
     </div>
     <div class="flex justify-center p-3">
       <div class="flex items-start justify-center gap-2 p-3">

@@ -5,7 +5,8 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import type { MediaItem, MediaList } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import router from '@/router';
-import { installFakeApi } from '@/test/fakeApi';
+import { useSessionStore } from '@/stores/session';
+import { installFakeApi, SIGNED_IN } from '@/test/fakeApi';
 import HomePage from '@/views/HomePage.vue';
 
 const TITLES: Record<MediaList, MediaItem[]> = {
@@ -66,6 +67,38 @@ describe('HomePage', () => {
 
     expect(wrapper.get('h1').text()).toBe('Home Page');
     expect(wrapper.get('a[href="#/search"]').text()).toBe('Start searching');
+  });
+
+  it('has the buttons of the lists of the account on each poster, for whoever signed in', async () => {
+    useSessionStore().state = SIGNED_IN;
+    api.account.list.mockImplementation(async ({ list, type, page }) => ({
+      ok: true,
+      data: {
+        page,
+        results:
+          list === 'watchlist' && type === 'movie'
+            ? [{ id: 603, media_type: 'movie' }]
+            : [],
+        totalPages: 1,
+        totalResults: 1,
+      },
+    }));
+
+    await mountPage();
+
+    const buttons = section('Trending this week').findAll('article button');
+
+    expect(
+      buttons.map((button) => [
+        button.attributes('aria-label'),
+        button.attributes('aria-pressed'),
+      ]),
+    ).toEqual([
+      ['My list: Matrix', 'true'],
+      ['Favorite: Matrix', 'false'],
+      ['My list: Breaking Bad', 'false'],
+      ['Favorite: Breaking Bad', 'false'],
+    ]);
   });
 
   it('shows the lists, each title a link to its page', async () => {

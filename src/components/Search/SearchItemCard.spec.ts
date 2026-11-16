@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { nextTick } from 'vue';
-import { mount, VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import type { MediaItem } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import router from '@/router';
 import SearchItemCard from '@/components/Search/SearchItemCard.vue';
 import { useGenresStore } from '@/stores/genres';
+import { useSessionStore } from '@/stores/session';
+import { installFakeApi, SIGNED_IN } from '@/test/fakeApi';
 
 const movie: MediaItem = {
   id: 603,
@@ -71,6 +73,23 @@ describe('SearchItemCard', () => {
 
     expect(link.attributes('href')).toBe('#/movie/603');
     expect(link.text()).toBe('The Matrix (1999)');
+    // nobody signed in: no buttons of the lists of the account
+    expect(wrapper!.find('button').exists()).toBe(false);
+  });
+
+  it('has the buttons of the lists of the account, for whoever signed in', async () => {
+    installFakeApi();
+    useSessionStore().state = SIGNED_IN;
+
+    const card = mountCard(movie);
+    await flushPromises();
+
+    expect(
+      card.findAll('button').map((button) => button.attributes('aria-label')),
+    ).toEqual(['My list: The Matrix', 'Favorite: The Matrix']);
+    // the link to the page stays one, under them
+    expect(card.findAll('a')).toHaveLength(1);
+    delete window.api;
   });
 
   it.each([

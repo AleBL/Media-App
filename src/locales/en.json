@@ -15,6 +15,24 @@
     "dark": "Dark"
   },
 
+  "menu": {
+    "label": "Main menu",
+    "toggle": "Menu"
+  },
+
+  "language": {
+    "label": "Language"
+  },
+
+  "pagination": {
+    "label": "Pages of results",
+    "first": "First page",
+    "previous": "Previous page",
+    "next": "Next page",
+    "last": "Last page",
+    "page": "Page {page}"
+  },
+
   "homePage": {
     "intro": "Find movies and TV shows, with posters, genres and ratings from TMDB.",
     "startSearching": "Start searching"
@@ -32,7 +50,8 @@
     "removeKey": "Remove key",
     "invalidKey": "This does not look like a TMDB key.",
     "keyNotPersisted": "The key could not be saved to disk, so it is kept only until the app closes.",
-    "keyNotEncrypted": "This system has no keyring, so the key is saved without encryption."
+    "keyNotEncrypted": "This system has no keyring, so the key is saved without encryption.",
+    "showKey": "Show the key"
   },
 
   "search": {

@@ -14,6 +14,13 @@
   }
 }
 
+@layer components {
+  /* A text field of the app. */
+  .field {
+    @apply m-0 appearance-none rounded-md border-0 bg-surface-0 px-3 py-1.5 font-sans leading-6 text-surface-900 shadow-sm outline-none ring-1 ring-inset ring-surface-300 placeholder:text-surface-400 focus:ring-2 focus:ring-primary-500 disabled:pointer-events-none disabled:cursor-default disabled:select-none disabled:opacity-60 sm:text-sm dark:bg-surface-900 dark:text-surface-0 dark:ring-surface-700 dark:placeholder:text-surface-500 dark:focus:ring-primary-400;
+  }
+}
+
 :root {
   --primary-50: 236 253 245;
   --primary-100: 209 250 229;

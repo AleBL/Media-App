@@ -15,6 +15,24 @@
     "dark": "Escuro"
   },
 
+  "menu": {
+    "label": "Menu principal",
+    "toggle": "Menu"
+  },
+
+  "language": {
+    "label": "Idioma"
+  },
+
+  "pagination": {
+    "label": "Páginas de resultados",
+    "first": "Primeira página",
+    "previous": "Página anterior",
+    "next": "Próxima página",
+    "last": "Última página",
+    "page": "Página {page}"
+  },
+
   "homePage": {
     "intro": "Encontre filmes e séries, com pôsteres, gêneros e notas do TMDB.",
     "startSearching": "Começar a procurar"
@@ -32,7 +50,8 @@
     "removeKey": "Remover chave",
     "invalidKey": "Isso não parece uma chave do TMDB.",
     "keyNotPersisted": "A chave não pôde ser gravada em disco, então vale só até o app ser fechado.",
-    "keyNotEncrypted": "Este sistema não tem chaveiro, então a chave fica salva sem criptografia."
+    "keyNotEncrypted": "Este sistema não tem chaveiro, então a chave fica salva sem criptografia.",
+    "showKey": "Mostrar a chave"
   },
 
   "search": {

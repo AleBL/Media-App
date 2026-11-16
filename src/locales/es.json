@@ -15,6 +15,24 @@
     "dark": "Oscuro"
   },
 
+  "menu": {
+    "label": "Menú principal",
+    "toggle": "Menú"
+  },
+
+  "language": {
+    "label": "Idioma"
+  },
+
+  "pagination": {
+    "label": "Páginas de resultados",
+    "first": "Primera página",
+    "previous": "Página anterior",
+    "next": "Página siguiente",
+    "last": "Última página",
+    "page": "Página {page}"
+  },
+
   "homePage": {
     "intro": "Encuentra películas y series, con carteles, géneros y notas de TMDB.",
     "startSearching": "Empezar a buscar"
@@ -32,7 +50,8 @@
     "removeKey": "Eliminar clave",
     "invalidKey": "Esto no parece una clave de TMDB.",
     "keyNotPersisted": "La clave no se pudo guardar en disco, así que solo se conserva hasta cerrar la aplicación.",
-    "keyNotEncrypted": "Este sistema no tiene un llavero, así que la clave se guarda sin cifrar."
+    "keyNotEncrypted": "Este sistema no tiene un llavero, así que la clave se guarda sin cifrar.",
+    "showKey": "Mostrar la clave"
   },
 
   "search": {

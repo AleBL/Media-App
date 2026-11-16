@@ -2,7 +2,7 @@ import { ACCOUNT, type FakeTmdb } from './fake-tmdb';
 import { expect, type RunningApp } from './fixtures';
 
 /** The item of the menu that leads to the account page. */
-export const accountLink = '[data-pc-name="menubar"] a[href$="#/account"]';
+export const accountLink = 'header nav a[href$="#/account"]';
 
 /**
  * Presses the button and takes apart the page the app asked the browser to

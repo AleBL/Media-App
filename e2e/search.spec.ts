@@ -36,7 +36,7 @@ test.describe('search', () => {
     await searchBox(page).fill('matrix');
     await expect(cards(page)).toHaveCount(20);
 
-    const pages = page.locator('[data-pc-section="pagebutton"]');
+    const pages = page.locator('.paginator-pages button');
     await expect(pages).toHaveText(['1', '2', '3']);
 
     await pages.nth(2).click();
@@ -61,9 +61,7 @@ test.describe('search', () => {
     await searchBox(page).fill('matrix');
     await expect(cards(page).first()).toContainText('Movie 1 [en]');
 
-    await page
-      .locator('[data-pc-section="menuitem"]:has(.pi-language)')
-      .click();
+    await page.locator('header button:has(.pi-language)').click();
     await page.getByText('pt-BR', { exact: true }).click();
 
     await expect(cards(page).first()).toContainText('Movie 1 [pt-BR]');

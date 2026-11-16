@@ -194,8 +194,8 @@ test.describe('signing in with TMDB', () => {
     await expect(page.locator(accountLink)).toHaveText(ACCOUNT.name);
 
     await openPage(page, 'search');
-    await page.locator('[data-pc-name="inputtext"]').fill('matrix');
-    await page.locator('[data-pc-name="inputtext"]').press('Enter');
+    await page.getByRole('searchbox').fill('matrix');
+    await page.getByRole('searchbox').press('Enter');
 
     await expect(page.locator('.card-border')).toHaveCount(20);
     expect(tmdb.lastSearch()?.credential).toBe('app');

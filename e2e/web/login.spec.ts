@@ -6,7 +6,7 @@ import { expect, test } from './fixtures';
 const SESSION_COOKIE = 'media-app-session';
 
 const accountLink = (page: Page) =>
-  page.locator('[data-pc-name="menubar"] a[href$="#/account"]');
+  page.locator('header nav a[href$="#/account"]');
 const signInButton = (page: Page) =>
   page.getByRole('button', { name: 'Sign in with TMDB' });
 

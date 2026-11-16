@@ -1,9 +1,11 @@
-import type { MediaType } from '@shared/api';
+import type { SearchType } from '@shared/api';
 
+/** What the search can look for. */
 export const MEDIA_TYPES = {
   MOVIE: 'movie',
   TV_SHOW: 'tv',
-} as const satisfies Record<string, MediaType>;
+  ALL: 'multi',
+} as const satisfies Record<string, SearchType>;
 
 // Installed versions, injected at build time (config/dependency-versions.mjs)
 const versions = __DEPENDENCY_VERSIONS__;

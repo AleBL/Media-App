@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import type { MediaItem, Paged, Result } from '@shared/api';
+import type { MediaItem, Paged, Result, SearchItem } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import { useSearchStore } from '@/stores/search';
 import { installFakeApi, pageOf } from '@/test/fakeApi';
@@ -8,9 +8,9 @@ import { installFakeApi, pageOf } from '@/test/fakeApi';
 const MATRIX: MediaItem = { id: 603, title: 'The Matrix' };
 
 function found(
-  results: MediaItem[] = [MATRIX],
-  overrides: Partial<Paged<MediaItem>> = {},
-): Result<Paged<MediaItem>> {
+  results: SearchItem[] = [MATRIX],
+  overrides: Partial<Paged<SearchItem>> = {},
+): Result<Paged<SearchItem>> {
   return { ok: true, data: pageOf(results, overrides) };
 }
 
@@ -79,7 +79,7 @@ describe('search store', () => {
   });
 
   it('ignores a slow answer to an older request', async () => {
-    let answerSlow: (value: Result<Paged<MediaItem>>) => void = () => {};
+    let answerSlow: (value: Result<Paged<SearchItem>>) => void = () => {};
     api.tmdb.search
       .mockReturnValueOnce(new Promise((resolve) => (answerSlow = resolve)))
       .mockResolvedValueOnce(found([{ id: 604, title: 'Reloaded' }]));
@@ -96,8 +96,41 @@ describe('search store', () => {
     expect(store.loading).toBe(false);
   });
 
+  it('knows what the results were searched as while another type loads', async () => {
+    const person: SearchItem = {
+      id: 6384,
+      media_type: 'person',
+      name: 'Keanu Reeves',
+      known_for: [],
+    };
+    let answer: (value: Result<Paged<SearchItem>>) => void = () => {};
+
+    store.mediaType = 'multi';
+    api.tmdb.search.mockResolvedValueOnce(found([person, MATRIX]));
+    await store.search();
+
+    expect(api.tmdb.search).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: 'multi' }),
+    );
+    expect(store.results).toEqual([person, MATRIX]);
+    expect(store.resultsType).toBe('multi');
+
+    api.tmdb.search.mockReturnValueOnce(
+      new Promise((resolve) => (answer = resolve)),
+    );
+    store.mediaType = 'tv';
+    const pending = store.search();
+
+    expect(store.resultsType).toBe('multi');
+
+    answer(found([{ id: 1396, name: 'Breaking Bad' }]));
+    await pending;
+
+    expect(store.resultsType).toBe('tv');
+  });
+
   it('flags loading only while the request is in flight', async () => {
-    let answer: (value: Result<Paged<MediaItem>>) => void = () => {};
+    let answer: (value: Result<Paged<SearchItem>>) => void = () => {};
     api.tmdb.search.mockReturnValue(
       new Promise((resolve) => (answer = resolve)),
     );

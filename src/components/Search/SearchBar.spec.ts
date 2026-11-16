@@ -69,6 +69,30 @@ describe('SearchBar', () => {
     });
   });
 
+  it('searches movies, tv shows and people at once with "All"', async () => {
+    store.query = 'keanu';
+    await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
+    api.tmdb.search.mockClear();
+
+    expect(wrapper.findAll('label').map((label) => label.text())).toEqual([
+      'Movie',
+      'TV Show',
+      'All',
+    ]);
+
+    await wrapper.get('#mediaTypeAll').setValue(true);
+    await nextTick();
+
+    expect(store.mediaType).toBe('multi');
+    expect(api.tmdb.search).toHaveBeenCalledTimes(1);
+    expect(api.tmdb.search).toHaveBeenCalledWith({
+      type: 'multi',
+      query: 'keanu',
+      page: 1,
+      language: 'en',
+    });
+  });
+
   it('asks for the same page again when the language changes', async () => {
     store.query = 'matrix';
     await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);

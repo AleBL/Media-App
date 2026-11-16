@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount, VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { TMDB_PAGE_SIZE, type MediaItem } from '@shared/api';
@@ -120,6 +120,48 @@ describe('SearchPage', () => {
       page: 2,
       language: 'en',
     });
+  });
+
+  it('shows people and titles of a search of everything, saying what each is', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    store.results = [movie(2)];
+    store.searched = true;
+    await mountPage();
+
+    // one movie, one tv show and one person, all with the same id
+    store.results = [
+      movie(1),
+      { id: 1, media_type: 'tv', name: 'Show 1' },
+      {
+        id: 1,
+        media_type: 'person',
+        name: 'Person 1',
+        known_for: [movie(1)],
+      },
+    ];
+    store.resultsType = 'multi';
+    await flushPromises();
+
+    const cards = wrapper.findAll('article');
+    expect(cards).toHaveLength(3);
+    expect(cards.map((card) => card.get('p.uppercase').text())).toEqual([
+      'Movie',
+      'TV Show',
+      'Person',
+    ]);
+    expect(cards[2].text()).toContain('Person 1');
+    expect(cards[2].get('a').attributes('href')).toBe('#/movie/1');
+    expect(warn.mock.calls.flat().join(' ')).not.toContain('Duplicate keys');
+    warn.mockRestore();
+  });
+
+  it('does not say what a title is in a search of one type', async () => {
+    store.results = [movie(1)];
+    store.searched = true;
+
+    await mountPage();
+
+    expect(wrapper.find('article p.uppercase').exists()).toBe(false);
   });
 
   it('hides the paginator when everything fits on one page', async () => {

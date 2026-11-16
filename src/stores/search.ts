@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type {
-  MediaItem,
-  MediaType,
   Paged,
   Result,
+  SearchItem,
+  SearchType,
   TmdbFailure,
 } from '@shared/api';
 import i18n from '@/plugins/i18n';
@@ -15,8 +15,11 @@ export const SEARCH_DEBOUNCE_MS = 350;
 
 export const useSearchStore = defineStore('search', () => {
   const query = ref('');
-  const mediaType = ref<MediaType>('movie');
-  const results = ref<MediaItem[]>([]);
+  const mediaType = ref<SearchType>('movie');
+  const results = ref<SearchItem[]>([]);
+  // What the results were searched as, which mediaType no longer is while
+  // a search of another type is loading.
+  const resultsType = ref<SearchType>('movie');
   const totalResults = ref(0);
   const currentPage = ref(1);
   const loading = ref(false);
@@ -49,11 +52,12 @@ export const useSearchStore = defineStore('search', () => {
 
     loading.value = true;
 
-    let answer: Result<Paged<MediaItem>>;
+    const type = mediaType.value;
+    let answer: Result<Paged<SearchItem>>;
 
     try {
       answer = await getApi().tmdb.search({
-        type: mediaType.value,
+        type,
         query: text,
         page,
         language: i18n.global.locale.value,
@@ -74,6 +78,7 @@ export const useSearchStore = defineStore('search', () => {
 
     if (answer.ok) {
       results.value = answer.data.results;
+      resultsType.value = type;
       currentPage.value = answer.data.page;
       totalResults.value = answer.data.totalResults;
       searched.value = true;
@@ -90,6 +95,7 @@ export const useSearchStore = defineStore('search', () => {
     query,
     mediaType,
     results,
+    resultsType,
     totalResults,
     currentPage,
     loading,

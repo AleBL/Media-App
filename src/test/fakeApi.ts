@@ -4,8 +4,8 @@ import type {
   CredentialStatus,
   MediaAppApi,
   MediaDetails,
-  MediaItem,
   Paged,
+  SearchItem,
   SessionKeeping,
   SessionState,
 } from '@shared/api';
@@ -79,9 +79,9 @@ export const MATRIX: MediaDetails = {
 };
 
 export function pageOf(
-  results: MediaItem[] = [],
-  overrides: Partial<Paged<MediaItem>> = {},
-): Paged<MediaItem> {
+  results: SearchItem[] = [],
+  overrides: Partial<Paged<SearchItem>> = {},
+): Paged<SearchItem> {
   return {
     page: 1,
     results,

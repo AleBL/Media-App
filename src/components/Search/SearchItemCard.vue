@@ -3,18 +3,23 @@
   import type { MediaItem } from '@shared/api';
   import { useGenresStore } from '@/stores/genres';
   import { posterUrl } from '@/util/images';
-  import { mediaPage, mediaTitle, mediaYear } from '@/util/media';
+  import { mediaPage, mediaTitle, mediaType, mediaYear } from '@/util/media';
 
   const props = defineProps<{
     item: MediaItem;
+    /** Says whether it is a movie or a tv show, among results of both. */
+    showType?: boolean;
   }>();
 
-  const { locale } = useI18n();
+  const { t, locale } = useI18n();
   const genreStore = useGenresStore();
 
   const title = computed(() => mediaTitle(props.item));
   const year = computed(() => mediaYear(props.item));
   const page = computed(() => mediaPage(props.item));
+  const typeLabel = computed(() =>
+    mediaType(props.item) === 'tv' ? 'pageTitles.tvShow' : 'pageTitles.movie',
+  );
 
   const genres = computed(() =>
     genreStore.names(props.item.genre_ids, locale.value),
@@ -62,6 +67,12 @@
         </div>
       </div>
     </div>
+    <p
+      v-if="showType"
+      class="text-center text-xs font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400"
+    >
+      {{ t(typeLabel) }}
+    </p>
     <div
       class="mt-1 flex justify-center p-3 text-lg font-medium text-surface-900 dark:text-surface-0"
     >

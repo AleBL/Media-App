@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { posterUrl } from '@/util/images';
+import { posterUrl, profileUrl } from '@/util/images';
+
+describe('profileUrl', () => {
+  it('is small for the cast, and larger when asked', () => {
+    expect(profileUrl('/keanu.jpg')).toBe(
+      'https://image.tmdb.org/t/p/w185/keanu.jpg',
+    );
+    expect(profileUrl('/keanu.jpg', 'h632')).toBe(
+      'https://image.tmdb.org/t/p/h632/keanu.jpg',
+    );
+  });
+});
 
 describe('posterUrl', () => {
   it('builds a TMDB url sized for the result cards', () => {

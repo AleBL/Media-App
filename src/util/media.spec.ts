@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { mediaPage, mediaTitle, mediaYear } from '@/util/media';
+import type { PersonItem } from '@shared/api';
+import {
+  isPerson,
+  mediaPage,
+  mediaTitle,
+  mediaType,
+  mediaYear,
+  searchKey,
+} from '@/util/media';
+
+const keanu: PersonItem = {
+  id: 603,
+  media_type: 'person',
+  name: 'Keanu Reeves',
+  known_for: [],
+};
 
 describe('media helpers', () => {
   it('reads the title of a movie and the name of a tv show', () => {
@@ -26,5 +41,23 @@ describe('media helpers', () => {
     expect(mediaPage({ id: 1396, name: 'Breaking Bad' })).toMatchObject({
       params: { type: 'tv' },
     });
+  });
+
+  it('tells a person from a title', () => {
+    expect(isPerson(keanu)).toBe(true);
+    expect(isPerson({ id: 603, media_type: 'movie' })).toBe(false);
+    expect(isPerson({ id: 603, title: 'The Matrix' })).toBe(false);
+    expect(mediaType({ id: 603, title: 'The Matrix' })).toBe('movie');
+    expect(mediaType({ id: 1396, media_type: 'tv', title: 'x' })).toBe('tv');
+  });
+
+  it('keys results of different types that share an id apart', () => {
+    const keys = [
+      keanu,
+      { id: 603, media_type: 'movie' as const },
+      { id: 603, name: 'A tv show' },
+    ].map(searchKey);
+
+    expect(keys).toEqual(['person-603', 'movie-603', 'tv-603']);
   });
 });

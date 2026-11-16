@@ -56,6 +56,32 @@ test.describe('web version', () => {
     expect(tmdb.lastSearch()?.language).toBe('pt-BR');
   });
 
+  test('shows the lists of the home page, through the site', async ({
+    page,
+    site,
+    tmdb,
+  }) => {
+    await page.goto(site.url);
+
+    const trending = page.getByRole('region', { name: 'Trending this week' });
+
+    await expect(trending.getByRole('link')).toHaveText([
+      'Movie 1 [en]',
+      'Show 1 [en]',
+      'Movie 2 [en]',
+    ]);
+    await expect(
+      page.getByRole('region', { name: 'Popular TV shows' }),
+    ).toContainText('Show 11 [en]');
+    expect(tmdb.lists().every(({ credential }) => credential === 'app')).toBe(
+      true,
+    );
+
+    await trending.getByRole('link', { name: 'Movie 2 [en]' }).click();
+
+    await expect(heading(page)).toHaveText('Movie 2 [en] (2020)');
+  });
+
   test.describe('the page of a title', () => {
     // The region for where to watch comes from the languages of the browser.
     test.use({ locale: 'en-US' });

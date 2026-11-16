@@ -4,6 +4,7 @@ import type {
   CredentialStatus,
   MediaAppApi,
   MediaDetails,
+  MediaItem,
   Paged,
   SearchItem,
   SessionKeeping,
@@ -117,6 +118,21 @@ export function installFakeApi() {
       list: vi.fn<MediaAppApi['tmdb']['list']>(async () => ({
         ok: true,
         data: [],
+      })),
+    },
+    // An account with nothing in its lists, and changes that go through.
+    account: {
+      states: vi.fn<MediaAppApi['account']['states']>(async () => ({
+        ok: true,
+        data: { watchlist: false, favorite: false },
+      })),
+      mark: vi.fn<MediaAppApi['account']['mark']>(async () => ({
+        ok: true,
+        data: null,
+      })),
+      list: vi.fn<MediaAppApi['account']['list']>(async () => ({
+        ok: true,
+        data: pageOf() as Paged<MediaItem>,
       })),
     },
     credentials: {

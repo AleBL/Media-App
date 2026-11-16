@@ -700,6 +700,110 @@ describe('details', () => {
   });
 });
 
+describe('lists of the account', () => {
+  const SESSION = 'the-session-id-works-as-a-password';
+
+  it('reads whether a title is in the watchlist and in the favorites', async () => {
+    const { client, requestedUrl } = setup([
+      answer(200, { id: 1396, favorite: true, rated: false, watchlist: false }),
+    ]);
+
+    await expect(
+      client.accountStates(SESSION, { type: 'tv', id: 1396 }),
+    ).resolves.toEqual({ watchlist: false, favorite: true });
+    expect(requestedUrl().pathname).toBe('/3/tv/1396/account_states');
+    expect(requestedUrl().searchParams.get('session_id')).toBe(SESSION);
+  });
+
+  it('reports an answer without the states as unreadable', async () => {
+    const { client } = setup([answer(200, { id: 603 })]);
+
+    await expect(
+      client.accountStates(SESSION, { type: 'movie', id: 603 }),
+    ).rejects.toMatchObject({ code: 'server' });
+  });
+
+  it.each([
+    ['watchlist', true],
+    ['favorite', false],
+  ] as const)(
+    'puts a title in the %s, or takes it out',
+    async (list, value) => {
+      const { client, fetch, requestedUrl } = setup([
+        answer(201, { status_code: 1, status_message: 'Success.' }),
+      ]);
+
+      await client.mark(SESSION, 7, { list, type: 'movie', id: 603, value });
+
+      const init = fetch.mock.calls[0][1];
+      expect(requestedUrl().pathname).toBe(`/3/account/7/${list}`);
+      expect(requestedUrl().searchParams.get('session_id')).toBe(SESSION);
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(init.body!)).toEqual({
+        media_type: 'movie',
+        media_id: 603,
+        [list]: value,
+      });
+    },
+  );
+
+  it.each([
+    ['movie', '/3/account/7/watchlist/movies'],
+    ['tv', '/3/account/7/watchlist/tv'],
+  ] as const)(
+    'reads a page of the %s of a list, the last added first',
+    async (type, path) => {
+      const { client, requestedUrl } = setup([
+        answer(200, {
+          page: 2,
+          results: [
+            { id: 603, title: 'The Matrix', name: undefined },
+            { id: 7, title: 'For adults', adult: true },
+          ],
+          total_pages: 2,
+          total_results: 22,
+        }),
+      ]);
+
+      await expect(
+        client.accountList(SESSION, 7, {
+          list: 'watchlist',
+          type,
+          page: 2,
+          language: 'pt-BR',
+        }),
+      ).resolves.toEqual({
+        page: 2,
+        results: [{ id: 603, media_type: type, title: 'The Matrix' }],
+        totalPages: 2,
+        totalResults: 22,
+      });
+      expect(requestedUrl().pathname).toBe(path);
+      expect(Object.fromEntries(requestedUrl().searchParams)).toEqual({
+        session_id: SESSION,
+        page: '2',
+        language: 'pt-BR',
+        sort_by: 'created_at.desc',
+        api_key: V3_KEY,
+      });
+    },
+  );
+
+  it('tells a session that is over by what TMDB says', async () => {
+    const { client } = setup([
+      answer(401, {
+        success: false,
+        status_code: 3,
+        status_message: 'Authentication failed.',
+      }),
+    ]);
+
+    await expect(
+      client.accountStates(SESSION, { type: 'movie', id: 603 }),
+    ).rejects.toMatchObject({ code: 'unauthorized', tmdbStatus: 3 });
+  });
+});
+
 describe('signing in', () => {
   const REQUEST_TOKEN = 'a1b2c3d4e5f6';
   const SESSION = 'the-session-id-works-as-a-password';

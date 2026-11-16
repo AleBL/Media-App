@@ -275,6 +275,67 @@ describe('web api', () => {
     );
   });
 
+  describe('lists of the account', () => {
+    it('asks the site where a title is', async () => {
+      const states = { watchlist: true, favorite: false };
+      const fetch = answering({ ok: true, data: states });
+
+      await expect(
+        createWebApi(fetch).account.states({ type: 'movie', id: 603 }),
+      ).resolves.toEqual({ ok: true, data: states });
+      expect(fetch.mock.calls[0][0]).toBe(
+        '/api/account?resource=states&type=movie&id=603',
+      );
+      expect(fetch.mock.calls[0][1].method).toBeUndefined();
+    });
+
+    it('changes a list with a POST', async () => {
+      const fetch = answering({ ok: true, data: null });
+
+      await expect(
+        createWebApi(fetch).account.mark({
+          list: 'favorite',
+          type: 'tv',
+          id: 1396,
+          value: false,
+        }),
+      ).resolves.toEqual({ ok: true, data: null });
+      expect(fetch.mock.calls[0][0]).toBe(
+        '/api/account?resource=mark&list=favorite&type=tv&id=1396&value=false',
+      );
+      expect(fetch.mock.calls[0][1].method).toBe('POST');
+    });
+
+    it('asks the site for a page of a list', async () => {
+      const fetch = answering({
+        ok: true,
+        data: { page: 2, results: [], totalPages: 2, totalResults: 21 },
+      });
+
+      await createWebApi(fetch).account.list({
+        list: 'watchlist',
+        type: 'movie',
+        page: 2,
+        language: 'es',
+      });
+
+      expect(fetch.mock.calls[0][0]).toBe(
+        '/api/account?resource=list&list=watchlist&type=movie&page=2&language=es',
+      );
+    });
+
+    it('hands back that nobody is signed in', async () => {
+      const failure = { ok: false, error: { code: 'signed-out' } };
+
+      await expect(
+        createWebApi(answering(failure, 401)).account.states({
+          type: 'movie',
+          id: 603,
+        }),
+      ).resolves.toEqual(failure);
+    });
+  });
+
   it('hands back a failure of the site as it came', async () => {
     const failure = { ok: false, error: { code: 'rate-limited', status: 429 } };
 

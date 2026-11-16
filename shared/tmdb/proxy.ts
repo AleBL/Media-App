@@ -18,8 +18,9 @@ export interface TmdbProxyOptions {
 }
 
 // What the browser is told when a request fails. A credential that TMDB
-// refuses is the site's problem, not the visitor's, so it is not a 401.
-const HTTP_STATUS: Record<TmdbErrorCode, number> = {
+// refuses is the site's problem, not the visitor's, so it is not a 401: only
+// a session that is missing or over is.
+export const HTTP_STATUS: Record<TmdbErrorCode, number> = {
   'invalid-request': 400,
   'not-found': 404,
   'rate-limited': 429,
@@ -28,6 +29,7 @@ const HTTP_STATUS: Record<TmdbErrorCode, number> = {
   server: 502,
   network: 502,
   timeout: 504,
+  'signed-out': 401,
 };
 
 // Answers are the same for everyone, so the CDN in front of the function
@@ -64,7 +66,7 @@ function failure(error: TmdbFailure, headers: Record<string, string> = {}) {
   return response;
 }
 
-function toFailure(error: unknown): TmdbFailure {
+export function toFailure(error: unknown): TmdbFailure {
   if (error instanceof TmdbError) {
     return {
       code: error.code,

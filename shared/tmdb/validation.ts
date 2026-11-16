@@ -1,9 +1,14 @@
 import type {
+  AccountList,
+  AccountListRequest,
   DetailsRequest,
   ListRequest,
+  MarkRequest,
   MediaList,
+  MediaType,
   SearchRequest,
   SearchType,
+  TitleRequest,
 } from '../api';
 import { TMDB_MAX_PAGES } from './client';
 
@@ -96,6 +101,66 @@ export function parseSearchRequest(value: unknown): SearchRequest | null {
   }
 
   return { type: type as SearchType, query: text, page, language: locale };
+}
+
+const isMediaType = (value: unknown): value is MediaType =>
+  value === 'movie' || value === 'tv';
+
+const isId = (value: unknown): value is number =>
+  typeof value === 'number' &&
+  Number.isInteger(value) &&
+  value >= 1 &&
+  value <= MAX_ID;
+
+const isPage = (value: unknown): value is number =>
+  typeof value === 'number' &&
+  Number.isInteger(value) &&
+  value >= 1 &&
+  value <= TMDB_MAX_PAGES;
+
+const ACCOUNT_LISTS: readonly AccountList[] = ['watchlist', 'favorite'];
+
+const isAccountList = (value: unknown): value is AccountList =>
+  ACCOUNT_LISTS.includes(value as AccountList);
+
+/** A movie or tv show, by its id. */
+export function parseTitleRequest(value: unknown): TitleRequest | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const { type, id } = value as Record<string, unknown>;
+
+  return isMediaType(type) && isId(id) ? { type, id } : null;
+}
+
+export function parseMarkRequest(value: unknown): MarkRequest | null {
+  const title = parseTitleRequest(value);
+
+  if (!title) {
+    return null;
+  }
+
+  const { list, value: inList } = value as Record<string, unknown>;
+
+  return isAccountList(list) && typeof inList === 'boolean'
+    ? { ...title, list, value: inList }
+    : null;
+}
+
+export function parseAccountListRequest(
+  value: unknown,
+): AccountListRequest | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const { list, type, page, language } = value as Record<string, unknown>;
+  const locale = parseLanguage(language);
+
+  return isAccountList(list) && isMediaType(type) && isPage(page) && locale
+    ? { list, type, page, language: locale }
+    : null;
 }
 
 /** A v3 API key or a v4 access token, without surrounding spaces. */

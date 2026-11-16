@@ -24,6 +24,8 @@ const FUNCTIONS: Record<string, string> = {
   'api/auth/callback': 'GET',
   'api/auth/session': 'GET',
   'api/auth/logout': 'POST',
+  // and POST, for a change: see below
+  'api/account': 'GET',
 };
 
 type Handler = (request: Request) => Promise<Response>;
@@ -125,5 +127,28 @@ describe('site functions, built as Vercel builds them', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ status: 'anonymous' });
+  });
+
+  it('answers that nobody signed in has no lists to read or change', async () => {
+    const { GET, POST } = load('api/account');
+    const read = await GET(
+      new Request(
+        'https://site.test/api/account?resource=states&type=movie&id=603',
+      ),
+    );
+    const change = await POST(
+      new Request(
+        'https://site.test/api/account?resource=mark&list=watchlist&type=movie&id=603&value=true',
+        { method: 'POST', headers: { origin: 'https://site.test' } },
+      ),
+    );
+
+    for (const response of [read, change]) {
+      expect(response.status).toBe(401);
+      await expect(response.json()).resolves.toEqual({
+        ok: false,
+        error: { code: 'signed-out' },
+      });
+    }
   });
 });

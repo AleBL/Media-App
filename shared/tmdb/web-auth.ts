@@ -1,4 +1,9 @@
-import { AUTH_PATHS, type LoginFailure, type SessionState } from '../api';
+import {
+  AUTH_PATHS,
+  type LoginFailure,
+  type Result,
+  type SessionState,
+} from '../api';
 import { createTmdbClient, type FetchLike } from './client';
 import {
   authorizeUrl,
@@ -93,7 +98,7 @@ function siteOf(request: Request) {
 }
 
 /** One request: what the browser sent, and the answer being put together. */
-function visit(request: Request) {
+export function visit(request: Request) {
   const { origin, secure } = siteOf(request);
   // Nothing here is the same for two visitors: no cache may keep it.
   const headers = new Headers({
@@ -139,10 +144,10 @@ function visit(request: Request) {
       return this.redirect(ACCOUNT_PAGE);
     },
 
-    answer(state: SessionState, status = 200) {
+    answer(body: SessionState | Result<unknown>, status = 200) {
       headers.set('Content-Type', 'application/json; charset=utf-8');
 
-      return new Response(JSON.stringify(state), { status, headers });
+      return new Response(JSON.stringify(body), { status, headers });
     },
 
     refuse(status: number, allow?: string) {

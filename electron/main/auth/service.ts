@@ -4,7 +4,7 @@ import type {
   SessionKeeping,
   SessionState,
 } from '../../../shared/api';
-import type { TmdbClient } from '../../../shared/tmdb/client';
+import { TmdbError, type TmdbClient } from '../../../shared/tmdb/client';
 import {
   authorizeUrl,
   isSessionDenied,
@@ -125,6 +125,14 @@ export function createAuthService(options: AuthServiceOptions) {
 
   const forget = () => keep(() => store.clear()).catch(() => {});
 
+  /** TMDB no longer knows the session: whoever it was is signed out. */
+  async function over() {
+    sessionId = null;
+    clearTimeout(recheck);
+    set({ status: 'anonymous' });
+    await forget();
+  }
+
   /** Asks TMDB whether the session saved by an earlier launch still works. */
   async function check(id: string) {
     clearTimeout(recheck);
@@ -140,9 +148,7 @@ export function createAuthService(options: AuthServiceOptions) {
 
       // Ended in this app on another launch, or on the TMDB website.
       if (isSessionOver(error)) {
-        sessionId = null;
-        set({ status: 'anonymous' });
-        await forget();
+        await over();
 
         return;
       }
@@ -431,6 +437,36 @@ export function createAuthService(options: AuthServiceOptions) {
       kept = keeping;
 
       return signIn(state.account, state.offline);
+    },
+
+    /**
+     * Asks TMDB something of the account of whoever signed in, with their
+     * session, which never leaves this process. Nobody signed in, or a
+     * session that TMDB says is over, is `signed-out`; the second also signs
+     * them out here.
+     */
+    async withSession<T>(
+      work: (sessionId: string, account: Account) => Promise<T>,
+    ): Promise<T> {
+      const id = sessionId;
+
+      if (!id || state.status !== 'authenticated') {
+        throw new TmdbError('signed-out');
+      }
+
+      try {
+        return await work(id, state.account);
+      } catch (error) {
+        if (!isSessionOver(error)) {
+          throw error;
+        }
+
+        if (sessionId === id) {
+          await over();
+        }
+
+        throw new TmdbError('signed-out', 401);
+      }
     },
 
     /** Signs out here first, so being offline never keeps anyone signed in. */

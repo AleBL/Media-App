@@ -36,12 +36,14 @@ test.describe('signing in on the web version', () => {
     await expect(page.getByText(`Signed in as ${ACCOUNT.name}`)).toBeVisible();
     await expect(page).toHaveURL(`${site.url}#/account`);
     await expect(accountLink(page)).toContainText(ACCOUNT.name);
+    // a v4 request token, which keeps the way back to the site
     expect(tmdb.website.visits).toEqual([
       {
-        requestToken: expect.stringMatching(/^[0-9a-f]{40}$/),
+        requestToken: expect.stringMatching(/^[\w-]+\.[\w-]+\.[\w-]+$/),
         redirectTo: `${site.url}api/auth/callback`,
       },
     ]);
+    expect(tmdb.accessTokens()).toHaveLength(1);
     expect(tmdb.sessions()).toHaveLength(1);
   });
 
@@ -69,13 +71,19 @@ test.describe('signing in on the web version', () => {
     await expect(page.getByText(`Signed in as ${ACCOUNT.name}`)).toBeVisible();
 
     const [session] = tmdb.sessions();
+    const [accessToken] = tmdb.accessTokens();
     const cookie = await sessionCookie(page);
+    const access = (await page.context().cookies()).find(
+      ({ name }) => name === 'media-app-access',
+    );
 
-    // The browser holds it for the site, out of reach of scripts.
+    // The browser holds them for the site, out of reach of scripts.
     expect(cookie?.value).toBe(session);
     expect(cookie?.httpOnly).toBe(true);
     expect(cookie?.sameSite).toBe('Lax');
     expect(cookie?.expires).toBeGreaterThan(Date.now() / 1000 + 179 * 86400);
+    expect(access?.value).toBe(accessToken);
+    expect(access?.httpOnly).toBe(true);
 
     const seen = await page.evaluate(() =>
       JSON.stringify([
@@ -87,11 +95,14 @@ test.describe('signing in on the web version', () => {
     );
 
     expect(seen).not.toContain(session);
+    expect(seen).not.toContain(accessToken);
     expect(received.size).toBeGreaterThan(3);
 
     for (const [address, body] of received) {
       expect(address.includes(session), address).toBe(false);
       expect(body.includes(session), address).toBe(false);
+      expect(address.includes(accessToken), address).toBe(false);
+      expect(body.includes(accessToken), address).toBe(false);
       expect(body.includes(APP_TOKEN), address).toBe(false);
     }
   });
@@ -136,7 +147,8 @@ test.describe('signing in on the web version', () => {
     await expect(signInButton(page)).toBeVisible();
     await expect(accountLink(page)).toContainText('Sign in');
     expect(tmdb.sessions()).toHaveLength(0);
-    expect(await sessionCookie(page)).toBeUndefined();
+    expect(tmdb.accessTokens()).toHaveLength(0);
+    expect(await page.context().cookies()).toEqual([]);
 
     await page.reload();
 
@@ -193,7 +205,7 @@ test.describe('signing in on the web version', () => {
     await expect(signInButton(page)).toBeVisible();
     await expect(page.getByRole('alert')).toHaveCount(0);
     expect(
-      tmdb.requests.filter(({ path }) => path.includes('/authentication/')),
+      tmdb.requests.filter(({ path }) => /\/auth(entication)?\//.test(path)),
     ).toHaveLength(0);
     expect(await page.context().cookies()).toHaveLength(0);
   });

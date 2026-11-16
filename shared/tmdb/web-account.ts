@@ -8,9 +8,9 @@ import {
   parseRateRequest,
   parseTitleRequest,
 } from './validation';
-import { visit, type WebAuthOptions } from './web-auth';
+import { dropAccess, visit, type WebAuthOptions } from './web-auth';
 
-export type WebAccountOptions = Omit<WebAuthOptions, 'authorizeUrl'>;
+export type WebAccountOptions = Omit<WebAuthOptions, 'website'>;
 
 /** The resources that change something at TMDB: POST only. */
 const CHANGES = new Set(['mark', 'rate', 'unrate']);
@@ -154,7 +154,7 @@ export function createWebAccount(options: WebAccountOptions) {
       // Ended on the TMDB website, or in another browser: this one forgets
       // it too, the way /api/auth/session does.
       if (isSessionOver(error)) {
-        at.drop('session');
+        dropAccess(at);
 
         return fail('signed-out');
       }

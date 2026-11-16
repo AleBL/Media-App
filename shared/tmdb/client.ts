@@ -133,6 +133,24 @@ type DetailsBody = {
 
 type Fields = Record<string, unknown>;
 
+/**
+ * What signing in gives. With the access token of the app (v4) the user
+ * signs in through TMDB v4, which also gives their own access token, the
+ * one their lists take; with a key (v3), only the session.
+ */
+export interface Access {
+  /** TMDB's v3 session_id: the watchlist, the favorites and the ratings. */
+  sessionId: string;
+  /** The v4 access token of the user: a password of the account too. */
+  accessToken?: string;
+  /** The id of the account in v4, such as "5f0c...": not the v3 number. */
+  accountObjectId?: string;
+}
+
+/** A v4 request token is a JWT, in three parts; a v3 one is plain hex. */
+export const isV4RequestToken = (token: string) =>
+  token.split('.').length === 3;
+
 /** What a request that changes something at TMDB sends. */
 type Send = {
   method: 'POST' | 'DELETE';
@@ -455,6 +473,8 @@ function toDetails(body: DetailsBody, request: DetailsRequest): MediaDetails {
 
 export function createTmdbClient(options: TmdbClientOptions) {
   const baseUrl = (options.baseUrl || TMDB_BASE_URL).replace(/\/+$/, '');
+  // The same address, with v4 in place of v3.
+  const v4BaseUrl = baseUrl.replace(/\/3$/, '/4');
   const timeoutMs = options.timeoutMs ?? 8000;
   const retries = options.retries ?? 2;
   const sleep =
@@ -465,6 +485,7 @@ export function createTmdbClient(options: TmdbClientOptions) {
     path: string,
     params: Record<string, string | number>,
     send?: Send,
+    version: 3 | 4 = 3,
   ): Promise<T> {
     const credential = options.getCredential();
 
@@ -472,7 +493,7 @@ export function createTmdbClient(options: TmdbClientOptions) {
       throw new TmdbError('missing-credential');
     }
 
-    const url = new URL(`${baseUrl}${path}`);
+    const url = new URL(`${version === 4 ? v4BaseUrl : baseUrl}${path}`);
     const headers: Record<string, string> = { Accept: 'application/json' };
     const content = !send
       ? {}
@@ -530,6 +551,38 @@ export function createTmdbClient(options: TmdbClientOptions) {
       } catch {
         throw new TmdbError('server', response.status, 'Unreadable answer');
       }
+    }
+  }
+
+  /**
+   * Ends at TMDB the session, the access token of the user, or both. Both
+   * are asked even when one fails, which is then what this throws.
+   */
+  async function end({
+    sessionId,
+    accessToken,
+  }: Partial<Access>): Promise<void> {
+    const ended = await Promise.allSettled([
+      sessionId &&
+        request(
+          '/authentication/session',
+          {},
+          { method: 'DELETE', body: { session_id: sessionId } },
+        ),
+      accessToken &&
+        request(
+          '/auth/access_token',
+          {},
+          { method: 'DELETE', body: { access_token: accessToken } },
+          4,
+        ),
+    ]);
+    const failed = ended.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+
+    if (failed) {
+      throw failed.reason;
     }
   }
 
@@ -623,34 +676,75 @@ export function createTmdbClient(options: TmdbClientOptions) {
 
     /**
      * First step of signing in: a token for the user to approve on the TMDB
-     * website. TMDB forgets it after 60 minutes.
+     * website. With the access token of the app it is a v4 one, which keeps
+     * `redirectTo` itself and lasts 15 minutes; with a key, a v3 one, which
+     * lasts 60 and takes `redirectTo` in the address of the approval page
+     * (login.ts).
      */
-    async createRequestToken(): Promise<string> {
-      const body = await request<{ request_token?: unknown }>(
-        '/authentication/token/new',
-        {},
-      );
+    async createRequestToken(redirectTo?: string): Promise<string> {
+      const body = isAccessToken(options.getCredential() ?? '')
+        ? await request<Fields>(
+            '/auth/request_token',
+            {},
+            {
+              method: 'POST',
+              body: redirectTo ? { redirect_to: redirectTo } : {},
+            },
+            4,
+          )
+        : await request<Fields>('/authentication/token/new', {});
 
-      return typeof body.request_token === 'string' && body.request_token
-        ? body.request_token
-        : unreadable();
+      return text(body.request_token) ?? unreadable();
     },
 
     /**
-     * Trades an approved request token for a session, once. TMDB answers 401
-     * with `status_code` 17 for a token that was not approved or was already
-     * traded.
+     * Trades an approved request token for what signing in gives, once. A
+     * v4 token becomes the access token of the user, then a v3 session made
+     * from it. TMDB refuses a token that was not approved (or was already
+     * traded) with `status_code` 17 in v3 and 41 in v4.
      */
-    async createSession(requestToken: string): Promise<string> {
-      const body = await request<{ session_id?: unknown }>(
-        '/authentication/session/new',
+    async createSession(requestToken: string): Promise<Access> {
+      if (!isV4RequestToken(requestToken)) {
+        const body = await request<Fields>(
+          '/authentication/session/new',
+          {},
+          { method: 'POST', body: { request_token: requestToken } },
+        );
+
+        return { sessionId: text(body.session_id) ?? unreadable() };
+      }
+
+      const user = await request<Fields>(
+        '/auth/access_token',
         {},
         { method: 'POST', body: { request_token: requestToken } },
+        4,
       );
+      const accessToken = text(user.access_token);
+      const accountObjectId = text(user.account_id);
 
-      return typeof body.session_id === 'string' && body.session_id
-        ? body.session_id
-        : unreadable();
+      if (!accessToken || !accountObjectId) {
+        return unreadable();
+      }
+
+      try {
+        const body = await request<Fields>(
+          '/authentication/session/convert/4',
+          {},
+          { method: 'POST', body: { access_token: accessToken } },
+        );
+
+        return {
+          sessionId: text(body.session_id) ?? unreadable(),
+          accessToken,
+          accountObjectId,
+        };
+      } catch (error) {
+        // Of no use without the session: TMDB is told to forget it too.
+        await end({ accessToken }).catch(() => {});
+
+        throw error;
+      }
     },
 
     /**
@@ -753,14 +847,8 @@ export function createTmdbClient(options: TmdbClientOptions) {
       );
     },
 
-    /** Ends a session at TMDB: it stops working everywhere. */
-    async deleteSession(sessionId: string): Promise<void> {
-      await request(
-        '/authentication/session',
-        {},
-        { method: 'DELETE', body: { session_id: sessionId } },
-      );
-    },
+    /** Ends at TMDB what signing in gave: it stops working everywhere. */
+    deleteSession: end,
   };
 }
 

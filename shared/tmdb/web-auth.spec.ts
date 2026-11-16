@@ -4,30 +4,53 @@ import type { SessionState } from '../api';
 import type { FetchLike } from './client';
 import { createWebAuth } from './web-auth';
 
+// The access token of the site, in three parts: the login goes through v4.
 const TOKEN = 'site.read-access.token';
+// A key, in place of it: the login goes through v3.
+const V3_KEY = '0123456789abcdef0123456789abcdef';
 const SITE = 'https://media-app.test';
-const REQUEST_TOKEN = 'a'.repeat(40);
+const REQUEST_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJ2IjoxfQ.cmVxdWVzdA';
+const V3_REQUEST_TOKEN = 'a'.repeat(40);
 const SESSION = 'b'.repeat(40);
 const OLD_SESSION = 'c'.repeat(40);
+const USER_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZGEifQ.dXNlcg';
+const OLD_USER_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJvbGQifQ.b2xk';
+const ACCOUNT_OBJECT = '5f0c4a1b2c3d4e5f6a7b8c9d';
 
 const LOGIN = '__Host-media-app-login';
 const KEPT = '__Host-media-app-session';
+const ACCESS = '__Host-media-app-access';
+const OBJECT = '__Host-media-app-account';
 const FAILURE = '__Host-media-app-login-failure';
 
 type Answer = [status: number, body: unknown];
 
+const TOKEN_V4 = 'POST /4/auth/request_token';
+const ACCESS_NEW = 'POST /4/auth/access_token';
+const CONVERT = 'POST /3/authentication/session/convert/4';
+const ACCESS_END = 'DELETE /4/auth/access_token';
 const TOKEN_NEW = 'GET /3/authentication/token/new';
 const SESSION_NEW = 'POST /3/authentication/session/new';
 const SESSION_END = 'DELETE /3/authentication/session';
 const ACCOUNT = 'GET /3/account';
 
-const REFUSED: Answer = [401, { status_code: 17, status_message: 'Denied.' }];
+const REFUSED: Answer = [
+  422,
+  { status_code: 41, status_message: 'Not approved.' },
+];
 const BROKEN: Answer = [500, { status_code: 11 }];
 
 /** A TMDB where everything works, except what `answers` says otherwise. */
 function tmdbWith(answers: Record<string, Answer> = {}) {
   const all: Record<string, Answer> = {
-    [TOKEN_NEW]: [200, { success: true, request_token: REQUEST_TOKEN }],
+    [TOKEN_V4]: [200, { success: true, request_token: REQUEST_TOKEN }],
+    [ACCESS_NEW]: [
+      200,
+      { success: true, access_token: USER_TOKEN, account_id: ACCOUNT_OBJECT },
+    ],
+    [CONVERT]: [200, { success: true, session_id: SESSION }],
+    [ACCESS_END]: [200, { success: true, status_code: 13 }],
+    [TOKEN_NEW]: [200, { success: true, request_token: V3_REQUEST_TOKEN }],
     [SESSION_NEW]: [200, { success: true, session_id: SESSION }],
     [SESSION_END]: [200, { success: true }],
     [ACCOUNT]: [
@@ -103,19 +126,31 @@ async function visit(path: string, options: Options = {}) {
 const state = (response: Response) => response.json() as Promise<SessionState>;
 
 const CLEARED = ['', 'Path=/', 'Max-Age=0', 'HttpOnly', 'SameSite=Lax'];
+const KEPT_FOR = (value: string) => [
+  value,
+  'Path=/',
+  `Max-Age=${180 * 24 * 60 * 60}`,
+  'HttpOnly',
+  'SameSite=Lax',
+  'Secure',
+];
+
+/** Where the request token was told to send the browser back. */
+const wayBack = (fetch: ReturnType<typeof tmdbWith>) =>
+  JSON.parse(fetch.mock.calls[0][1].body!).redirect_to;
 
 describe('web auth', () => {
   describe('login', () => {
-    it('sends the browser to the approval page of TMDB, with the way back to the site', async () => {
+    it('sends the browser to the approval page of TMDB, with the way back to the site in the token', async () => {
       const { response, fetch } = await visit('/api/auth/login');
 
       expect(response.status).toBe(302);
       expect(response.headers.get('Location')).toBe(
-        `https://www.themoviedb.org/authenticate/${REQUEST_TOKEN}` +
-          `?redirect_to=${encodeURIComponent(`${SITE}/api/auth/callback`)}`,
+        `https://www.themoviedb.org/auth/access?request_token=${REQUEST_TOKEN}`,
       );
       expect(response.headers.get('Cache-Control')).toBe('no-store');
-      expect(asked(fetch)).toEqual([TOKEN_NEW]);
+      expect(asked(fetch)).toEqual([TOKEN_V4]);
+      expect(wayBack(fetch)).toBe(`${SITE}/api/auth/callback`);
       expect(fetch.mock.calls[0][1].headers.Authorization).toBe(
         `Bearer ${TOKEN}`,
       );
@@ -140,7 +175,7 @@ describe('web auth', () => {
     });
 
     it('goes by the address the browser used, behind the proxy of the host', async () => {
-      const { response, set } = await visit('/api/auth/login', {
+      const { fetch, set } = await visit('/api/auth/login', {
         site: 'http://internal:3000',
         headers: {
           'x-forwarded-proto': 'https',
@@ -148,24 +183,18 @@ describe('web auth', () => {
         },
       });
 
-      expect(
-        new URL(response.headers.get('Location')!).searchParams.get(
-          'redirect_to',
-        ),
-      ).toBe('https://media.example.com/api/auth/callback');
+      expect(wayBack(fetch)).toBe(
+        'https://media.example.com/api/auth/callback',
+      );
       expect(set.get(LOGIN)).toContain('Secure');
     });
 
     it('works over plain http, for the dev server', async () => {
-      const { response, set } = await visit('/api/auth/login', {
+      const { fetch, set } = await visit('/api/auth/login', {
         site: 'http://localhost:5173',
       });
 
-      expect(
-        new URL(response.headers.get('Location')!).searchParams.get(
-          'redirect_to',
-        ),
-      ).toBe('http://localhost:5173/api/auth/callback');
+      expect(wayBack(fetch)).toBe('http://localhost:5173/api/auth/callback');
       // no `__Host-` prefix and no Secure: a browser would refuse them here
       expect(set.get('media-app-login')).toEqual([
         REQUEST_TOKEN,
@@ -180,18 +209,18 @@ describe('web auth', () => {
       ['TMDB cannot be reached', { fetch: unreachable() }, 'network'],
       [
         'TMDB is failing',
-        { fetch: tmdbWith({ [TOKEN_NEW]: BROKEN }) },
+        { fetch: tmdbWith({ [TOKEN_V4]: BROKEN }) },
         'network',
       ],
       [
         'TMDB refuses the credential of the site',
-        { fetch: tmdbWith({ [TOKEN_NEW]: [401, { status_code: 7 }] }) },
+        { fetch: tmdbWith({ [TOKEN_V4]: [401, { status_code: 7 }] }) },
         'unavailable',
       ],
       ['the site has no credential', { credential: '' }, 'unavailable'],
       [
         'TMDB answers something else',
-        { fetch: tmdbWith({ [TOKEN_NEW]: [200, { success: true }] }) },
+        { fetch: tmdbWith({ [TOKEN_V4]: [200, { success: true }] }) },
         'network',
       ],
     ] satisfies [string, Options, string][])(
@@ -214,14 +243,13 @@ describe('web auth', () => {
       const auth = createWebAuth({
         credential: TOKEN,
         fetch: tmdbWith(),
-        authorizeUrl: 'http://127.0.0.1:4321/authenticate',
+        website: 'http://127.0.0.1:4321',
       });
 
       const response = await auth(new Request(`${SITE}/api/auth/login`));
 
       expect(response.headers.get('Location')).toBe(
-        `http://127.0.0.1:4321/authenticate/${REQUEST_TOKEN}` +
-          `?redirect_to=${encodeURIComponent(`${SITE}/api/auth/callback`)}`,
+        `http://127.0.0.1:4321/auth/access?request_token=${REQUEST_TOKEN}`,
       );
     });
 
@@ -233,43 +261,31 @@ describe('web auth', () => {
   });
 
   describe('callback', () => {
-    const back = `/api/auth/callback?request_token=${REQUEST_TOKEN}&approved=true`;
+    // TMDB v4 sends the browser back to the address as it was given.
+    const back = '/api/auth/callback';
     const waiting = { [LOGIN]: REQUEST_TOKEN };
 
-    it('trades the request token of the cookie for a session, kept in a cookie', async () => {
+    it('trades the request token of the cookie for the access of the user and a session, kept in cookies', async () => {
       const { response, set, fetch } = await visit(back, { cookies: waiting });
 
       expect(response.status).toBe(302);
       expect(response.headers.get('Location')).toBe('/#/account');
-      expect(asked(fetch)).toEqual([SESSION_NEW]);
+      expect(asked(fetch)).toEqual([ACCESS_NEW, CONVERT]);
       expect(JSON.parse(fetch.mock.calls[0][1].body!)).toEqual({
         request_token: REQUEST_TOKEN,
       });
-      expect(set.get(KEPT)).toEqual([
-        SESSION,
-        'Path=/',
-        `Max-Age=${180 * 24 * 60 * 60}`,
-        'HttpOnly',
-        'SameSite=Lax',
-        'Secure',
-      ]);
+      expect(set.get(KEPT)).toEqual(KEPT_FOR(SESSION));
+      expect(set.get(ACCESS)).toEqual(KEPT_FOR(USER_TOKEN));
+      expect(set.get(OBJECT)).toEqual(KEPT_FOR(ACCOUNT_OBJECT));
       // traded once
       expect(set.get(LOGIN)).toEqual([...CLEARED, 'Secure']);
       expect(set.get(FAILURE)).toEqual([...CLEARED, 'Secure']);
     });
 
-    it('leaves the login that is waiting alone when the address does not say which it is', async () => {
-      const { response, set, fetch } = await visit('/api/auth/callback', {
-        cookies: waiting,
-      });
-
-      expect(response.headers.get('Location')).toBe('/#/account');
-      expect(fetch).not.toHaveBeenCalled();
-      expect(set.size).toBe(0);
-    });
-
     it('never trades a token that came in the address', async () => {
-      const { response, set, fetch } = await visit(back);
+      const { response, set, fetch } = await visit(
+        `${back}?request_token=${REQUEST_TOKEN}`,
+      );
 
       expect(response.headers.get('Location')).toBe('/#/account');
       expect(fetch).not.toHaveBeenCalled();
@@ -288,21 +304,22 @@ describe('web auth', () => {
     });
 
     it('says that the access was not approved when TMDB refuses the token', async () => {
-      const { response, set } = await visit(
-        `/api/auth/callback?request_token=${REQUEST_TOKEN}&denied=true`,
-        { cookies: waiting, fetch: tmdbWith({ [SESSION_NEW]: REFUSED }) },
-      );
+      const { response, set } = await visit(back, {
+        cookies: waiting,
+        fetch: tmdbWith({ [ACCESS_NEW]: REFUSED }),
+      });
 
       expect(response.headers.get('Location')).toBe('/#/account');
       expect(set.get(FAILURE)?.[0]).toBe('denied');
       expect(set.get(LOGIN)).toEqual([...CLEARED, 'Secure']);
       expect(set.has(KEPT)).toBe(false);
+      expect(set.has(ACCESS)).toBe(false);
     });
 
     it('does not take the word of the address for an approval', async () => {
-      const { set } = await visit(back, {
+      const { set } = await visit(`${back}?approved=true`, {
         cookies: waiting,
-        fetch: tmdbWith({ [SESSION_NEW]: REFUSED }),
+        fetch: tmdbWith({ [ACCESS_NEW]: REFUSED }),
       });
 
       expect(set.has(KEPT)).toBe(false);
@@ -310,15 +327,20 @@ describe('web auth', () => {
 
     it.each([
       ['TMDB cannot be reached', unreachable(), 'network'],
-      ['TMDB is failing', tmdbWith({ [SESSION_NEW]: BROKEN }), 'network'],
+      ['TMDB is failing', tmdbWith({ [ACCESS_NEW]: BROKEN }), 'network'],
+      [
+        'TMDB will not make a session of the access',
+        tmdbWith({ [CONVERT]: BROKEN }),
+        'network',
+      ],
       [
         'TMDB answers something else',
-        tmdbWith({ [SESSION_NEW]: [200, { success: true }] }),
+        tmdbWith({ [ACCESS_NEW]: [200, { success: true }] }),
         'network',
       ],
       [
         'the session could not go in a cookie',
-        tmdbWith({ [SESSION_NEW]: [200, { session_id: 'a; Domain=x' }] }),
+        tmdbWith({ [CONVERT]: [200, { session_id: 'a; Domain=x' }] }),
         'unavailable',
       ],
     ])('gives the reason when %s', async (_case, fetch, reason) => {
@@ -326,18 +348,47 @@ describe('web auth', () => {
 
       expect(set.get(FAILURE)?.[0]).toBe(reason);
       expect(set.has(KEPT)).toBe(false);
+      expect(set.has(ACCESS)).toBe(false);
     });
 
-    it('ends the session the browser had before', async () => {
-      const { set, fetch } = await visit(back, {
-        cookies: { ...waiting, [KEPT]: OLD_SESSION },
+    it('ends at TMDB what it could not keep', async () => {
+      const { fetch } = await visit(back, {
+        cookies: waiting,
+        fetch: tmdbWith({ [CONVERT]: [200, { session_id: 'a; Domain=x' }] }),
       });
 
-      expect(asked(fetch)).toEqual([SESSION_NEW, SESSION_END]);
-      expect(JSON.parse(fetch.mock.calls[1][1].body!)).toEqual({
+      expect(asked(fetch)).toEqual([
+        ACCESS_NEW,
+        CONVERT,
+        SESSION_END,
+        ACCESS_END,
+      ]);
+    });
+
+    it('ends what the browser had before', async () => {
+      const { set, fetch } = await visit(back, {
+        cookies: {
+          ...waiting,
+          [KEPT]: OLD_SESSION,
+          [ACCESS]: OLD_USER_TOKEN,
+          [OBJECT]: ACCOUNT_OBJECT,
+        },
+      });
+
+      expect(asked(fetch)).toEqual([
+        ACCESS_NEW,
+        CONVERT,
+        SESSION_END,
+        ACCESS_END,
+      ]);
+      expect(JSON.parse(fetch.mock.calls[2][1].body!)).toEqual({
         session_id: OLD_SESSION,
       });
+      expect(JSON.parse(fetch.mock.calls[3][1].body!)).toEqual({
+        access_token: OLD_USER_TOKEN,
+      });
       expect(set.get(KEPT)?.[0]).toBe(SESSION);
+      expect(set.get(ACCESS)?.[0]).toBe(USER_TOKEN);
     });
 
     it('ignores a cookie that is not in the shape of a token', async () => {
@@ -374,7 +425,11 @@ describe('web auth', () => {
 
     it('says who signed in, and nothing else about the session', async () => {
       const { response, set, fetch } = await visit('/api/auth/session', {
-        cookies: { [KEPT]: SESSION },
+        cookies: {
+          [KEPT]: SESSION,
+          [ACCESS]: USER_TOKEN,
+          [OBJECT]: ACCOUNT_OBJECT,
+        },
       });
       const text = await response.text();
 
@@ -388,26 +443,41 @@ describe('web auth', () => {
         },
       });
       expect(text).not.toContain(SESSION);
+      expect(text).not.toContain(USER_TOKEN);
+      expect(text).not.toContain(ACCOUNT_OBJECT);
       expect(
         new URL(fetch.mock.calls[0][0]).searchParams.get('session_id'),
       ).toBe(SESSION);
       // renewed: the time counts from the last visit
-      expect(set.get(KEPT)?.slice(0, 3)).toEqual([
-        SESSION,
-        'Path=/',
-        `Max-Age=${180 * 24 * 60 * 60}`,
-      ]);
+      expect(set.get(KEPT)).toEqual(KEPT_FOR(SESSION));
+      expect(set.get(ACCESS)).toEqual(KEPT_FOR(USER_TOKEN));
+      expect(set.get(OBJECT)).toEqual(KEPT_FOR(ACCOUNT_OBJECT));
+    });
+
+    it('keeps a session of before the v4 login as it is', async () => {
+      const { response, set } = await visit('/api/auth/session', {
+        cookies: { [KEPT]: SESSION },
+      });
+
+      expect((await state(response)).status).toBe('authenticated');
+      expect([...set.keys()]).toEqual([KEPT]);
     });
 
     it('signs out a session that ended at TMDB', async () => {
       const { response, set } = await visit('/api/auth/session', {
-        cookies: { [KEPT]: SESSION },
+        cookies: {
+          [KEPT]: SESSION,
+          [ACCESS]: USER_TOKEN,
+          [OBJECT]: ACCOUNT_OBJECT,
+        },
         fetch: tmdbWith({ [ACCOUNT]: [401, { status_code: 3 }] }),
       });
 
       expect(response.status).toBe(200);
       expect(await state(response)).toEqual({ status: 'anonymous' });
       expect(set.get(KEPT)).toEqual([...CLEARED, 'Secure']);
+      expect(set.get(ACCESS)).toEqual([...CLEARED, 'Secure']);
+      expect(set.get(OBJECT)).toEqual([...CLEARED, 'Secure']);
     });
 
     it.each([
@@ -464,10 +534,15 @@ describe('web auth', () => {
   });
 
   describe('logout', () => {
-    const signedIn = { [KEPT]: SESSION, [LOGIN]: REQUEST_TOKEN };
+    const signedIn = {
+      [KEPT]: SESSION,
+      [ACCESS]: USER_TOKEN,
+      [OBJECT]: ACCOUNT_OBJECT,
+      [LOGIN]: REQUEST_TOKEN,
+    };
     const fromTheApp = { method: 'POST', headers: { origin: SITE } };
 
-    it('ends the session in the browser and at TMDB', async () => {
+    it('ends the session and the access of the user, in the browser and at TMDB', async () => {
       const { response, set, fetch } = await visit('/api/auth/logout', {
         ...fromTheApp,
         cookies: signedIn,
@@ -475,11 +550,15 @@ describe('web auth', () => {
 
       expect(response.status).toBe(200);
       expect(await state(response)).toEqual({ status: 'anonymous' });
-      expect(set.get(KEPT)).toEqual([...CLEARED, 'Secure']);
-      expect(set.get(LOGIN)).toEqual([...CLEARED, 'Secure']);
-      expect(asked(fetch)).toEqual([SESSION_END]);
+      for (const cookie of [KEPT, ACCESS, OBJECT, LOGIN]) {
+        expect(set.get(cookie)).toEqual([...CLEARED, 'Secure']);
+      }
+      expect(asked(fetch)).toEqual([SESSION_END, ACCESS_END]);
       expect(JSON.parse(fetch.mock.calls[0][1].body!)).toEqual({
         session_id: SESSION,
+      });
+      expect(JSON.parse(fetch.mock.calls[1][1].body!)).toEqual({
+        access_token: USER_TOKEN,
       });
     });
 
@@ -558,5 +637,61 @@ describe('web auth', () => {
 
     expect(response.status).toBe(404);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  describe('with a key of TMDB in place of the access token (v3)', () => {
+    it('sends the browser to the approval page of v3, with the way back in the address', async () => {
+      const { response, fetch } = await visit('/api/auth/login', {
+        credential: V3_KEY,
+      });
+
+      expect(asked(fetch)).toEqual([TOKEN_NEW]);
+      expect(response.headers.get('Location')).toBe(
+        `https://www.themoviedb.org/authenticate/${V3_REQUEST_TOKEN}` +
+          `?redirect_to=${encodeURIComponent(`${SITE}/api/auth/callback`)}`,
+      );
+    });
+
+    it('trades the token that comes back for a session, and keeps nothing of a v4 login', async () => {
+      const { set, fetch } = await visit(
+        `/api/auth/callback?request_token=${V3_REQUEST_TOKEN}&approved=true`,
+        {
+          credential: V3_KEY,
+          cookies: {
+            [LOGIN]: V3_REQUEST_TOKEN,
+            [ACCESS]: OLD_USER_TOKEN,
+            [OBJECT]: ACCOUNT_OBJECT,
+          },
+        },
+      );
+
+      expect(asked(fetch)).toEqual([SESSION_NEW]);
+      expect(set.get(KEPT)).toEqual(KEPT_FOR(SESSION));
+      expect(set.get(ACCESS)).toEqual([...CLEARED, 'Secure']);
+      expect(set.get(OBJECT)).toEqual([...CLEARED, 'Secure']);
+    });
+
+    it('leaves the login that is waiting alone when an older one comes back', async () => {
+      const { set, fetch } = await visit(
+        `/api/auth/callback?request_token=${'d'.repeat(40)}&approved=true`,
+        { credential: V3_KEY, cookies: { [LOGIN]: V3_REQUEST_TOKEN } },
+      );
+
+      expect(fetch).not.toHaveBeenCalled();
+      expect(set.size).toBe(0);
+    });
+
+    it('says that the access was not approved, the way v3 refuses it', async () => {
+      const { set } = await visit(
+        `/api/auth/callback?request_token=${V3_REQUEST_TOKEN}&denied=true`,
+        {
+          credential: V3_KEY,
+          cookies: { [LOGIN]: V3_REQUEST_TOKEN },
+          fetch: tmdbWith({ [SESSION_NEW]: [401, { status_code: 17 }] }),
+        },
+      );
+
+      expect(set.get(FAILURE)?.[0]).toBe('denied');
+    });
   });
 });

@@ -20,11 +20,36 @@ export const MISSING_MOVIE = 404404;
 /** The trailer of every title, on YouTube. */
 export const TRAILER_KEY = 'e2eTrailer1';
 
-/** Where the stand-in has the approval page of the TMDB website. */
+/** Where the stand-in has the approval pages of the TMDB website. */
 const WEBSITE_PATH = '/authenticate';
+const WEBSITE_V4_PATH = '/auth/access';
 
 /** The TMDB account of whoever approves a login in these tests. */
 export const ACCOUNT = { id: 4242, username: 'e2e-user', name: 'E2E User' };
+/** Its id in v4, which TMDB gives with the access token of the user. */
+export const ACCOUNT_OBJECT_ID = '5f0c4a1b2c3d4e5f6a7b8c9d';
+
+/**
+ * A v4 token in the three-part shape of TMDB's. A request token of the
+ * stand-in keeps in its middle part where the browser goes back to (see
+ * wayBackOf), as one of TMDB keeps it somewhere TMDB alone reads.
+ */
+function v4Token(claims: Record<string, unknown>) {
+  return [
+    'e2e',
+    Buffer.from(JSON.stringify(claims)).toString('base64url'),
+    randomBytes(16).toString('hex'),
+  ].join('.');
+}
+
+/** Where the browser goes back to after the approval of a v4 request token. */
+export const wayBackOf = (requestToken: string) =>
+  String(
+    JSON.parse(
+      Buffer.from(requestToken.split('.')[1] ?? '', 'base64url').toString() ||
+        '{}',
+    ).redirect_to ?? '',
+  );
 
 export interface TmdbRequest {
   path: string;
@@ -68,15 +93,19 @@ async function jsonBody(request: IncomingMessage) {
  * requested from what it shows. Each of them has a page, except
  * MISSING_MOVIE.
  *
- * Signing in works like at TMDB: a request token becomes a session once,
- * and only after it was approved. The approval, which a person gives on the
- * TMDB website, is `approve()` here. For the web version, whose browser
- * goes to that website, there is a page that answers by itself (`website`).
+ * Signing in works like at TMDB: a request token is traded once, and only
+ * after it was approved. With the token of the app that is v4: the request
+ * token becomes the access token of the user, which becomes a session; with
+ * a key of the user, v3, where it becomes a session. The approval, which a
+ * person gives on the TMDB website, is `approve()` here. For the web
+ * version, whose browser goes to that website, there is a page that answers
+ * by itself (`website`).
  */
 export async function startFakeTmdb() {
   const requests: TmdbRequest[] = [];
   const requestTokens = new Map<string, 'new' | 'approved' | 'used'>();
   const sessions = new Set<string>();
+  const accessTokens = new Set<string>();
   const website = {
     /** What the user answers on the approval page. */
     answer: 'approve' as 'approve' | 'deny',
@@ -130,6 +159,26 @@ export async function startFakeTmdb() {
       back.searchParams.set('request_token', requestToken);
       back.searchParams.set(approved ? 'approved' : 'denied', 'true');
       response.writeHead(302, { Location: back.toString() });
+      response.end();
+      return;
+    }
+
+    // The same for v4, whose request token already says where to go back
+    // to, and which adds nothing to that address.
+    if (url.pathname === WEBSITE_V4_PATH && query.request_token) {
+      const requestToken = query.request_token;
+      const redirectTo = wayBackOf(requestToken);
+
+      website.visits.push({ requestToken, redirectTo });
+
+      if (
+        website.answer === 'approve' &&
+        requestTokens.get(requestToken) === 'new'
+      ) {
+        requestTokens.set(requestToken, 'approved');
+      }
+
+      response.writeHead(302, { Location: redirectTo });
       response.end();
       return;
     }
@@ -193,6 +242,70 @@ export async function startFakeTmdb() {
       sessions.delete(String(sent.session_id));
 
       return send(200, { success: true });
+    }
+
+    // v4 only takes the access token of the app, in the header.
+    if (url.pathname.startsWith('/4/') && credential !== 'app') {
+      return send(401, { status_code: 7, status_message: 'Invalid API key.' });
+    }
+
+    if (url.pathname === '/4/auth/request_token' && method === 'POST') {
+      const requestToken = v4Token({ redirect_to: sent.redirect_to ?? '' });
+
+      requestTokens.set(requestToken, 'new');
+
+      return send(200, {
+        success: true,
+        status_code: 1,
+        status_message: 'Success.',
+        request_token: requestToken,
+      });
+    }
+
+    if (url.pathname === '/4/auth/access_token' && method === 'POST') {
+      const requestToken = String(sent.request_token);
+
+      if (requestTokens.get(requestToken) !== 'approved') {
+        return send(422, {
+          success: false,
+          status_code: 41,
+          status_message:
+            "This request token hasn't been approved by the user.",
+        });
+      }
+
+      const accessToken = v4Token({ sub: ACCOUNT_OBJECT_ID });
+
+      requestTokens.set(requestToken, 'used');
+      accessTokens.add(accessToken);
+
+      return send(200, {
+        success: true,
+        status_code: 1,
+        account_id: ACCOUNT_OBJECT_ID,
+        access_token: accessToken,
+      });
+    }
+
+    if (url.pathname === '/4/auth/access_token' && method === 'DELETE') {
+      accessTokens.delete(String(sent.access_token));
+
+      return send(200, { success: true, status_code: 13 });
+    }
+
+    if (
+      url.pathname === '/3/authentication/session/convert/4' &&
+      method === 'POST'
+    ) {
+      if (!accessTokens.has(String(sent.access_token))) {
+        return send(401, { status_code: 35, status_message: 'Invalid token.' });
+      }
+
+      const session = randomBytes(20).toString('hex');
+
+      sessions.add(session);
+
+      return send(200, { success: true, session_id: session });
     }
 
     if (url.pathname === '/3/account') {
@@ -530,10 +643,12 @@ export async function startFakeTmdb() {
     /** What TMDB_BASE_URL must be for the app to talk to this server. */
     url: `http://127.0.0.1:${port}/3`,
     /**
-     * The approval page of the TMDB website, for the web version: there the
-     * browser itself goes to it, so it has to be a page that exists here.
+     * The TMDB website, for the web version: there the browser itself goes
+     * to its approval page, so it has to be a page that exists here.
      */
-    websiteUrl: `http://127.0.0.1:${port}${WEBSITE_PATH}`,
+    websiteUrl: `http://127.0.0.1:${port}`,
+    /** The approval page of v4, as the browser of the web version sees it. */
+    approvalUrl: `http://127.0.0.1:${port}${WEBSITE_V4_PATH}`,
     website,
     requests,
     searches,
@@ -556,6 +671,8 @@ export async function startFakeTmdb() {
     },
     /** The sessions that are open at TMDB right now. */
     sessions: () => [...sessions],
+    /** The access tokens of the user (v4) that TMDB still takes. */
+    accessTokens: () => [...accessTokens],
     /** What the user does on the TMDB website: puts a title in a list. */
     addToList: (list: 'watchlist' | 'favorite', title: string) => {
       accountLists[list].set(title, (added += 1));
@@ -575,7 +692,10 @@ export async function startFakeTmdb() {
         [...ratings].map(([title, { value }]) => [title, value]),
       ),
     /** What the user does on the TMDB website to sign out everywhere. */
-    endSessions: () => sessions.clear(),
+    endSessions: () => {
+      sessions.clear();
+      accessTokens.clear();
+    },
     /** From now on nothing reaches TMDB, as if the computer were offline. */
     goOffline: () => {
       unreachable = true;

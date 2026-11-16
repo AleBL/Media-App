@@ -12,15 +12,29 @@ const SITE = 'https://media-app.test';
 // page cannot see the cookies that are the whole point here.
 describe('web api together with the sign-in functions of the site', () => {
   it('signs in and out, with the session in a cookie of the site', async () => {
-    const tmdb = vi.fn<FetchLike>(async (url) => {
+    // TMDB v4, as the access token of the site gets: the request token
+    // keeps the way back, and the browser comes back with nothing more.
+    let wayBack = '';
+    const tmdb = vi.fn<FetchLike>(async (url, init) => {
       const { pathname } = new URL(url);
-      const body = pathname.endsWith('/token/new')
-        ? { request_token: 'a'.repeat(40) }
-        : pathname.endsWith('/session/new')
-          ? { session_id: 'b'.repeat(40) }
-          : { id: 7, username: 'ada', name: 'Ada Lovelace' };
+      const answers: Record<string, unknown> = {
+        '/4/auth/request_token': { request_token: 'r.e.q' },
+        '/4/auth/access_token': {
+          access_token: 'u.s.r',
+          account_id: '5f0c4a1b2c3d4e5f6a7b8c9d',
+        },
+        '/3/authentication/session/convert/4': { session_id: 'b'.repeat(40) },
+      };
 
-      return new Response(JSON.stringify(body));
+      if (pathname === '/4/auth/request_token') {
+        wayBack = JSON.parse(init.body!).redirect_to;
+      }
+
+      return new Response(
+        JSON.stringify(
+          answers[pathname] ?? { id: 7, username: 'ada', name: 'Ada Lovelace' },
+        ),
+      );
     });
     const auth = createWebAuth({ credential: 'a.b.c', fetch: tmdb });
     const cookies = new Map<string, string>();
@@ -65,19 +79,17 @@ describe('web api together with the sign-in functions of the site', () => {
     // the browser follows: the site, the TMDB website, the site again
     const toTmdb = await visit(navigate.mock.calls[0][0]);
     const approval = new URL(toTmdb.headers.get('Location')!);
-    const back = new URL(approval.searchParams.get('redirect_to')!);
 
-    back.searchParams.set(
-      'request_token',
-      approval.pathname.split('/').at(-1)!,
-    );
-    back.searchParams.set('approved', 'true');
-
-    const toApp = await visit(back.toString());
+    const toApp = await visit(wayBack);
 
     expect(approval.hostname).toBe('www.themoviedb.org');
+    expect(approval.searchParams.get('request_token')).toBe('r.e.q');
     expect(toApp.headers.get('Location')).toBe('/#/account');
-    expect([...cookies.keys()]).toEqual(['__Host-media-app-session']);
+    expect([...cookies.keys()].sort()).toEqual([
+      '__Host-media-app-access',
+      '__Host-media-app-account',
+      '__Host-media-app-session',
+    ]);
     expect(await api.auth.getSession()).toEqual(signedIn);
 
     expect(await api.auth.logout()).toEqual({ status: 'anonymous' });

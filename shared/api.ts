@@ -60,6 +60,17 @@ export interface SearchRequest {
   language: string;
 }
 
+/** The lists of titles on the home page. */
+export type MediaList =
+  /** Movies and tv shows most watched this week. */
+  'trending' | 'popular-movies' | 'popular-tv';
+
+export interface ListRequest {
+  list: MediaList;
+  /** An app locale such as `en` or `pt-BR`. */
+  language: string;
+}
+
 export interface DetailsRequest {
   type: MediaType;
   id: number;
@@ -243,6 +254,8 @@ export interface MediaAppApi {
     search(request: SearchRequest): Promise<Result<Paged<MediaItem>>>;
     genres(language: string): Promise<Result<Genre[]>>;
     details(request: DetailsRequest): Promise<Result<MediaDetails>>;
+    /** The first page of a list, each title tagged with its type. */
+    list(request: ListRequest): Promise<Result<MediaItem[]>>;
   };
   /** The TMDB key never comes back to the renderer once it is saved. */
   credentials: {
@@ -289,6 +302,7 @@ export const IPC = {
   tmdbSearch: 'tmdb:search',
   tmdbGenres: 'tmdb:genres',
   tmdbDetails: 'tmdb:details',
+  tmdbList: 'tmdb:list',
   credentialStatus: 'credentials:status',
   credentialSave: 'credentials:save',
   credentialClear: 'credentials:clear',

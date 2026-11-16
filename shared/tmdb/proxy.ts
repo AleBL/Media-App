@@ -6,6 +6,7 @@ import { createTmdbClient, TmdbError, type FetchLike } from './client';
 import {
   parseDetailsRequest,
   parseLanguage,
+  parseListRequest,
   parseSearchRequest,
 } from './validation';
 
@@ -37,6 +38,9 @@ const GENRES_CACHE =
   'public, max-age=0, s-maxage=86400, stale-while-revalidate=604800';
 // Where to watch changes from one day to the next, the rest hardly ever.
 const DETAILS_CACHE =
+  'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400';
+// What is trending or popular changes during the day.
+const LIST_CACHE =
   'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400';
 
 function respond(status: number, body: Result<unknown>, cache = 'no-store') {
@@ -80,14 +84,15 @@ function toFailure(error: unknown): TmdbFailure {
  * credential that stays on the server.
  *
  * It is not a general proxy. It only does what the app does (searching
- * movies and tv shows, listing genres and showing the page of a title),
- * checks every parameter the same way the desktop app checks what its
- * window sends, and answers in the shape of shared/api.ts, so there is
- * nothing to gain from calling it instead of TMDB.
+ * movies and tv shows, listing genres, the lists of the home page and the
+ * page of a title), checks every parameter the same way the desktop app
+ * checks what its window sends, and answers in the shape of shared/api.ts,
+ * so there is nothing to gain from calling it instead of TMDB.
  *
  *   GET ?resource=search&type=movie&query=matrix&page=1&language=en
  *   GET ?resource=genres&language=en
  *   GET ?resource=details&type=movie&id=603&language=en&region=US
+ *   GET ?resource=list&list=trending&language=en
  */
 export function createTmdbProxy(options: TmdbProxyOptions) {
   const credential = options.credential?.trim() || null;
@@ -151,6 +156,21 @@ export function createTmdbProxy(options: TmdbProxyOptions) {
                 200,
                 { ok: true, data: await client.details(details) },
                 DETAILS_CACHE,
+              )
+            : failure({ code: 'invalid-request' });
+        }
+
+        case 'list': {
+          const list = parseListRequest({
+            list: params.get('list'),
+            language: params.get('language'),
+          });
+
+          return list
+            ? respond(
+                200,
+                { ok: true, data: await client.list(list) },
+                LIST_CACHE,
               )
             : failure({ code: 'invalid-request' });
         }

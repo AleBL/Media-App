@@ -3,6 +3,7 @@ import {
   type CredentialStatus,
   type DetailsRequest,
   type Genre,
+  type ListRequest,
   type MediaDetails,
   type MediaItem,
   type NativeTheme,
@@ -18,6 +19,7 @@ import {
   parseApiKey,
   parseDetailsRequest,
   parseLanguage,
+  parseListRequest,
   parseSearchRequest,
 } from '../../shared/tmdb/validation';
 
@@ -45,6 +47,7 @@ export interface IpcServices {
   tmdb: {
     search(request: SearchRequest): Promise<Paged<MediaItem>>;
     details(request: DetailsRequest): Promise<MediaDetails>;
+    list(request: ListRequest): Promise<MediaItem[]>;
   };
   genres: { get(language: string): Promise<Genre[]> };
   credentials: {
@@ -125,6 +128,12 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
     const request = trusted(event) ? parseDetailsRequest(value) : null;
 
     return request ? attempt(() => services.tmdb.details(request)) : invalid();
+  });
+
+  ipc.handle(IPC.tmdbList, (event, value) => {
+    const request = trusted(event) ? parseListRequest(value) : null;
+
+    return request ? attempt(() => services.tmdb.list(request)) : invalid();
   });
 
   ipc.handle(IPC.credentialStatus, (event) =>

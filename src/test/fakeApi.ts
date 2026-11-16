@@ -114,6 +114,10 @@ export function installFakeApi() {
         ok: true,
         data: { ...MATRIX, type, id },
       })),
+      list: vi.fn<MediaAppApi['tmdb']['list']>(async () => ({
+        ok: true,
+        data: [],
+      })),
     },
     credentials: {
       status: vi.fn<MediaAppApi['credentials']['status']>(async () => NO_KEY),

@@ -190,6 +190,7 @@ export function createWebApi(
       genres: (language) => ask({ resource: 'genres', language }),
       details: ({ type, id, language, region }) =>
         ask({ resource: 'details', type, id: String(id), language, region }),
+      list: ({ list, language }) => ask({ resource: 'list', list, language }),
     },
     credentials: {
       status: async () => SERVER_CREDENTIAL,

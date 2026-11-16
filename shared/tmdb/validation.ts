@@ -1,4 +1,9 @@
-import type { DetailsRequest, SearchRequest } from '../api';
+import type {
+  DetailsRequest,
+  ListRequest,
+  MediaList,
+  SearchRequest,
+} from '../api';
 import { TMDB_MAX_PAGES } from './client';
 
 // Everything that arrives from the renderer, over IPC in the desktop app or
@@ -20,6 +25,25 @@ export function parseLanguage(value: unknown): string | null {
 /** A country code such as `BR`. */
 export function parseRegion(value: unknown): string | null {
   return typeof value === 'string' && REGION.test(value) ? value : null;
+}
+
+const LISTS: readonly MediaList[] = [
+  'trending',
+  'popular-movies',
+  'popular-tv',
+];
+
+export function parseListRequest(value: unknown): ListRequest | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const { list, language } = value as Record<string, unknown>;
+  const locale = parseLanguage(language);
+
+  return LISTS.includes(list as MediaList) && locale !== null
+    ? { list: list as MediaList, language: locale }
+    : null;
 }
 
 export function parseDetailsRequest(value: unknown): DetailsRequest | null {

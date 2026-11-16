@@ -249,6 +249,53 @@ describe('genres', () => {
   });
 });
 
+describe('lists of the home page', () => {
+  it.each([
+    ['trending', '/3/trending/all/week'],
+    ['popular-movies', '/3/movie/popular'],
+    ['popular-tv', '/3/tv/popular'],
+  ] as const)('asks TMDB for %s', async (list, path) => {
+    const { client, requestedUrl } = setup([answer(200, { results: [] })]);
+
+    await client.list({ list, language: 'pt-BR' });
+
+    expect(requestedUrl().pathname).toBe(path);
+    expect(requestedUrl().searchParams.get('language')).toBe('pt-BR');
+  });
+
+  it('keeps the movies and tv shows of the trending list, tagged', async () => {
+    const { client } = setup([
+      answer(200, {
+        page: 1,
+        results: [
+          { id: 603, media_type: 'movie', title: 'Matrix', popularity: 9 },
+          { id: 1396, media_type: 'tv', name: 'Breaking Bad' },
+          { id: 6384, media_type: 'person', name: 'Keanu Reeves' },
+          { id: 7, media_type: 'movie', title: 'For adults', adult: true },
+          { media_type: 'movie', title: 'Without an id' },
+        ],
+      }),
+    ]);
+
+    await expect(
+      client.list({ list: 'trending', language: 'en' }),
+    ).resolves.toEqual([
+      { id: 603, media_type: 'movie', title: 'Matrix' },
+      { id: 1396, media_type: 'tv', name: 'Breaking Bad' },
+    ]);
+  });
+
+  it('tags every title of a popular list with its type', async () => {
+    const { client } = setup([
+      answer(200, { results: [{ id: 1396, name: 'Breaking Bad' }] }),
+    ]);
+
+    await expect(
+      client.list({ list: 'popular-tv', language: 'en' }),
+    ).resolves.toEqual([{ id: 1396, media_type: 'tv', name: 'Breaking Bad' }]);
+  });
+});
+
 describe('details', () => {
   const movie = {
     id: 603,

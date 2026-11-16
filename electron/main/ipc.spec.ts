@@ -76,8 +76,13 @@ describe('ipc handlers', () => {
       },
       genres: { get: vi.fn(async () => [{ id: 28, name: 'Action' }]) },
       account: {
-        states: vi.fn(async () => ({ watchlist: true, favorite: false })),
+        states: vi.fn(async () => ({
+          watchlist: true,
+          favorite: false,
+          rated: 8.5,
+        })),
         mark: vi.fn(async () => null),
+        rate: vi.fn(async () => null),
         list: vi.fn(async () => ({
           page: 1,
           results: [{ id: 603, media_type: 'movie' as const }],
@@ -173,12 +178,13 @@ describe('ipc handlers', () => {
   describe('lists of the account', () => {
     const title = { type: 'movie', id: 603 };
     const mark = { ...title, list: 'watchlist', value: true };
+    const rate = { ...title, value: 8.5 };
     const page = { list: 'favorite', type: 'tv', page: 2, language: 'pt-BR' };
 
     it('answers where a title is, puts it in a list and reads a list', async () => {
       await expect(call(IPC.accountStates, fromApp, title)).resolves.toEqual({
         ok: true,
-        data: { watchlist: true, favorite: false },
+        data: { watchlist: true, favorite: false, rated: 8.5 },
       });
       await expect(call(IPC.accountMark, fromApp, mark)).resolves.toEqual({
         ok: true,
@@ -190,6 +196,21 @@ describe('ipc handlers', () => {
       expect(services.account.states).toHaveBeenCalledWith(title);
       expect(services.account.mark).toHaveBeenCalledWith(mark);
       expect(services.account.list).toHaveBeenCalledWith(page);
+    });
+
+    it('rates a title, and takes the rating away', async () => {
+      await expect(call(IPC.accountRate, fromApp, rate)).resolves.toEqual({
+        ok: true,
+        data: null,
+      });
+      await expect(
+        call(IPC.accountRate, fromApp, { ...title, value: null }),
+      ).resolves.toEqual({ ok: true, data: null });
+      expect(services.account.rate).toHaveBeenNthCalledWith(1, rate);
+      expect(services.account.rate).toHaveBeenNthCalledWith(2, {
+        ...title,
+        value: null,
+      });
     });
 
     it('says when nobody is signed in', async () => {
@@ -208,6 +229,9 @@ describe('ipc handlers', () => {
       [IPC.accountMark, { ...mark, list: 'rated' }],
       [IPC.accountList, { ...page, type: 'person' }],
       [IPC.accountList, { ...page, page: 0 }],
+      [IPC.accountRate, { ...rate, value: 11 }],
+      [IPC.accountRate, { ...rate, value: 8.25 }],
+      [IPC.accountRate, title],
     ])('rejects a malformed request on %s', async (channel, request) => {
       await expect(call(channel, fromApp, request)).resolves.toEqual({
         ok: false,
@@ -215,6 +239,7 @@ describe('ipc handlers', () => {
       });
       expect(services.account.states).not.toHaveBeenCalled();
       expect(services.account.mark).not.toHaveBeenCalled();
+      expect(services.account.rate).not.toHaveBeenCalled();
       expect(services.account.list).not.toHaveBeenCalled();
     });
 
@@ -222,6 +247,7 @@ describe('ipc handlers', () => {
       for (const [channel, request] of [
         [IPC.accountStates, title],
         [IPC.accountMark, mark],
+        [IPC.accountRate, rate],
         [IPC.accountList, page],
       ] as const) {
         await expect(call(channel, fromElsewhere, request)).resolves.toEqual({
@@ -230,6 +256,7 @@ describe('ipc handlers', () => {
         });
       }
       expect(services.account.mark).not.toHaveBeenCalled();
+      expect(services.account.rate).not.toHaveBeenCalled();
     });
   });
 

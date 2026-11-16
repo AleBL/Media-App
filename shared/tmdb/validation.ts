@@ -1,14 +1,17 @@
-import type {
-  AccountList,
-  AccountListRequest,
-  DetailsRequest,
-  ListRequest,
-  MarkRequest,
-  MediaList,
-  MediaType,
-  SearchRequest,
-  SearchType,
-  TitleRequest,
+import {
+  RATINGS,
+  type AccountList,
+  type AccountListRequest,
+  type DetailsRequest,
+  type ListRequest,
+  type MarkRequest,
+  type MediaList,
+  type MediaType,
+  type RateRequest,
+  type SearchRequest,
+  type SearchType,
+  type TitleList,
+  type TitleRequest,
 } from '../api';
 import { TMDB_MAX_PAGES } from './client';
 
@@ -123,6 +126,9 @@ const ACCOUNT_LISTS: readonly AccountList[] = ['watchlist', 'favorite'];
 const isAccountList = (value: unknown): value is AccountList =>
   ACCOUNT_LISTS.includes(value as AccountList);
 
+const isTitleList = (value: unknown): value is TitleList =>
+  isAccountList(value) || value === 'rated';
+
 /** A movie or tv show, by its id. */
 export function parseTitleRequest(value: unknown): TitleRequest | null {
   if (typeof value !== 'object' || value === null) {
@@ -148,6 +154,22 @@ export function parseMarkRequest(value: unknown): MarkRequest | null {
     : null;
 }
 
+/** A rating from 0.5 to 10 in steps of 0.5, or `null` to take it away. */
+export function parseRateRequest(value: unknown): RateRequest | null {
+  const title = parseTitleRequest(value);
+
+  if (!title) {
+    return null;
+  }
+
+  const { value: rating } = value as Record<string, unknown>;
+
+  return rating === null ||
+    (typeof rating === 'number' && RATINGS.includes(rating))
+    ? { ...title, value: rating }
+    : null;
+}
+
 export function parseAccountListRequest(
   value: unknown,
 ): AccountListRequest | null {
@@ -158,7 +180,7 @@ export function parseAccountListRequest(
   const { list, type, page, language } = value as Record<string, unknown>;
   const locale = parseLanguage(language);
 
-  return isAccountList(list) && isMediaType(type) && isPage(page) && locale
+  return isTitleList(list) && isMediaType(type) && isPage(page) && locale
     ? { list, type, page, language: locale }
     : null;
 }

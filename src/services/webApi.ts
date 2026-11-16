@@ -212,6 +212,14 @@ export function createWebApi(
           ACCOUNT_PATH,
           'POST',
         ),
+      rate: ({ type, id, value }) =>
+        ask(
+          value === null
+            ? { resource: 'unrate', type, id: String(id) }
+            : { resource: 'rate', type, id: String(id), value: String(value) },
+          ACCOUNT_PATH,
+          'POST',
+        ),
       list: ({ list, type, page, language }) =>
         ask(
           { resource: 'list', list, type, page: String(page), language },

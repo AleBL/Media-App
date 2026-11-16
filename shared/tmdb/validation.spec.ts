@@ -7,6 +7,7 @@ import {
   parseLanguage,
   parseListRequest,
   parseMarkRequest,
+  parseRateRequest,
   parseRegion,
   parseSearchRequest,
   parseTitleRequest,
@@ -21,6 +22,10 @@ describe('requests about the lists of the account', () => {
     expect(parseTitleRequest({ ...title, sessionId: 'x' })).toEqual(title);
     expect(parseMarkRequest({ ...mark, accountId: 1 })).toEqual(mark);
     expect(parseAccountListRequest({ ...page, sort: 'x' })).toEqual(page);
+    expect(parseAccountListRequest({ ...page, list: 'rated' })).toEqual({
+      ...page,
+      list: 'rated',
+    });
   });
 
   it.each([
@@ -38,7 +43,7 @@ describe('requests about the lists of the account', () => {
   });
 
   it.each([
-    ['a list the app does not use', { ...mark, list: 'rated' }],
+    ['the rated titles, which a rating changes', { ...mark, list: 'rated' }],
     ['a value that is not true or false', { ...mark, value: 'true' }],
     ['no value', { ...title, list: 'watchlist' }],
   ])('refuses a change with %s', (_case, request) => {
@@ -46,13 +51,48 @@ describe('requests about the lists of the account', () => {
   });
 
   it.each([
-    ['a list the app does not use', { ...page, list: 'rated' }],
+    ['a list the app does not use', { ...page, list: 'lists' }],
     ['a type of everything', { ...page, type: 'multi' }],
     ['page zero', { ...page, page: 0 }],
     ['a page past the last one', { ...page, page: 501 }],
     ['a language that is not a locale', { ...page, language: '../x' }],
   ])('refuses a page of a list with %s', (_case, request) => {
     expect(parseAccountListRequest(request)).toBeNull();
+  });
+});
+
+describe('requests about the ratings of the account', () => {
+  const title = { type: 'tv', id: 1396 };
+
+  it.each([0.5, 1, 7.5, 10])('accepts a rating of %s', (value) => {
+    expect(parseRateRequest({ ...title, value, sessionId: 'x' })).toEqual({
+      ...title,
+      value,
+    });
+  });
+
+  it('accepts taking the rating away', () => {
+    expect(parseRateRequest({ ...title, value: null })).toEqual({
+      ...title,
+      value: null,
+    });
+  });
+
+  it.each([
+    ['zero', 0],
+    ['below zero', -1],
+    ['above 10', 10.5],
+    ['between two steps', 7.25],
+    ['that is not a number', '8'],
+    ['that is not a number at all', Number.NaN],
+    ['missing', undefined],
+  ])('refuses a rating %s', (_case, value) => {
+    expect(parseRateRequest({ ...title, value })).toBeNull();
+  });
+
+  it('refuses a rating of something that is not a title', () => {
+    expect(parseRateRequest({ type: 'person', id: 1, value: 8 })).toBeNull();
+    expect(parseRateRequest(null)).toBeNull();
   });
 });
 

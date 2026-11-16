@@ -1,8 +1,8 @@
 import {
+  RATINGS,
   TMDB_PAGE_SIZE,
   type Account,
   type AccountListRequest,
-  type AccountStates,
   type CastMember,
   type DetailsRequest,
   type Genre,
@@ -14,9 +14,11 @@ import {
   type MediaType,
   type Paged,
   type PersonItem,
+  type RateRequest,
   type SearchItem,
   type SearchRequest,
   type TitleRequest,
+  type TitleStates,
   type TmdbErrorCode,
   type WatchOptions,
   type WatchProvider,
@@ -134,7 +136,7 @@ type Fields = Record<string, unknown>;
 /** What a request that changes something at TMDB sends. */
 type Send = {
   method: 'POST' | 'DELETE';
-  body: Record<string, string | number | boolean>;
+  body?: Record<string, string | number | boolean>;
 };
 
 // A v4 "API Read Access Token" is a JWT and goes in the Authorization
@@ -231,6 +233,10 @@ const positive = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) && value > 0
     ? value
     : undefined;
+
+/** A rating TMDB takes, such as 8.5; nothing else is one. */
+const toRating = (value: unknown) =>
+  typeof value === 'number' && RATINGS.includes(value) ? value : undefined;
 
 const objects = (value: unknown): Fields[] =>
   Array.isArray(value)
@@ -468,11 +474,13 @@ export function createTmdbClient(options: TmdbClientOptions) {
 
     const url = new URL(`${baseUrl}${path}`);
     const headers: Record<string, string> = { Accept: 'application/json' };
-    const content = send
-      ? { method: send.method, body: JSON.stringify(send.body) }
-      : {};
+    const content = !send
+      ? {}
+      : send.body
+        ? { method: send.method, body: JSON.stringify(send.body) }
+        : { method: send.method };
 
-    if (send) {
+    if (send?.body) {
       headers['Content-Type'] = 'application/json';
     }
 
@@ -645,19 +653,52 @@ export function createTmdbClient(options: TmdbClientOptions) {
         : unreadable();
     },
 
-    /** Whether a title is in the watchlist and in the favorites of a session. */
+    /**
+     * Whether a title is in the watchlist and in the favorites of a session,
+     * and the rating it gave: TMDB says `rated: false` for none.
+     */
     async accountStates(
       sessionId: string,
       { type, id }: TitleRequest,
-    ): Promise<AccountStates> {
+    ): Promise<TitleStates> {
       const body = await request<Fields>(`/${type}/${id}/account_states`, {
         session_id: sessionId,
       });
 
-      return typeof body.watchlist === 'boolean' &&
-        typeof body.favorite === 'boolean'
-        ? { watchlist: body.watchlist, favorite: body.favorite }
-        : unreadable();
+      if (
+        typeof body.watchlist !== 'boolean' ||
+        typeof body.favorite !== 'boolean'
+      ) {
+        return unreadable();
+      }
+
+      const rated =
+        typeof body.rated === 'object' && body.rated !== null
+          ? toRating((body.rated as Fields).value)
+          : undefined;
+
+      return {
+        watchlist: body.watchlist,
+        favorite: body.favorite,
+        rated: rated ?? null,
+      };
+    },
+
+    /**
+     * Gives a title a rating, or takes it away (`null`). By default TMDB
+     * also takes a title it rates out of the watchlist.
+     */
+    async rate(
+      sessionId: string,
+      { type, id, value }: RateRequest,
+    ): Promise<void> {
+      await request(
+        `/${type}/${id}/rating`,
+        { session_id: sessionId },
+        value === null
+          ? { method: 'DELETE' }
+          : { method: 'POST', body: { value } },
+      );
     },
 
     /** Puts a title in a list of the account, or takes it out. */
@@ -677,8 +718,9 @@ export function createTmdbClient(options: TmdbClientOptions) {
     },
 
     /**
-     * A page of a list of the account, the titles added last first. Adult
-     * titles are left out, as everywhere else in the app.
+     * A page of a list of the account, the titles added (or rated) last
+     * first; in the rated titles, each with its rating. Adult titles are
+     * left out, as everywhere else in the app.
      */
     async accountList(
       sessionId: string,
@@ -695,7 +737,13 @@ export function createTmdbClient(options: TmdbClientOptions) {
         },
       );
 
-      return toPaged(body, page, (item) => toTitles(item, type));
+      return toPaged(body, page, (item) =>
+        toTitles(item, type).map((title) => {
+          const rating = list === 'rated' ? toRating(item.rating) : undefined;
+
+          return rating === undefined ? title : { ...title, rating };
+        }),
+      );
     },
 
     /** The account a session belongs to. 401 when the session is over. */

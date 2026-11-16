@@ -25,6 +25,7 @@ const api: MediaAppApi = {
   account: {
     states: (request) => ipcRenderer.invoke(IPC.accountStates, request),
     mark: (request) => ipcRenderer.invoke(IPC.accountMark, request),
+    rate: (request) => ipcRenderer.invoke(IPC.accountRate, request),
     list: (request) => ipcRenderer.invoke(IPC.accountList, request),
   },
   credentials: {

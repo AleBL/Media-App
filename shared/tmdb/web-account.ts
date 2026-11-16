@@ -5,11 +5,15 @@ import { HTTP_STATUS, toFailure } from './proxy';
 import {
   parseAccountListRequest,
   parseMarkRequest,
+  parseRateRequest,
   parseTitleRequest,
 } from './validation';
 import { visit, type WebAuthOptions } from './web-auth';
 
 export type WebAccountOptions = Omit<WebAuthOptions, 'authorizeUrl'>;
+
+/** The resources that change something at TMDB: POST only. */
+const CHANGES = new Set(['mark', 'rate', 'unrate']);
 
 /** `true` and `false` as an address says them; anything else is neither. */
 function toBoolean(value: string | null) {
@@ -17,14 +21,16 @@ function toBoolean(value: string | null) {
 }
 
 /**
- * The lists of the TMDB account of whoever signed in on the web version,
- * with the session that the site keeps in a cookie (web-auth.ts): the page
- * never sees it. Nothing here is the same for two visitors, so no cache
- * keeps any of it.
+ * The lists and the ratings of the TMDB account of whoever signed in on the
+ * web version, with the session that the site keeps in a cookie
+ * (web-auth.ts): the page never sees it. Nothing here is the same for two
+ * visitors, so no cache keeps any of it.
  *
  *   GET  ?resource=states&type=movie&id=603
  *   GET  ?resource=list&list=watchlist&type=movie&page=1&language=en
  *   POST ?resource=mark&list=watchlist&type=movie&id=603&value=true
+ *   POST ?resource=rate&type=movie&id=603&value=8.5
+ *   POST ?resource=unrate&type=movie&id=603
  *
  * Every parameter is checked the same way the desktop app checks what its
  * window sends.
@@ -44,7 +50,7 @@ export function createWebAccount(options: WebAccountOptions) {
     const at = visit(request);
     const params = new URL(request.url).searchParams;
     const resource = params.get('resource');
-    const changing = resource === 'mark';
+    const changing = CHANGES.has(resource ?? '');
     const fail = (code: TmdbErrorCode) =>
       at.answer({ ok: false, error: { code } }, HTTP_STATUS[code]);
 
@@ -99,6 +105,24 @@ export function createWebAccount(options: WebAccountOptions) {
           const account = await tmdb.account(sessionId);
 
           await tmdb.mark(sessionId, account.id, asked);
+
+          return at.answer({ ok: true, data: null });
+        }
+
+        // A rating is under the title, not the account: the session is all
+        // TMDB needs.
+        case 'rate':
+        case 'unrate': {
+          const asked = parseRateRequest({
+            ...title,
+            value: resource === 'rate' ? Number(params.get('value')) : null,
+          });
+
+          if (!asked) {
+            return fail('invalid-request');
+          }
+
+          await tmdb.rate(sessionId, asked);
 
           return at.answer({ ok: true, data: null });
         }

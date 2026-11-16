@@ -69,7 +69,7 @@
   <div
     v-if="error"
     role="alert"
-    class="search-message text-red-600 dark:text-red-400"
+    class="p-5 text-center text-red-600 dark:text-red-400"
   >
     <p>
       {{ t(accessProblem ?? 'search.error') }}
@@ -91,7 +91,7 @@
       @change="(page) => store.search(page)"
     />
 
-    <ul class="dataview-cards m-0 list-none p-0">
+    <ul class="m-0 flex list-none flex-wrap p-0">
       <li
         v-for="item in results"
         :key="item.id"
@@ -102,20 +102,11 @@
     </ul>
   </div>
 
-  <div v-else-if="loading" role="status" class="search-message">
+  <div v-else-if="loading" role="status" class="p-5 text-center">
     {{ t('search.loading') }}
   </div>
 
-  <div v-else-if="searched" class="search-message">
+  <div v-else-if="searched" class="p-5 text-center">
     {{ t('search.notFound') }}
   </div>
 </template>
-
-<style scoped lang="scss">
-  @import '@/style/search.css';
-
-  .search-message {
-    padding: 20px;
-    text-align: center;
-  }
-</style>

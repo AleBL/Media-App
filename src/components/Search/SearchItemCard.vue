@@ -35,28 +35,29 @@
 </script>
 
 <template>
-  <div class="card-border">
-    <div>
+  <!-- Every inner box centered and with the same padding, as the old
+       stylesheet of the cards made them. -->
+  <article
+    class="flex flex-col rounded-md border border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-900"
+  >
+    <div class="flex justify-center p-3">
       <img
-        class="poster"
+        class="w-full max-w-[400px] rounded-md"
         :src="posterUrl(item.poster_path)"
         :alt="title"
         loading="lazy"
       />
     </div>
-    <div class="pt-4">
-      <div class="flex flex-row items-start justify-between gap-2">
-        <div>
-          <span class="text-secondary text-sm font-medium">{{ genres }}</span>
+    <div class="flex justify-center p-3">
+      <div class="flex items-start justify-center gap-2 p-3">
+        <div class="flex justify-center p-3">
+          <span class="text-sm font-medium text-surface-500">{{ genres }}</span>
         </div>
         <div
           v-if="rating"
-          class="bg-surface-100 p-1 dark:bg-surface-700"
-          style="border-radius: 30px"
+          class="flex justify-center rounded-[30px] bg-surface-100 p-3 dark:bg-surface-700"
         >
-          <div
-            class="surface-0 flex items-center justify-center gap-2 px-2 py-1"
-          >
+          <div class="flex items-center justify-center gap-2 p-3">
             <span
               class="text-sm font-medium text-surface-900 dark:text-surface-0"
             >
@@ -67,12 +68,10 @@
         </div>
       </div>
     </div>
-    <div class="mt-1 text-lg font-medium text-surface-900 dark:text-surface-0">
+    <div
+      class="mt-1 flex justify-center p-3 text-lg font-medium text-surface-900 dark:text-surface-0"
+    >
       {{ title }}<template v-if="year"> ({{ year }})</template>
     </div>
-  </div>
+  </article>
 </template>
-
-<style scoped lang="css">
-  @import '@/style/search.css';
-</style>

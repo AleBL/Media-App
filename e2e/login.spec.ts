@@ -1,5 +1,5 @@
 import { ACCOUNT } from './support/fake-tmdb';
-import { expect, openPage, test } from './support/fixtures';
+import { cards, expect, openPage, test } from './support/fixtures';
 import { accountLink, comeBack, startLogin } from './support/login';
 
 test.describe('signing in with TMDB', () => {
@@ -197,7 +197,7 @@ test.describe('signing in with TMDB', () => {
     await page.getByRole('searchbox').fill('matrix');
     await page.getByRole('searchbox').press('Enter');
 
-    await expect(page.locator('.card-border')).toHaveCount(20);
+    await expect(cards(page)).toHaveCount(20);
     expect(tmdb.lastSearch()?.credential).toBe('app');
   });
 });

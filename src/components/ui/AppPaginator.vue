@@ -36,7 +36,7 @@
   }
 
   const BUTTON =
-    'relative -mt-px inline-flex h-12 min-w-[3rem] select-none items-center justify-center overflow-hidden border-t-2 text-sm font-medium transition duration-200 hover:border-surface-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:pointer-events-none disabled:opacity-60 dark:hover:border-surface-200/30 dark:focus-visible:ring-primary-400';
+    'relative -mt-px inline-flex h-12 min-w-[3rem] select-none items-center justify-center overflow-hidden border-t-2 text-sm font-medium transition duration-200 hover:border-surface-300 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 disabled:pointer-events-none disabled:opacity-60 dark:hover:border-surface-200/30 dark:focus-visible:ring-primary-400';
   const OTHER = 'border-transparent text-surface-500 dark:text-white/60';
   const CURRENT =
     'border-primary-500 text-primary-500 dark:border-primary-400 dark:text-surface-0';

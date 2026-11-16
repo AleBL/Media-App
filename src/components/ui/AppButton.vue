@@ -25,8 +25,8 @@
   <button
     type="button"
     :class="[
-      'relative inline-flex items-center justify-center gap-2 rounded-md text-center align-bottom text-sm text-white shadow-sm ring-1 transition duration-200 dark:text-surface-900',
-      'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+      'relative inline-flex items-center justify-center gap-2 rounded-md text-center align-bottom text-sm text-white shadow-xs ring-1 transition duration-200 dark:text-surface-900',
+      'focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2',
       'disabled:pointer-events-none disabled:cursor-default disabled:opacity-60',
       label ? 'min-w-[2rem] px-2.5 py-1.5' : 'h-8 w-8 p-0',
       SEVERITY[severity],

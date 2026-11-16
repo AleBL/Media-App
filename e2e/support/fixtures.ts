@@ -182,5 +182,5 @@ export async function removeKey(page: Page) {
   await expect(keyInput(page)).toBeEnabled();
 }
 
-export const cards = (page: Page) => page.locator('.card-border');
+export const cards = (page: Page) => page.getByRole('article');
 export const searchBox = (page: Page) => page.getByRole('searchbox');

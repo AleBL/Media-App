@@ -7,6 +7,7 @@ import {
   type Connect,
   type Plugin,
 } from 'vite';
+import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import AutoImport from 'unplugin-auto-import/vite';
 import electron from 'vite-plugin-electron';
@@ -45,7 +46,7 @@ function contentSecurityPolicy(): Plugin {
       const policy = [
         "default-src 'self'",
         "script-src 'self'",
-        // Vue and PrimeVue set inline styles
+        // Vue and the loading screen of the preload script set inline styles
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: https://image.tmdb.org",
         "font-src 'self' data:",
@@ -153,6 +154,7 @@ export default defineConfig(({ mode }) => {
     },
 
     plugins: [
+      tailwindcss(),
       vue(),
       contentSecurityPolicy(),
       siteFunctions(credential),

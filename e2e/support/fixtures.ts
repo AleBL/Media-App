@@ -168,7 +168,8 @@ export async function openPage(
     | 'about'
     | 'account'
     | 'watchlist'
-    | 'favorites',
+    | 'favorites'
+    | 'rated',
 ) {
   const accountMenu = page.locator(
     'header nav button[aria-controls="account-menu"]',
@@ -176,7 +177,7 @@ export async function openPage(
 
   // The pages of whoever signed in are in a menu of their own.
   if (
-    ['account', 'watchlist', 'favorites'].includes(name) &&
+    ['account', 'watchlist', 'favorites', 'rated'].includes(name) &&
     (await accountMenu.isVisible())
   ) {
     await accountMenu.click();

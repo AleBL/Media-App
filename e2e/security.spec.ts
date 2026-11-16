@@ -30,7 +30,7 @@ test.describe('renderer isolation', () => {
       // no way to read the key back
       credentials: ['clear', 'save', 'status'],
       // and none to get at the session: it is used in the main process
-      account: ['list', 'mark', 'states'],
+      account: ['list', 'mark', 'rate', 'states'],
     });
   });
 

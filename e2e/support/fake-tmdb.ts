@@ -91,6 +91,8 @@ export async function startFakeTmdb() {
     watchlist: new Map<string, number>(),
     favorite: new Map<string, number>(),
   };
+  // The ratings of the account, by title, with when each was given.
+  const ratings = new Map<string, { value: number; at: number }>();
   let added = 0;
 
   const server = createServer(async (request, response) => {
@@ -325,11 +327,12 @@ export async function startFakeTmdb() {
       url.pathname,
     );
     const listed =
-      /^\/3\/account\/(\d+)\/(watchlist|favorite)\/(movies|tv)$/.exec(
+      /^\/3\/account\/(\d+)\/(watchlist|favorite|rated)\/(movies|tv)$/.exec(
         url.pathname,
       );
+    const rating = /^\/3\/(movie|tv)\/(\d+)\/rating$/.exec(url.pathname);
 
-    if (states || marked || listed) {
+    if (states || marked || listed || rating) {
       if (!sessions.has(sessionId)) {
         return send(401, {
           success: false,
@@ -347,12 +350,44 @@ export async function startFakeTmdb() {
     if (states) {
       const title = `${states[1]}:${states[2]}`;
 
+      const rated = ratings.get(title);
+
       return send(200, {
         id: Number(states[2]),
         favorite: accountLists.favorite.has(title),
-        rated: false,
+        rated: rated ? { value: rated.value } : false,
         watchlist: accountLists.watchlist.has(title),
       });
+    }
+
+    if (rating && method === 'POST') {
+      const title = `${rating[1]}:${rating[2]}`;
+      const value = Number(sent.value);
+
+      if (!Number.isInteger(value * 2) || value < 0.5 || value > 10) {
+        return send(400, {
+          success: false,
+          status_code: value > 10 ? 18 : 19,
+          status_message: 'Not a rating.',
+        });
+      }
+
+      const updated = ratings.has(title);
+
+      ratings.set(title, { value, at: (added += 1) });
+      // What TMDB does by default: a title rated leaves the watchlist.
+      accountLists.watchlist.delete(title);
+
+      return send(201, {
+        success: true,
+        status_code: updated ? 12 : 1,
+      });
+    }
+
+    if (rating && method === 'DELETE') {
+      ratings.delete(`${rating[1]}:${rating[2]}`);
+
+      return send(200, { success: true, status_code: 13 });
     }
 
     if (marked && method === 'POST') {
@@ -370,8 +405,12 @@ export async function startFakeTmdb() {
 
     if (listed) {
       const type = listed[3] === 'movies' ? 'movie' : 'tv';
-      // the titles added last first, as the app asks with sort_by
-      const titles = [...accountLists[listed[2] as 'watchlist' | 'favorite']]
+      const list =
+        listed[2] === 'rated'
+          ? new Map([...ratings].map(([title, { at }]) => [title, at]))
+          : accountLists[listed[2] as 'watchlist' | 'favorite'];
+      // the titles added (or rated) last first, as the app asks with sort_by
+      const titles = [...list]
         .filter(([title]) => title.startsWith(`${type}:`))
         .sort(([, a], [, b]) => b - a)
         .map(([title]) => Number(title.split(':')[1]));
@@ -381,11 +420,14 @@ export async function startFakeTmdb() {
         page,
         results: titles
           .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-          .map((id) =>
-            type === 'movie'
+          .map((id) => ({
+            ...(type === 'movie'
               ? { ...movie(id), genre_ids: [28] }
-              : { ...show(id - 9000), genre_ids: [18] },
-          ),
+              : { ...show(id - 9000), genre_ids: [18] }),
+            ...(listed[2] === 'rated'
+              ? { rating: ratings.get(`${type}:${id}`)?.value }
+              : {}),
+          })),
         total_pages: Math.ceil(titles.length / PAGE_SIZE),
         total_results: titles.length,
       });
@@ -523,6 +565,15 @@ export async function startFakeTmdb() {
       [...accountLists[list]]
         .sort(([, a], [, b]) => b - a)
         .map(([title]) => title),
+    /** What the user does on the TMDB website: rates a title. */
+    rateOnWebsite: (title: string, value: number) => {
+      ratings.set(title, { value, at: (added += 1) });
+    },
+    /** The ratings of the account, such as { "movie:1": 8.5 }. */
+    ratings: () =>
+      Object.fromEntries(
+        [...ratings].map(([title, { value }]) => [title, value]),
+      ),
     /** What the user does on the TMDB website to sign out everywhere. */
     endSessions: () => sessions.clear(),
     /** From now on nothing reaches TMDB, as if the computer were offline. */

@@ -19,7 +19,6 @@ Building the Electron (main) process is done with [Electron Builder](https://www
 - [![Electron][Electron.js]][Electron-url]
 - [![TailwindCSS][TailwindCSS]][TailwindCSS-url]
 - [![ESLint][ESLint]][ESLint-url]
-- [![Bootstrap][Bootstrap]][Bootstrap-url]
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
@@ -38,8 +37,6 @@ Building the Electron (main) process is done with [Electron Builder](https://www
 [TailwindCSS-url]: https://tailwindcss.com/
 [ESLint]: https://img.shields.io/badge/ESLint-4B3263?style=for-the-badge&logo=eslint&logoColor=white
 [ESLint-url]: https://eslint.org/
-[Bootstrap]: https://img.shields.io/badge/bootstrap-%238511FA.svg?style=for-the-badge&logo=bootstrap&logoColor=white
-[Bootstrap-url]: https://getbootstrap.com/
 
 ## Getting started
 
@@ -189,11 +186,11 @@ Keep `primeicons` on 7: version 8, like the other PrimeTek libraries since mid 2
  ┣ 📦router
  ┣ 📦services # the api of the renderer: window.api, or HTTP on the web
  ┣ 📦stores # Pinia stores: search, genres, TMDB credential status, session
- ┣ 📦style
  ┣ 📦test # helpers for the unit tests
  ┣ 📦types
  ┣ 📦util
- ┗ 📦views
+ ┣ 📦views
+ ┗ 📜style.css # Tailwind CSS 4 and its theme: colors, font, dark mode (no tailwind.config.js)
 ```
 
 ## Security model

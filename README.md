@@ -74,7 +74,7 @@ The token is compiled into the main process only (`dist-electron/main`), never i
 
 ### The web version 🌐
 
-The same interface also runs as a web page, deployed by Vercel. A page cannot hold the credential (everything a browser loads is public), so there it asks functions of the site, the files in `api`, which keep `TMDB_READ_TOKEN` on the server and only do what the app does: search movies and tv shows, list genres and sign in.
+The same interface also runs as a web page, deployed by Vercel. A page cannot hold the credential (everything a browser loads is public), so there it asks functions of the site, the files in `api`, which keep `TMDB_READ_TOKEN` on the server and only do what the app does: search movies and tv shows, list genres, show the page of a title and sign in.
 
 - On Vercel, set `TMDB_READ_TOKEN` in the project's environment variables, for Production and for Preview. Never give it a `VITE_` prefix: that would put it in the page.
 - The web version has no Settings page: a browser has no safe place for a key of the user.
@@ -98,6 +98,10 @@ In the web version:
 
 - The page itself goes to the TMDB website and comes back through the site (`/api/auth/login`, then `/api/auth/callback`), which keeps the session in a cookie that scripts cannot read.
 - The browser stays signed in for 180 days after the last visit, or until **Sign out**, which also ends the session at TMDB. Ending it on the TMDB website signs out here on the next visit.
+
+### The page of a title 🎬
+
+A result of the search opens the page of the movie or tv show: the overview, the cast, where to watch it, and links to the trailer and to IMDb, which open in the browser of the system. Where to watch comes from JustWatch through TMDB, for the country named by the languages of the system (of the browser, on the web): `pt-BR` is Brazil, `en-GB` the United Kingdom. TMDB only allows that data with JustWatch named as its source, so that line stays on the page.
 
 ### Start developing ⚒️
 

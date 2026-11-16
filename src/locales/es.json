@@ -5,7 +5,7 @@
     "search": "Buscar",
     "settings": "Ajustes",
     "account": "Cuenta",
-    "movie": "Pélicula",
+    "movie": "Película",
     "tvShow": "Serie"
   },
 
@@ -65,7 +65,10 @@
     "notFound": "No se encontraron registros",
     "loading": "Buscando...",
     "error": "La búsqueda falló. Comprueba tu conexión e inténtalo de nuevo.",
-    "errorWebUnavailable": "La búsqueda no está disponible en este momento. Inténtalo de nuevo más tarde."
+    "errorWebUnavailable": "La búsqueda no está disponible en este momento. Inténtalo de nuevo más tarde.",
+    "all": "Todo",
+    "person": "Persona",
+    "knownFor": "Conocido(a) por"
   },
 
   "access": {

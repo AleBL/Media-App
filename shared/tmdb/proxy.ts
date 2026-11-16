@@ -84,12 +84,13 @@ function toFailure(error: unknown): TmdbFailure {
  * credential that stays on the server.
  *
  * It is not a general proxy. It only does what the app does (searching
- * movies and tv shows, listing genres, the lists of the home page and the
- * page of a title), checks every parameter the same way the desktop app
- * checks what its window sends, and answers in the shape of shared/api.ts,
- * so there is nothing to gain from calling it instead of TMDB.
+ * movies, tv shows or everything, listing genres, the lists of the home page
+ * and the page of a title), checks every parameter the same way the desktop
+ * app checks what its window sends, and answers in the shape of
+ * shared/api.ts, so there is nothing to gain from calling it instead of TMDB.
  *
  *   GET ?resource=search&type=movie&query=matrix&page=1&language=en
+ *   GET ?resource=search&type=multi&query=keanu&page=1&language=en
  *   GET ?resource=genres&language=en
  *   GET ?resource=details&type=movie&id=603&language=en&region=US
  *   GET ?resource=list&list=trending&language=en

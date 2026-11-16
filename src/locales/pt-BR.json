@@ -65,7 +65,10 @@
     "notFound": "Nenhum registro foi encontrado",
     "loading": "Buscando...",
     "error": "A busca falhou. Verifique sua conexão e tente novamente.",
-    "errorWebUnavailable": "A busca está indisponível no momento. Tente de novo mais tarde."
+    "errorWebUnavailable": "A busca está indisponível no momento. Tente de novo mais tarde.",
+    "all": "Tudo",
+    "person": "Pessoa",
+    "knownFor": "Conhecido(a) por"
   },
 
   "access": {

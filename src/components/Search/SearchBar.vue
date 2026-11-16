@@ -9,6 +9,21 @@
   const store = useSearchStore();
   const { query, mediaType } = storeToRefs(store);
 
+  const types = [
+    {
+      id: 'mediaTypeMovie',
+      value: MEDIA_TYPES.MOVIE,
+      label: 'pageTitles.movie',
+    },
+    {
+      id: 'mediaTypeTVShow',
+      value: MEDIA_TYPES.TV_SHOW,
+      label: 'pageTitles.tvShow',
+    },
+    // Movies, tv shows and people.
+    { id: 'mediaTypeAll', value: MEDIA_TYPES.ALL, label: 'search.all' },
+  ];
+
   // One request after the user stops typing instead of one per key press.
   watchDebounced(query, () => store.search(), {
     debounce: SEARCH_DEBOUNCE_MS,
@@ -36,32 +51,19 @@
       />
     </div>
 
-    <div class="flex items-center">
-      <input
-        id="mediaTypeMovie"
-        v-model="mediaType"
-        type="radio"
-        name="mediaType"
-        class="h-4 w-4 accent-primary-500 dark:accent-primary-400 dark:[color-scheme:dark]"
-        :value="MEDIA_TYPES.MOVIE"
-      />
-      <label for="mediaTypeMovie" class="ml-2">{{
-        t('pageTitles.movie')
-      }}</label>
-    </div>
-
-    <div class="flex items-center">
-      <input
-        id="mediaTypeTVShow"
-        v-model="mediaType"
-        type="radio"
-        name="mediaType"
-        class="h-4 w-4 accent-primary-500 dark:accent-primary-400 dark:[color-scheme:dark]"
-        :value="MEDIA_TYPES.TV_SHOW"
-      />
-      <label for="mediaTypeTVShow" class="ml-2">{{
-        t('pageTitles.tvShow')
-      }}</label>
+    <!-- The choices wrap together, below the field on a narrow screen. -->
+    <div class="flex flex-wrap justify-center gap-3">
+      <div v-for="type in types" :key="type.id" class="flex items-center">
+        <input
+          :id="type.id"
+          v-model="mediaType"
+          type="radio"
+          name="mediaType"
+          class="h-4 w-4 accent-primary-500 dark:accent-primary-400 dark:[color-scheme:dark]"
+          :value="type.value"
+        />
+        <label :for="type.id" class="ml-2">{{ t(type.label) }}</label>
+      </div>
     </div>
   </div>
 </template>

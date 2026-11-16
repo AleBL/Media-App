@@ -10,6 +10,8 @@ import {
   type MediaList,
   type MediaType,
   type Paged,
+  type PersonItem,
+  type SearchItem,
   type SearchRequest,
   type TmdbErrorCode,
   type WatchOptions,
@@ -23,6 +25,9 @@ export const TMDB_MAX_PAGES = 500;
 
 /** How many of the cast the page of a title shows. */
 export const CAST_SIZE = 12;
+
+/** How many of the titles someone is known for a search shows. */
+export const KNOWN_FOR_SIZE = 3;
 
 const YOUTUBE_KEY = /^[\w-]{6,32}$/;
 const IMDB_ID = /^tt\d{5,10}$/;
@@ -77,7 +82,7 @@ export interface TmdbClientOptions {
 
 type SearchBody = {
   page?: number;
-  results?: MediaItem[];
+  results?: Fields[];
   total_pages?: number;
   total_results?: number;
 };
@@ -226,6 +231,39 @@ const objects = (value: unknown): Fields[] =>
         (entry): entry is Fields => typeof entry === 'object' && entry !== null,
       )
     : [];
+
+/**
+ * A movie or tv show of a list or a search, tagged with its type. Nothing
+ * when it is something else, has no id, or is an adult title.
+ */
+function toTitles(item: Fields, type: unknown): MediaItem[] {
+  return (type === 'movie' || type === 'tv') &&
+    typeof item.id === 'number' &&
+    item.adult !== true
+    ? [toMediaItem(item as MediaItem & Fields, type)]
+    : [];
+}
+
+/** Someone a search of everything found, with what they are known for. */
+function toPeople(item: Fields): PersonItem[] {
+  const name = text(item.name);
+
+  if (typeof item.id !== 'number' || !name || item.adult === true) {
+    return [];
+  }
+
+  return [
+    {
+      id: item.id,
+      media_type: 'person',
+      name,
+      profile_path: text(item.profile_path),
+      known_for: objects(item.known_for)
+        .flatMap((title) => toTitles(title, title.media_type))
+        .slice(0, KNOWN_FOR_SIZE),
+    },
+  ];
+}
 
 /**
  * The trailer to offer: a YouTube video, in the language of the app before
@@ -464,7 +502,11 @@ export function createTmdbClient(options: TmdbClientOptions) {
   }
 
   return {
-    async search(search: SearchRequest): Promise<Paged<MediaItem>> {
+    /**
+     * A page of movies, of tv shows, or of everything (`multi`), where each
+     * result says what it is and people are found too.
+     */
+    async search(search: SearchRequest): Promise<Paged<SearchItem>> {
       const body = await request<SearchBody>(`/search/${search.type}`, {
         query: search.query,
         page: search.page,
@@ -474,9 +516,15 @@ export function createTmdbClient(options: TmdbClientOptions) {
 
       return {
         page: body.page ?? search.page,
-        results: (body.results ?? []).map((item) =>
-          toMediaItem(item, search.type),
-        ),
+        results: (body.results ?? []).flatMap((item): SearchItem[] => {
+          if (search.type !== 'multi') {
+            return toTitles(item, search.type);
+          }
+
+          return item.media_type === 'person'
+            ? toPeople(item)
+            : toTitles(item, item.media_type);
+        }),
         totalPages: Math.min(body.total_pages ?? 0, TMDB_MAX_PAGES),
         totalResults: Math.min(
           body.total_results ?? 0,
@@ -513,19 +561,11 @@ export function createTmdbClient(options: TmdbClientOptions) {
      */
     async list({ list, language }: ListRequest): Promise<MediaItem[]> {
       const { path, type } = LISTS[list];
-      const body = await request<{ results?: (MediaItem & Fields)[] }>(path, {
-        language,
-      });
+      const body = await request<{ results?: Fields[] }>(path, { language });
 
-      return (body.results ?? []).flatMap((item) => {
-        const itemType = type ?? item.media_type;
-
-        return (itemType === 'movie' || itemType === 'tv') &&
-          typeof item.id === 'number' &&
-          item.adult !== true
-          ? [toMediaItem(item, itemType)]
-          : [];
-      });
+      return (body.results ?? []).flatMap((item) =>
+        toTitles(item, type ?? item.media_type),
+      );
     },
 
     /**

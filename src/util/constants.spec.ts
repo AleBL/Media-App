@@ -19,6 +19,10 @@ describe('DEPENDENCIES', () => {
 
 describe('MEDIA_TYPES', () => {
   it('uses the names of the TMDB search endpoints', () => {
-    expect(MEDIA_TYPES).toEqual({ MOVIE: 'movie', TV_SHOW: 'tv' });
+    expect(MEDIA_TYPES).toEqual({
+      MOVIE: 'movie',
+      TV_SHOW: 'tv',
+      ALL: 'multi',
+    });
   });
 });

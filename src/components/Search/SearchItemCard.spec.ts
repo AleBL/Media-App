@@ -112,6 +112,26 @@ describe('SearchItemCard', () => {
     expect(wrapper.text()).not.toContain('(');
   });
 
+  it('says whether it is a movie or a tv show only when asked', () => {
+    const typeOf = (item: MediaItem, showType?: boolean) => {
+      const card = mount(SearchItemCard, {
+        props: { item, showType },
+        global: { plugins: [pinia, i18n, router] },
+      });
+      const label = card.find('p.uppercase');
+      const text = label.exists() ? label.text() : null;
+
+      card.unmount();
+      return text;
+    };
+
+    expect(typeOf(movie)).toBeNull();
+    expect(typeOf(movie, true)).toBe('Movie');
+    expect(typeOf({ id: 1396, media_type: 'tv', name: 'Bad' }, true)).toBe(
+      'TV Show',
+    );
+  });
+
   it('falls back to the default poster', () => {
     const wrapper = mountCard({ ...movie, poster_path: null });
 

@@ -74,6 +74,37 @@ describe('tmdb proxy', () => {
       expect(init.headers.Authorization).toBe(`Bearer ${TOKEN}`);
     });
 
+    it('searches everything, and answers with the people it found', async () => {
+      const { body, fetch } = await ask(
+        SEARCH.replace('type=movie', 'type=multi'),
+        tmdbAnswers(200, {
+          ...searchBody,
+          results: [
+            { id: 603, media_type: 'movie', title: 'The Matrix' },
+            {
+              id: 6384,
+              media_type: 'person',
+              name: 'Keanu Reeves',
+              known_for: [
+                { id: 603, media_type: 'movie', title: 'The Matrix' },
+              ],
+            },
+          ],
+        }),
+      );
+
+      expect(new URL(fetch.mock.calls[0][0]).pathname).toBe('/3/search/multi');
+      expect(body).toMatchObject({
+        ok: true,
+        data: {
+          results: [
+            { id: 603, media_type: 'movie' },
+            { id: 6384, media_type: 'person', name: 'Keanu Reeves' },
+          ],
+        },
+      });
+    });
+
     it('never puts the credential in what it answers', async () => {
       const { response, body } = await ask(SEARCH);
 

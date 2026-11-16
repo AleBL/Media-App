@@ -9,6 +9,7 @@ import {
   type NativeTheme,
   type Paged,
   type Result,
+  type SearchItem,
   type SearchRequest,
   type SessionState,
   type TmdbFailure,
@@ -45,7 +46,7 @@ export interface IpcServices {
   isTrustedSender(url: string): boolean;
   setNativeTheme(theme: NativeTheme): void;
   tmdb: {
-    search(request: SearchRequest): Promise<Paged<MediaItem>>;
+    search(request: SearchRequest): Promise<Paged<SearchItem>>;
     details(request: DetailsRequest): Promise<MediaDetails>;
     list(request: ListRequest): Promise<MediaItem[]>;
   };

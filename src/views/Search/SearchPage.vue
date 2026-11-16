@@ -7,7 +7,9 @@
   import { useGenresStore } from '@/stores/genres';
   import { useSearchStore } from '@/stores/search';
   import { accessProblem } from '@/util/access';
+  import { isPerson, searchKey } from '@/util/media';
   import AppPaginator from '@/components/ui/AppPaginator.vue';
+  import PersonCard from '@/components/Search/PersonCard.vue';
   import SearchItemCard from '@/components/Search/SearchItemCard.vue';
   import SearchBar from '@/components/Search/SearchBar.vue';
 
@@ -15,8 +17,15 @@
   const store = useSearchStore();
   const genres = useGenresStore();
   const credentials = useCredentialsStore();
-  const { results, totalResults, currentPage, loading, searched, error } =
-    storeToRefs(store);
+  const {
+    results,
+    resultsType,
+    totalResults,
+    currentPage,
+    loading,
+    searched,
+    error,
+  } = storeToRefs(store);
 
   const desktop = isDesktop();
 
@@ -84,13 +93,20 @@
       @change="(page) => store.search(page)"
     />
 
+    <!-- A search of everything mixes movies, tv shows and people, and two
+         of them can have the same id. -->
     <ul class="m-0 flex list-none flex-wrap p-0">
       <li
         v-for="item in results"
-        :key="item.id"
+        :key="searchKey(item)"
         class="w-full p-2 sm:w-2/6 md:w-2/6 xl:w-1/4 2xl:w-1/5"
       >
-        <SearchItemCard :item="item" />
+        <PersonCard v-if="isPerson(item)" :person="item" />
+        <SearchItemCard
+          v-else
+          :item="item"
+          :show-type="resultsType === 'multi'"
+        />
       </li>
     </ul>
   </div>

@@ -56,6 +56,32 @@ test.describe('web version', () => {
     expect(tmdb.lastSearch()?.language).toBe('pt-BR');
   });
 
+  test('searches everything, people too, through the site', async ({
+    page,
+    site,
+    tmdb,
+  }) => {
+    await page.goto(site.url);
+    await openPage(page, 'search');
+    await page.getByRole('radio', { name: 'All' }).check();
+    await searchBox(page).fill('keanu');
+
+    await expect(cards(page)).toHaveCount(20);
+    await expect(cards(page).nth(2)).toContainText('Person 3');
+    expect(tmdb.lastSearch()).toMatchObject({
+      path: '/3/search/multi',
+      credential: 'app',
+      query: 'keanu',
+    });
+
+    await cards(page)
+      .nth(2)
+      .getByRole('link', { name: 'Movie 1 [en] (2020)' })
+      .click();
+
+    await expect(heading(page)).toHaveText('Movie 1 [en] (2020)');
+  });
+
   test('shows the lists of the home page, through the site', async ({
     page,
     site,

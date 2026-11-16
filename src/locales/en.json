@@ -65,7 +65,10 @@
     "notFound": "No records found",
     "loading": "Searching...",
     "error": "The search failed. Check your connection and try again.",
-    "errorWebUnavailable": "The search is unavailable at the moment. Please try again later."
+    "errorWebUnavailable": "The search is unavailable at the moment. Please try again later.",
+    "all": "All",
+    "person": "Person",
+    "knownFor": "Known for"
   },
 
   "access": {

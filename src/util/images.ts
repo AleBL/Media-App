@@ -13,9 +13,9 @@ export function posterUrl(path?: string | null, size: string = POSTER_SIZE) {
   return path ? `${TMDB_IMAGES}${size}${path}` : defaultPoster;
 }
 
-/** The picture of someone in the cast. */
-export const profileUrl = (path: string) =>
-  `${TMDB_IMAGES}${PROFILE_SIZE}${path}`;
+/** The picture of someone, small enough for the cast by default. */
+export const profileUrl = (path: string, size: string = PROFILE_SIZE) =>
+  `${TMDB_IMAGES}${size}${path}`;
 
 /** The logo of a streaming service or store. */
 export const logoUrl = (path: string) => `${TMDB_IMAGES}${LOGO_SIZE}${path}`;

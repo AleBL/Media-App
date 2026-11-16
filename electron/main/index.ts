@@ -16,6 +16,11 @@ import { createSessionStore } from './auth/session-store';
 import { registerIpc } from './ipc';
 import { isAppUrl, isSafeExternalUrl, type AppLocation } from './security';
 import { createTmdbClient } from '../../shared/tmdb/client';
+import {
+  createWatched,
+  memoryCache,
+  userAccess,
+} from '../../shared/tmdb/watched';
 import { createCredentialStore } from './tmdb/credentials';
 import { createGenreCache } from './tmdb/genres';
 
@@ -136,6 +141,8 @@ app.whenReady().then(async () => {
     directory: join(userData, 'genres'),
     fetchGenres: tmdb.genres,
   });
+  const watched = createWatched(tmdb);
+  const listCache = memoryCache();
 
   // The TMDB session of whoever signs in stays in this process, and on disk
   // for the next launch. Windows are only told who it is (shared/api.ts).
@@ -189,6 +196,30 @@ app.whenReady().then(async () => {
         auth.withSession((id, account) =>
           tmdb.accountList(id, account.id, request),
         ),
+    },
+    // The watched titles, in a list of the user that takes their access
+    // token: the id of the list is looked for once per account.
+    watched: {
+      state: (title) =>
+        auth.withAccess((access) => {
+          const user = userAccess(access);
+
+          return watched.state(user, listCache(user), title);
+        }),
+      mark: (request) =>
+        auth
+          .withAccess((access) => {
+            const user = userAccess(access);
+
+            return watched.mark(user, listCache(user), request);
+          })
+          .then(() => null),
+      list: (request) =>
+        auth.withAccess((access) => {
+          const user = userAccess(access);
+
+          return watched.list(user, listCache(user), request);
+        }),
     },
     credentials,
     auth,

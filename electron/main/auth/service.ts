@@ -480,6 +480,21 @@ export function createAuthService(options: AuthServiceOptions) {
       }
     },
 
+    /**
+     * What signing in gave, for what needs more than the session: the lists
+     * of the user take their access token (v4). Nobody signed in is
+     * `signed-out`.
+     */
+    async withAccess<T>(work: (access: Access) => Promise<T>): Promise<T> {
+      const current = access;
+
+      if (!current || state.status !== 'authenticated') {
+        throw new TmdbError('signed-out');
+      }
+
+      return work(current);
+    },
+
     /** Signs out here first, so being offline never keeps anyone signed in. */
     async logout(): Promise<SessionState> {
       const ended = access;

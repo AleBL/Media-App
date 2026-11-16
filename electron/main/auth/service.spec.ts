@@ -682,6 +682,23 @@ describe('auth service', () => {
 
       expect(service.getSession()).toMatchObject({ status: 'authenticated' });
     });
+
+    it('gives what signing in gave to what needs more than the session', async () => {
+      const { service } = await signedIn();
+      const work = vi.fn(async (access: Access) => access);
+
+      await expect(service.withAccess(work)).resolves.toEqual(ACCESS);
+    });
+
+    it('gives nothing when nobody is signed in', async () => {
+      const { service } = setup();
+      const work = vi.fn(async () => 'never');
+
+      await expect(service.withAccess(work)).rejects.toMatchObject({
+        code: 'signed-out',
+      });
+      expect(work).not.toHaveBeenCalled();
+    });
   });
 
   describe('at launch', () => {

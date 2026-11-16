@@ -12,6 +12,8 @@ import {
   type SearchType,
   type TitleList,
   type TitleRequest,
+  type WatchedListRequest,
+  type WatchedRequest,
 } from '../api';
 import { TMDB_MAX_PAGES } from './client';
 
@@ -152,6 +154,45 @@ export function parseMarkRequest(value: unknown): MarkRequest | null {
   return isAccountList(list) && typeof inList === 'boolean'
     ? { ...title, list, value: inList }
     : null;
+}
+
+/** A day of a calendar, as YYYY-MM-DD: what TMDB keeps in the comment. */
+function isDay(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const day = new Date(`${value}T00:00:00Z`);
+
+  return !Number.isNaN(day.getTime()) && day.toISOString().startsWith(value);
+}
+
+export function parseWatchedRequest(value: unknown): WatchedRequest | null {
+  const title = parseTitleRequest(value);
+
+  if (!title) {
+    return null;
+  }
+
+  const { value: watched, date, language } = value as Record<string, unknown>;
+  const locale = parseLanguage(language);
+
+  return typeof watched === 'boolean' && isDay(date) && locale
+    ? { ...title, value: watched, date, language: locale }
+    : null;
+}
+
+export function parseWatchedListRequest(
+  value: unknown,
+): WatchedListRequest | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const { page, language } = value as Record<string, unknown>;
+  const locale = parseLanguage(language);
+
+  return isPage(page) && locale ? { page, language: locale } : null;
 }
 
 /** A rating from 0.5 to 10 in steps of 0.5, or `null` to take it away. */

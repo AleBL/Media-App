@@ -49,6 +49,8 @@ export interface MediaItem {
   vote_average?: number;
   /** The rating whoever signed in gave it: in the list of rated titles. */
   rating?: number;
+  /** When they marked it watched, YYYY-MM-DD: in the list of watched titles. */
+  watchedAt?: string;
 }
 
 /** Someone found by a search of everything (`multi`). */
@@ -151,6 +153,21 @@ export interface AccountListRequest {
   language: string;
 }
 
+/** Marks a title as watched (`value`), on `date`, or takes the mark away. */
+export interface WatchedRequest extends TitleRequest {
+  value: boolean;
+  /** The day of the user, as YYYY-MM-DD. */
+  date: string;
+  /** An app locale: the name of the list of watched titles, if it is new. */
+  language: string;
+}
+
+export interface WatchedListRequest {
+  page: number;
+  /** An app locale such as `en` or `pt-BR`. */
+  language: string;
+}
+
 /** Someone in the cast of a movie or tv show. */
 export interface CastMember {
   id: number;
@@ -220,7 +237,12 @@ export type TmdbErrorCode =
   | 'network'
   | 'timeout'
   /** Nobody is signed in, or TMDB says the session is over. */
-  | 'signed-out';
+  | 'signed-out'
+  /**
+   * Signed in without the access token of the user (before the v4 login, or
+   * with a key), or one TMDB no longer takes: signing in again gives it.
+   */
+  | 'sign-in-again';
 
 export interface TmdbFailure {
   code: TmdbErrorCode;
@@ -341,6 +363,18 @@ export interface MediaAppApi {
     /** A page of a list, the titles added (or rated) last first. */
     list(request: AccountListRequest): Promise<Result<Paged<MediaItem>>>;
   };
+  /**
+   * The titles whoever signed in watched, in a private list of their TMDB
+   * account (v4), made the first time one is marked. Each call answers
+   * `signed-out` when nobody is, and `sign-in-again` without the access
+   * token of the user.
+   */
+  watched: {
+    state(request: TitleRequest): Promise<Result<boolean>>;
+    mark(request: WatchedRequest): Promise<Result<null>>;
+    /** A page of the watched titles, movies and tv shows together. */
+    list(request: WatchedListRequest): Promise<Result<Paged<MediaItem>>>;
+  };
   /** The TMDB key never comes back to the renderer once it is saved. */
   credentials: {
     status(): Promise<CredentialStatus>;
@@ -391,6 +425,9 @@ export const IPC = {
   accountMark: 'account:mark',
   accountRate: 'account:rate',
   accountList: 'account:list',
+  watchedState: 'watched:state',
+  watchedMark: 'watched:mark',
+  watchedList: 'watched:list',
   credentialStatus: 'credentials:status',
   credentialSave: 'credentials:save',
   credentialClear: 'credentials:clear',

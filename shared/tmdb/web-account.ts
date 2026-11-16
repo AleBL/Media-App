@@ -7,13 +7,22 @@ import {
   parseMarkRequest,
   parseRateRequest,
   parseTitleRequest,
+  parseWatchedListRequest,
+  parseWatchedRequest,
 } from './validation';
-import { dropAccess, visit, type WebAuthOptions } from './web-auth';
+import { createWatched, userAccess } from './watched';
+import {
+  accessOf,
+  dropAccess,
+  visit,
+  watchedListCache,
+  type WebAuthOptions,
+} from './web-auth';
 
 export type WebAccountOptions = Omit<WebAuthOptions, 'website'>;
 
 /** The resources that change something at TMDB: POST only. */
-const CHANGES = new Set(['mark', 'rate', 'unrate']);
+const CHANGES = new Set(['mark', 'rate', 'unrate', 'watched-mark']);
 
 /** `true` and `false` as an address says them; anything else is neither. */
 function toBoolean(value: string | null) {
@@ -31,6 +40,12 @@ function toBoolean(value: string | null) {
  *   POST ?resource=mark&list=watchlist&type=movie&id=603&value=true
  *   POST ?resource=rate&type=movie&id=603&value=8.5
  *   POST ?resource=unrate&type=movie&id=603
+ *   GET  ?resource=watched-state&type=movie&id=603
+ *   POST ?resource=watched-mark&type=movie&id=603&value=true&date=2026-11-16&language=en
+ *   GET  ?resource=watched-list&page=1&language=en
+ *
+ * The watched titles take the access token of the user (watched.ts), kept
+ * in a cookie as well.
  *
  * Every parameter is checked the same way the desktop app checks what its
  * window sends.
@@ -45,6 +60,7 @@ export function createWebAccount(options: WebAccountOptions) {
     timeoutMs: 4000,
     retries: 0,
   });
+  const watched = createWatched(tmdb);
 
   return async function handle(request: Request): Promise<Response> {
     const at = visit(request);
@@ -145,6 +161,60 @@ export function createWebAccount(options: WebAccountOptions) {
             ok: true,
             data: await tmdb.accountList(sessionId, account.id, asked),
           });
+        }
+
+        case 'watched-state': {
+          const asked = parseTitleRequest(title);
+
+          return asked
+            ? at.answer({
+                ok: true,
+                data: await watched.state(
+                  userAccess(accessOf(at)),
+                  watchedListCache(at),
+                  asked,
+                ),
+              })
+            : fail('invalid-request');
+        }
+
+        case 'watched-mark': {
+          const asked = parseWatchedRequest({
+            ...title,
+            value: toBoolean(params.get('value')),
+            date: params.get('date'),
+            language: params.get('language'),
+          });
+
+          if (!asked) {
+            return fail('invalid-request');
+          }
+
+          await watched.mark(
+            userAccess(accessOf(at)),
+            watchedListCache(at),
+            asked,
+          );
+
+          return at.answer({ ok: true, data: null });
+        }
+
+        case 'watched-list': {
+          const asked = parseWatchedListRequest({
+            page: Number(params.get('page')),
+            language: params.get('language'),
+          });
+
+          return asked
+            ? at.answer({
+                ok: true,
+                data: await watched.list(
+                  userAccess(accessOf(at)),
+                  watchedListCache(at),
+                  asked,
+                ),
+              })
+            : fail('invalid-request');
         }
 
         default:

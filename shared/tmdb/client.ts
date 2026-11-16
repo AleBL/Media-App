@@ -153,9 +153,19 @@ export const isV4RequestToken = (token: string) =>
 
 /** What a request that changes something at TMDB sends. */
 type Send = {
-  method: 'POST' | 'DELETE';
-  body?: Record<string, string | number | boolean>;
+  method: 'POST' | 'PUT' | 'DELETE';
+  body?: Record<string, unknown>;
 };
+
+/** A list the user made at TMDB (v4). */
+export interface UserList {
+  id: number;
+  name: string;
+  description: string;
+}
+
+/** A day, as the comment of a watched title keeps it. */
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 // A v4 "API Read Access Token" is a JWT and goes in the Authorization
 // header; a v3 "API Key" goes in the query string.
@@ -481,13 +491,18 @@ export function createTmdbClient(options: TmdbClientOptions) {
     options.sleep ??
     ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
 
+  /**
+   * A request to TMDB with the credential of the app, or, with `user`, with
+   * the access token of the user, which v4 takes for what is theirs.
+   */
   async function request<T>(
     path: string,
     params: Record<string, string | number>,
     send?: Send,
     version: 3 | 4 = 3,
+    user?: string,
   ): Promise<T> {
-    const credential = options.getCredential();
+    const credential = user ?? options.getCredential();
 
     if (!credential) {
       throw new TmdbError('missing-credential');
@@ -849,6 +864,194 @@ export function createTmdbClient(options: TmdbClientOptions) {
 
     /** Ends at TMDB what signing in gave: it stops working everywhere. */
     deleteSession: end,
+
+    // The lists a user makes, in v4, with their access token: TMDB only
+    // shows a private one to its owner.
+
+    /** A page of the lists the user made. */
+    async userLists(
+      accessToken: string,
+      accountObjectId: string,
+      page: number,
+    ): Promise<{ lists: UserList[]; totalPages: number }> {
+      const body = await request<SearchBody>(
+        `/account/${encodeURIComponent(accountObjectId)}/lists`,
+        { page },
+        undefined,
+        4,
+        accessToken,
+      );
+
+      return {
+        lists: objects(body.results).flatMap((list) =>
+          typeof list.id === 'number'
+            ? [
+                {
+                  id: list.id,
+                  name: typeof list.name === 'string' ? list.name : '',
+                  description:
+                    typeof list.description === 'string'
+                      ? list.description
+                      : '',
+                },
+              ]
+            : [],
+        ),
+        totalPages: body.total_pages ?? 1,
+      };
+    },
+
+    /**
+     * Makes a private list of the user, in the order its titles were added,
+     * the last first.
+     */
+    async createList(
+      accessToken: string,
+      {
+        name,
+        description,
+        language,
+      }: Omit<UserList, 'id'> & { language: string },
+    ): Promise<number> {
+      const [lang, country] = language.split('-');
+      const body = await request<Fields>(
+        '/list',
+        {},
+        {
+          method: 'POST',
+          body: {
+            name,
+            description,
+            iso_639_1: lang,
+            ...(country ? { iso_3166_1: country } : {}),
+            public: false,
+          },
+        },
+        4,
+        accessToken,
+      );
+      const id = typeof body.id === 'number' ? body.id : unreadable();
+
+      // TMDB makes it first and sorts it after. In another order the list
+      // still works: only the page of the list shows it differently.
+      await request(
+        `/list/${id}`,
+        {},
+        { method: 'PUT', body: { sort_by: 'original_order.desc' } },
+        4,
+        accessToken,
+      ).catch(() => {});
+
+      return id;
+    },
+
+    /** Whether a title is in a list of the user. */
+    async listItemStatus(
+      accessToken: string,
+      listId: number,
+      { type, id }: TitleRequest,
+    ): Promise<boolean> {
+      try {
+        const body = await request<Fields>(
+          `/list/${listId}/item_status`,
+          { media_id: id, media_type: type },
+          undefined,
+          4,
+          accessToken,
+        );
+
+        return (
+          body.success === true &&
+          (body.media_id === undefined || Number(body.media_id) === id)
+        );
+      } catch (error) {
+        // Not in the list (or no list at all).
+        if (error instanceof TmdbError && error.code === 'not-found') {
+          return false;
+        }
+
+        throw error;
+      }
+    },
+
+    /**
+     * Puts a title in a list of the user, with `comment`. The comment is a
+     * second request: if it fails, the title stays in the list without it.
+     */
+    async addToList(
+      accessToken: string,
+      listId: number,
+      { type, id }: TitleRequest,
+      comment: string,
+    ): Promise<void> {
+      const item = { media_type: type, media_id: id };
+
+      await request(
+        `/list/${listId}/items`,
+        {},
+        { method: 'POST', body: { items: [item] } },
+        4,
+        accessToken,
+      );
+      await request(
+        `/list/${listId}/items`,
+        {},
+        { method: 'PUT', body: { items: [{ ...item, comment }] } },
+        4,
+        accessToken,
+      ).catch(() => {});
+    },
+
+    /** Takes a title out of a list of the user. */
+    async removeFromList(
+      accessToken: string,
+      listId: number,
+      { type, id }: TitleRequest,
+    ): Promise<void> {
+      await request(
+        `/list/${listId}/items`,
+        {},
+        {
+          method: 'DELETE',
+          body: { items: [{ media_type: type, media_id: id }] },
+        },
+        4,
+        accessToken,
+      );
+    },
+
+    /**
+     * A page of a list of the user, movies and tv shows together, in the
+     * order of the list. A comment that is a day is when it was watched.
+     */
+    async listItems(
+      accessToken: string,
+      listId: number,
+      page: number,
+      language: string,
+    ): Promise<Paged<MediaItem>> {
+      const body = await request<SearchBody & { comments?: unknown }>(
+        `/list/${listId}`,
+        { page, language },
+        undefined,
+        4,
+        accessToken,
+      );
+      const comments: Fields =
+        typeof body.comments === 'object' && body.comments !== null
+          ? (body.comments as Fields)
+          : {};
+
+      return toPaged(body, page, (item) =>
+        toTitles(item, item.media_type).map((title) => {
+          const comment = comments[`${title.media_type}:${title.id}`];
+
+          return typeof comment === 'string' && DAY.test(comment)
+            ? { ...title, watchedAt: comment }
+            : title;
+        }),
+      );
+    },
   };
 }
 

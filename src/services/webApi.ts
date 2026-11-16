@@ -226,6 +226,28 @@ export function createWebApi(
           ACCOUNT_PATH,
         ),
     },
+    watched: {
+      state: ({ type, id }) =>
+        ask({ resource: 'watched-state', type, id: String(id) }, ACCOUNT_PATH),
+      mark: ({ type, id, value, date, language }) =>
+        ask(
+          {
+            resource: 'watched-mark',
+            type,
+            id: String(id),
+            value: String(value),
+            date,
+            language,
+          },
+          ACCOUNT_PATH,
+          'POST',
+        ),
+      list: ({ page, language }) =>
+        ask(
+          { resource: 'watched-list', page: String(page), language },
+          ACCOUNT_PATH,
+        ),
+    },
     credentials: {
       status: async () => SERVER_CREDENTIAL,
       save: async () => SERVER_CREDENTIAL,

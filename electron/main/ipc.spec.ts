@@ -90,6 +90,22 @@ describe('ipc handlers', () => {
           totalResults: 1,
         })),
       },
+      watched: {
+        state: vi.fn(async () => true),
+        mark: vi.fn(async () => null),
+        list: vi.fn(async () => ({
+          page: 1,
+          results: [
+            {
+              id: 603,
+              media_type: 'movie' as const,
+              watchedAt: '2026-11-16',
+            },
+          ],
+          totalPages: 1,
+          totalResults: 1,
+        })),
+      },
       credentials: {
         status: vi.fn(() => NONE),
         save: vi.fn(async () => SAVED),
@@ -172,6 +188,70 @@ describe('ipc handlers', () => {
         { ok: false, error: { code: 'invalid-request' } },
       );
       expect(services.tmdb.search).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('watched titles', () => {
+    const title = { type: 'tv', id: 1396 };
+    const mark = { ...title, value: true, date: '2026-11-16', language: 'en' };
+    const page = { page: 1, language: 'pt-BR' };
+
+    it('answers whether a title was watched, marks it and reads a page', async () => {
+      await expect(call(IPC.watchedState, fromApp, title)).resolves.toEqual({
+        ok: true,
+        data: true,
+      });
+      await expect(call(IPC.watchedMark, fromApp, mark)).resolves.toEqual({
+        ok: true,
+        data: null,
+      });
+      await expect(call(IPC.watchedList, fromApp, page)).resolves.toMatchObject(
+        { ok: true, data: { results: [{ watchedAt: '2026-11-16' }] } },
+      );
+      expect(services.watched.state).toHaveBeenCalledWith(title);
+      expect(services.watched.mark).toHaveBeenCalledWith(mark);
+      expect(services.watched.list).toHaveBeenCalledWith(page);
+    });
+
+    it('says when signing in again is needed', async () => {
+      vi.mocked(services.watched.state).mockRejectedValue(
+        new TmdbError('sign-in-again'),
+      );
+
+      await expect(
+        call(IPC.watchedState, fromApp, title),
+      ).resolves.toMatchObject({ ok: false, error: { code: 'sign-in-again' } });
+    });
+
+    it.each([
+      [IPC.watchedState, { ...title, type: 'person' }],
+      [IPC.watchedMark, { ...mark, value: 'yes' }],
+      [IPC.watchedMark, { ...mark, date: '16/11/2026' }],
+      [IPC.watchedMark, { ...mark, date: '2026-02-30' }],
+      [IPC.watchedMark, { ...mark, language: '../x' }],
+      [IPC.watchedList, { ...page, page: 0 }],
+    ])('rejects a malformed request on %s', async (channel, request) => {
+      await expect(call(channel, fromApp, request)).resolves.toEqual({
+        ok: false,
+        error: { code: 'invalid-request' },
+      });
+      expect(services.watched.state).not.toHaveBeenCalled();
+      expect(services.watched.mark).not.toHaveBeenCalled();
+      expect(services.watched.list).not.toHaveBeenCalled();
+    });
+
+    it('rejects a sender that is not the app', async () => {
+      for (const [channel, request] of [
+        [IPC.watchedState, title],
+        [IPC.watchedMark, mark],
+        [IPC.watchedList, page],
+      ] as const) {
+        await expect(call(channel, fromElsewhere, request)).resolves.toEqual({
+          ok: false,
+          error: { code: 'invalid-request' },
+        });
+      }
+      expect(services.watched.mark).not.toHaveBeenCalled();
     });
   });
 

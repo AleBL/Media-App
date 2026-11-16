@@ -30,6 +30,8 @@ export const HTTP_STATUS: Record<TmdbErrorCode, number> = {
   network: 502,
   timeout: 504,
   'signed-out': 401,
+  // Signed in, but without what this needs: a new sign in gives it.
+  'sign-in-again': 403,
 };
 
 // Answers are the same for everyone, so the CDN in front of the function

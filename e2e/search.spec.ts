@@ -1,5 +1,12 @@
 import { QUERY_WITHOUT_RESULTS } from './support/fake-tmdb';
-import { cards, expect, openPage, searchBox, test } from './support/fixtures';
+import {
+  cards,
+  expect,
+  heading,
+  openPage,
+  searchBox,
+  test,
+} from './support/fixtures';
 
 // Nothing is set up first: the app searches with its own credential.
 test.describe('search', () => {
@@ -55,6 +62,39 @@ test.describe('search', () => {
     await expect(cards(page).first()).toContainText('Show 1 [en] (2008)');
     await expect(cards(page).first()).toContainText('Drama');
     expect(tmdb.lastSearch()?.path).toBe('/3/search/tv');
+  });
+
+  test('searches movies, tv shows and people at once', async ({
+    page,
+    tmdb,
+  }) => {
+    await searchBox(page).fill('keanu');
+    await expect(cards(page).first()).toContainText('Movie 1');
+
+    await page.getByRole('radio', { name: 'All' }).check();
+
+    await expect(cards(page)).toHaveCount(20);
+    await expect(cards(page).nth(1)).toContainText('TV Show');
+    await expect(cards(page).nth(1)).toContainText('Show 2 [en] (2008)');
+
+    // the person has the id of the first movie, and both are shown
+    const person = cards(page).nth(2);
+    await expect(person).toContainText('Person 3');
+    await expect(person).toContainText('Known for');
+    await expect(cards(page).first()).toContainText('Movie 1 [en] (2020)');
+    expect(tmdb.lastSearch()).toEqual({
+      path: '/3/search/multi',
+      credential: 'app',
+      query: 'keanu',
+      page: '1',
+      language: 'en',
+      include_adult: 'false',
+    });
+
+    await person.getByRole('link', { name: 'Show 2 [en] (2008)' }).click();
+
+    await expect(page).toHaveURL(/#\/tv\/9002$/);
+    await expect(heading(page)).toHaveText('Show 2 [en] (2008)');
   });
 
   test('follows the language chosen in the menu', async ({ page, tmdb }) => {

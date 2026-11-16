@@ -62,7 +62,8 @@ async function jsonBody(request: IncomingMessage) {
  * answers 401 to anything else.
  *
  * Every search has 45 results: two full pages and a last one with five,
- * except QUERY_WITHOUT_RESULTS, which has none. Titles carry their number
+ * except QUERY_WITHOUT_RESULTS, which has none. A search of everything
+ * (multi) has movies, tv shows and people in turn. Titles carry their number
  * and the language that was asked for, which lets a test tell what the app
  * requested from what it shows. Each of them has a page, except
  * MISSING_MOVIE.
@@ -212,36 +213,60 @@ export async function startFakeTmdb() {
       return send(200, { genres: [{ id: 18, name: 'Drama' }] });
     }
 
-    if (url.pathname === '/3/search/movie' || url.pathname === '/3/search/tv') {
-      const tv = url.pathname.endsWith('/tv');
+    const searched = /^\/3\/search\/(movie|tv|multi)$/.exec(url.pathname);
+
+    if (searched) {
+      const type = searched[1];
       const page = Number(query.page);
       const total = query.query === QUERY_WITHOUT_RESULTS ? 0 : TOTAL_RESULTS;
       const first = (page - 1) * PAGE_SIZE + 1;
       const count = Math.max(0, Math.min(PAGE_SIZE, total - first + 1));
+      const movie = (number: number) => ({
+        id: number,
+        title: `Movie ${number} [${query.language}]`,
+        release_date: '2020-01-01',
+        poster_path: null,
+        genre_ids: [28],
+        vote_average: 7.5,
+      });
+      const show = (number: number) => ({
+        id: 9000 + number,
+        name: `Show ${number} [${query.language}]`,
+        first_air_date: '2008-01-20',
+        poster_path: null,
+        genre_ids: [18],
+        vote_average: 8.9,
+      });
+      // A search of everything has a movie, a tv show and a person in
+      // turn. The person has the id of the movie two places before, as
+      // different kinds of results can at TMDB, and is known for that
+      // movie and the show right after it.
+      const anything = (number: number) => {
+        switch (number % 3) {
+          case 1:
+            return { ...movie(number), media_type: 'movie' };
+          case 2:
+            return { ...show(number), media_type: 'tv' };
+          default:
+            return {
+              id: number - 2,
+              media_type: 'person',
+              name: `Person ${number}`,
+              profile_path: null,
+              known_for: [
+                { ...movie(number - 2), media_type: 'movie' },
+                { ...show(number - 1), media_type: 'tv' },
+              ],
+            };
+        }
+      };
+      const result = type === 'multi' ? anything : type === 'tv' ? show : movie;
 
       return send(200, {
         page,
-        results: Array.from({ length: count }, (_, index) => {
-          const number = first + index;
-
-          return tv
-            ? {
-                id: 9000 + number,
-                name: `Show ${number} [${query.language}]`,
-                first_air_date: '2008-01-20',
-                poster_path: null,
-                genre_ids: [18],
-                vote_average: 8.9,
-              }
-            : {
-                id: number,
-                title: `Movie ${number} [${query.language}]`,
-                release_date: '2020-01-01',
-                poster_path: null,
-                genre_ids: [28],
-                vote_average: 7.5,
-              };
-        }),
+        results: Array.from({ length: count }, (_, index) =>
+          result(first + index),
+        ),
         total_pages: Math.ceil(total / PAGE_SIZE),
         total_results: total,
       });

@@ -125,7 +125,7 @@
   <header>
     <nav
       :aria-label="t('menu.label')"
-      class="relative flex min-h-[4rem] items-center gap-6 rounded-md bg-surface-0 px-6 shadow-md ring-1 ring-inset ring-surface-100 dark:bg-surface-900 dark:ring-surface-800"
+      class="relative z-20 flex min-h-[4rem] items-center gap-6 rounded-md bg-surface-0 px-6 shadow-md ring-1 ring-inset ring-surface-100 dark:bg-surface-900 dark:ring-surface-800"
     >
       <button
         type="button"

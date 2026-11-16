@@ -120,6 +120,37 @@ describe('AccountButtons', () => {
     );
   });
 
+  it('marks the title watched at once, as a toggle', async () => {
+    useSessionStore().state = SIGNED_IN;
+    await mountButtons();
+
+    expect(button('Watched').attributes('aria-pressed')).toBe('false');
+    expect(api.watched.state).toHaveBeenCalledWith({ type: 'movie', id: 603 });
+
+    await button('Watched').trigger('click');
+
+    expect(button('Watched').attributes('aria-pressed')).toBe('true');
+    expect(button('Watched').find('.pi-check-circle').exists()).toBe(true);
+    expect(api.watched.mark).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'movie', id: 603, value: true }),
+    );
+  });
+
+  it('asks to sign in again to mark what was watched, and leaves the rest as it is', async () => {
+    useSessionStore().state = SIGNED_IN;
+    api.watched.state.mockResolvedValue({
+      ok: false,
+      error: { code: 'sign-in-again' },
+    });
+
+    await mountButtons();
+
+    expect(button('Watched')).toBeUndefined();
+    expect(wrapper.text()).toContain('sign out and sign in with TMDB again');
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+    expect(button('My list').attributes('disabled')).toBeUndefined();
+  });
+
   it('says when it could not learn where the title is', async () => {
     useSessionStore().state = SIGNED_IN;
     api.account.states.mockResolvedValue({

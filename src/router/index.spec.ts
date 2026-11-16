@@ -67,7 +67,7 @@ describe('pages of the account', () => {
     delete window.api;
   });
 
-  it.each(['/watchlist', '/favorites', '/rated'])(
+  it.each(['/watchlist', '/favorites', '/rated', '/watched'])(
     'send nobody signed in to the sign in, which comes back to %s',
     async (page) => {
       await useSessionStore().load();

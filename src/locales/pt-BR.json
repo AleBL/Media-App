@@ -129,7 +129,12 @@
     "yourRating": "Sua nota",
     "yourRatingIs": "Sua nota: {rating}",
     "notRated": "Sem nota",
-    "rateFailed": "A nota não foi salva. Tente de novo."
+    "rateFailed": "A nota não foi salva. Tente de novo.",
+    "watched": "Assistidos",
+    "watchedButton": "Assistido",
+    "watchedOn": "Assistido em {date}",
+    "emptyWatched": "Nada assistido ainda. Marque filmes e séries como assistidos nas páginas deles.",
+    "signInAgain": "Para marcar o que você assistiu, saia e entre de novo com o TMDB: o app agora guarda isso numa lista da sua conta."
   },
 
   "account": {

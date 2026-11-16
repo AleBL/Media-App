@@ -129,7 +129,12 @@
     "yourRating": "Tu valoración",
     "yourRatingIs": "Tu valoración: {rating}",
     "notRated": "Sin valorar",
-    "rateFailed": "No se pudo guardar la valoración. Inténtalo de nuevo."
+    "rateFailed": "No se pudo guardar la valoración. Inténtalo de nuevo.",
+    "watched": "Vistos",
+    "watchedButton": "Visto",
+    "watchedOn": "Visto el {date}",
+    "emptyWatched": "Aún no has visto nada. Marca películas y series como vistas desde sus páginas.",
+    "signInAgain": "Para marcar lo que has visto, cierra sesión y vuelve a iniciarla con TMDB: la app ahora lo guarda en una lista de tu cuenta."
   },
 
   "account": {

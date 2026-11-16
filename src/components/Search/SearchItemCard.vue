@@ -32,6 +32,18 @@
       : null,
   );
 
+  // Only the titles of the list of watched titles have one: a day of the
+  // calendar, shown as such in every timezone.
+  const watchedOn = computed(() => {
+    const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(props.item.watchedAt ?? '');
+
+    return day
+      ? new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(
+          new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])),
+        )
+      : null;
+  });
+
   // Only the titles of the list of rated titles have one.
   const yourRating = computed(() =>
     typeof props.item.rating === 'number'
@@ -93,6 +105,13 @@
     >
       <i class="pi pi-star-fill" aria-hidden="true" />
       {{ t('lists.yourRatingIs', { rating: yourRating }) }}
+    </p>
+    <p
+      v-if="watchedOn"
+      class="flex items-center justify-center gap-2 text-sm font-semibold text-primary-700 dark:text-primary-300"
+    >
+      <i class="pi pi-check-circle" aria-hidden="true" />
+      {{ t('lists.watchedOn', { date: watchedOn }) }}
     </p>
     <p
       v-if="showType"

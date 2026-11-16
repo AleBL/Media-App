@@ -15,6 +15,7 @@ declare module 'vue-router' {
 import DetailsPage from '@/views/DetailsPage.vue';
 import SearchPage from '@/views/Search/SearchPage.vue';
 import SettingsPage from '@/views/SettingsPage.vue';
+import WatchedPage from '@/views/WatchedPage.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -61,6 +62,12 @@ const routes: RouteRecordRaw[] = [
     name: 'rated',
     component: AccountListPage,
     props: { list: 'rated' },
+    meta: { signedIn: true },
+  },
+  {
+    path: '/watched',
+    name: 'watched',
+    component: WatchedPage,
     meta: { signedIn: true },
   },
   {

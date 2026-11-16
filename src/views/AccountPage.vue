@@ -76,6 +76,11 @@
             {{ t('lists.rated') }}
           </RouterLink>
         </li>
+        <li>
+          <RouterLink :to="{ name: 'watched' }">
+            {{ t('lists.watched') }}
+          </RouterLink>
+        </li>
       </ul>
       <p
         v-if="offline"

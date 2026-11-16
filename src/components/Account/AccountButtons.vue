@@ -6,6 +6,7 @@
   import TitleRating from '@/components/Account/TitleRating.vue';
   import { useAccountStore } from '@/stores/account';
   import { useSessionStore } from '@/stores/session';
+  import { useWatchedStore } from '@/stores/watched';
 
   const props = defineProps<{ type: MediaType; id: number }>();
 
@@ -13,18 +14,24 @@
   const route = useRoute();
   const session = useSessionStore();
   const account = useAccountStore();
+  const watched = useWatchedStore();
 
   const title = computed(() => ({ type: props.type, id: props.id }));
   const states = computed(() => account.statesOf(title.value));
+  const seen = computed(() => watched.stateOf(title.value));
   const failed = ref<'load' | 'save' | null>(null);
+
+  /** A failure the page has nothing to say about: it shows otherwise. */
+  const told = (code: string) =>
+    code === 'signed-out' || code === 'sign-in-again';
 
   const LISTS: { list: AccountList; label: string; icon: string }[] = [
     { list: 'watchlist', label: 'lists.watchlistButton', icon: 'pi-bookmark' },
     { list: 'favorite', label: 'lists.favoriteButton', icon: 'pi-heart' },
   ];
 
-  // Where the title is, and its rating, asked again for another title or
-  // someone else.
+  // Where the title is, its rating and whether it was watched, asked again
+  // for another title or someone else.
   watch(
     () => [session.account?.id, props.type, props.id] as const,
     async ([signedIn]) => {
@@ -34,9 +41,12 @@
         return;
       }
 
-      const answer = await account.load(title.value);
+      const answers = await Promise.all([
+        account.load(title.value),
+        watched.load(title.value),
+      ]);
 
-      if (!answer.ok && answer.error.code !== 'signed-out') {
+      if (answers.some((answer) => !answer.ok && !told(answer.error.code))) {
         failed.value = 'load';
       }
     },
@@ -48,7 +58,17 @@
 
     const answer = await account.toggle(list, title.value);
 
-    if (answer && !answer.ok && answer.error.code !== 'signed-out') {
+    if (answer && !answer.ok && !told(answer.error.code)) {
+      failed.value = 'save';
+    }
+  }
+
+  async function toggleWatched() {
+    failed.value = null;
+
+    const answer = await watched.toggle(title.value);
+
+    if (answer && !answer.ok && !told(answer.error.code)) {
       failed.value = 'save';
     }
   }
@@ -71,6 +91,16 @@
         :disabled="!states"
         @click="toggle(item.list)"
       />
+      <!-- In a list of the user at TMDB, which needs the v4 login. -->
+      <AppButton
+        v-if="!watched.needsSignIn"
+        :label="t('lists.watchedButton')"
+        :icon="`pi ${seen ? 'pi-check-circle' : 'pi-eye'}`"
+        :severity="seen ? 'primary' : 'secondary'"
+        :aria-pressed="seen"
+        :disabled="seen === undefined"
+        @click="toggleWatched"
+      />
     </div>
     <p
       v-if="failed"
@@ -78,6 +108,12 @@
       class="mt-2 text-sm text-red-600 dark:text-red-400"
     >
       {{ t(failed === 'load' ? 'lists.statesFailed' : 'lists.saveFailed') }}
+    </p>
+    <p v-if="watched.needsSignIn" class="mt-2 text-sm">
+      {{ t('lists.signInAgain') }}
+      <RouterLink :to="{ name: 'account' }">
+        {{ t('pageTitles.account') }}
+      </RouterLink>
     </p>
     <TitleRating :id="id" class="mt-4" :type="type" />
   </div>

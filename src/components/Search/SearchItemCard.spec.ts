@@ -162,6 +162,17 @@ describe('SearchItemCard', () => {
     );
   });
 
+  it('says when the user watched it, only in the list of watched titles', () => {
+    expect(mountCard(movie).text()).not.toContain('Watched on');
+    wrapper!.unmount();
+
+    // the day as it is, whatever the timezone (vitest.config.mts runs the
+    // tests behind UTC)
+    expect(mountCard({ ...movie, watchedAt: '2026-01-01' }).text()).toContain(
+      'Watched on Jan 1, 2026',
+    );
+  });
+
   it('falls back to the default poster', () => {
     const wrapper = mountCard({ ...movie, poster_path: null });
 

@@ -106,7 +106,6 @@ jobs:
         run: npx electron-builder ${{ matrix.target }} --publish never
 
       - name: Keep the packages
-        if: github.ref_type == 'tag'
         uses: actions/upload-artifact@v7
         with:
           name: packages-${{ matrix.name }}
@@ -119,11 +118,11 @@ jobs:
             release/*/*.blockmap
             release/*/latest*.yml
           if-no-files-found: error
-          retention-days: 7
+          retention-days: ${{ github.ref_type == 'tag' && 7 || 1 }}
 
+  # On a pull request it only lists what the release would get.
   release:
     name: Draft the GitHub release
-    if: github.ref_type == 'tag'
     needs: package
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -136,13 +135,19 @@ jobs:
           path: packages
           merge-multiple: true
 
+      # The artifacts keep the release/<version> folder: only the files go.
+      - name: List the packages
+        run: find packages -type f | sort | tee files.txt
+
       # A draft, published by hand once the packages were tried.
       - name: Draft the release
+        if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "$GITHUB_REF_NAME" packages/*
-          --repo "$GITHUB_REPOSITORY"
-          --draft
-          --generate-notes
-          --title "Media App ${GITHUB_REF_NAME#v}"
+        run: |
+          mapfile -t files < files.txt
+          gh release create "$GITHUB_REF_NAME" "${files[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --generate-notes \
+            --title "Media App ${GITHUB_REF_NAME#v}"

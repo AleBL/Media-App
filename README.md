@@ -155,7 +155,7 @@ The icon is drawn in `build/icon.svg`. After changing it, `npm run icons` render
 
 #### Releases
 
-A tag such as `v0.2.0` runs `.github/workflows/release.yml`: it checks that the tag matches the version in `package.json` and that the repository has the `TMDB_READ_TOKEN` secret (Settings, Secrets and variables, Actions), runs the tests, packages the app on Linux, Windows and macOS (Apple silicon and Intel), and drafts a GitHub release with the packages. A pull request that changes the packaging runs the same packaging, without the secret and without a release.
+A tag such as `v0.2.0` runs `.github/workflows/release.yml`: it checks that the tag matches the version in `package.json` and that the repository has the `TMDB_READ_TOKEN` secret (Settings, Secrets and variables, Actions), runs the tests, packages the app on Linux, Windows and macOS (Apple silicon and Intel), and drafts a GitHub release with the packages. A pull request that changes the packaging runs the same packaging and lists the files the release would get, without the secret and without a release.
 
 ```bash
 npm version 0.2.0 --no-git-tag-version # on staging, then merge staging into master

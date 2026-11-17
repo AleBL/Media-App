@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e293b" />
+      <stop offset="1" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="play" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6ee7b7" />
+      <stop offset="1" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="184" fill="url(#background)" />
+  <g fill="#334155">
+    <rect x="236" y="160" width="56" height="44" rx="12" />
+    <rect x="360" y="160" width="56" height="44" rx="12" />
+    <rect x="484" y="160" width="56" height="44" rx="12" />
+    <rect x="608" y="160" width="56" height="44" rx="12" />
+    <rect x="732" y="160" width="56" height="44" rx="12" />
+    <rect x="236" y="820" width="56" height="44" rx="12" />
+    <rect x="360" y="820" width="56" height="44" rx="12" />
+    <rect x="484" y="820" width="56" height="44" rx="12" />
+    <rect x="608" y="820" width="56" height="44" rx="12" />
+    <rect x="732" y="820" width="56" height="44" rx="12" />
+  </g>
+  <path
+    d="M432 352 L432 672 L704 512 Z"
+    fill="url(#play)"
+    stroke="url(#play)"
+    stroke-width="64"
+    stroke-linejoin="round"
+  />
+</svg>

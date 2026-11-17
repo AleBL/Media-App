@@ -43,9 +43,12 @@ test.describe('watched titles', () => {
 
     await expect(watchedButton(page)).toHaveAttribute('aria-pressed', 'true');
     await expect.poll(() => tmdb.watched()).toEqual({ 'movie:1': today() });
-    expect(tmdb.userLists()).toEqual([
-      { name: 'Watched', public: false, sortBy: 'original_order.desc' },
-    ]);
+    // made private only after the title went in, so a moment later
+    await expect
+      .poll(() => tmdb.userLists())
+      .toEqual([
+        { name: 'Watched', public: false, sortBy: 'original_order.desc' },
+      ]);
 
     await openPage(page, 'watched');
 
@@ -84,8 +87,10 @@ test.describe('watched titles', () => {
     await expect.poll(() => tmdb.watched()).toEqual({ 'movie:1': today() });
     await expect(watchedButton(page)).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByRole('alert')).toHaveCount(0);
-    expect(tmdb.userLists()).toEqual([
-      { name: 'Watched', public: false, sortBy: 'original_order.desc' },
-    ]);
+    await expect
+      .poll(() => tmdb.userLists())
+      .toEqual([
+        { name: 'Watched', public: false, sortBy: 'original_order.desc' },
+      ]);
   });
 });

@@ -2,11 +2,12 @@
   import { computed, ref, watch } from 'vue';
   import { useRoute } from 'vue-router';
   import type { AccountList, MediaType } from '@shared/api';
-  import AppButton from '@/components/ui/AppButton.vue';
+  import AppToggleButton from '@/components/ui/AppToggleButton.vue';
   import TitleRating from '@/components/Account/TitleRating.vue';
   import { useAccountStore } from '@/stores/account';
   import { useSessionStore } from '@/stores/session';
   import { useWatchedStore } from '@/stores/watched';
+  import { noticeListChange } from '@/util/listNotices';
 
   const props = defineProps<{ type: MediaType; id: number }>();
 
@@ -53,22 +54,35 @@
     { immediate: true },
   );
 
+  // The change waiting for TMDB, whose button shows a spinner.
+  const saving = ref<AccountList | 'watched' | null>(null);
+
   async function toggle(list: AccountList) {
     failed.value = null;
+    saving.value = list;
 
     const answer = await account.toggle(list, title.value);
 
-    if (answer && !answer.ok && !told(answer.error.code)) {
+    saving.value = null;
+
+    if (answer?.ok) {
+      noticeListChange(t, list, !!states.value?.[list], () => toggle(list));
+    } else if (answer && !told(answer.error.code)) {
       failed.value = 'save';
     }
   }
 
   async function toggleWatched() {
     failed.value = null;
+    saving.value = 'watched';
 
     const answer = await watched.toggle(title.value);
 
-    if (answer && !answer.ok && !told(answer.error.code)) {
+    saving.value = null;
+
+    if (answer?.ok) {
+      noticeListChange(t, 'watched', !!seen.value, () => toggleWatched());
+    } else if (answer && !told(answer.error.code)) {
       failed.value = 'save';
     }
   }
@@ -81,23 +95,25 @@
        does not take it. -->
   <div v-if="session.account">
     <div class="flex flex-wrap gap-3">
-      <AppButton
+      <AppToggleButton
         v-for="item in LISTS"
         :key="item.list"
         :label="t(item.label)"
-        :icon="`pi ${item.icon}${states?.[item.list] ? '-fill' : ''}`"
-        :severity="states?.[item.list] ? 'primary' : 'secondary'"
-        :aria-pressed="states ? states[item.list] : undefined"
+        :icon="`pi ${item.icon}`"
+        :pressed-icon="`pi ${item.icon}-fill`"
+        :pressed="states?.[item.list]"
+        :loading="saving === item.list"
         :disabled="!states"
         @click="toggle(item.list)"
       />
       <!-- In a list of the user at TMDB, which needs the v4 login. -->
-      <AppButton
+      <AppToggleButton
         v-if="!watched.needsSignIn"
         :label="t('lists.watchedButton')"
-        :icon="`pi ${seen ? 'pi-check-circle' : 'pi-eye'}`"
-        :severity="seen ? 'primary' : 'secondary'"
-        :aria-pressed="seen"
+        icon="pi pi-eye"
+        pressed-icon="pi pi-check-circle"
+        :pressed="seen"
+        :loading="saving === 'watched'"
         :disabled="seen === undefined"
         @click="toggleWatched"
       />

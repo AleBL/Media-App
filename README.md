@@ -77,7 +77,7 @@ The token is compiled into the main process only (`dist-electron/main`), never i
 The same interface also runs as a web page, deployed by Vercel. A page cannot hold the credential (everything a browser loads is public), so there it asks functions of the site, the files in `api`, which keep `TMDB_READ_TOKEN` on the server and only do what the app does: search movies, tv shows and people, list genres, show the lists of the home page and the page of a title, sign in, and read and change the watchlist, the favorites, the ratings and the watched titles of whoever signed in.
 
 - On Vercel, set `TMDB_READ_TOKEN` in the project's environment variables, for Production and for Preview. Never give it a `VITE_` prefix: that would put it in the page.
-- The web version has no Settings page: a browser has no safe place for a key of the user.
+- The Settings page of the web version has no key of the user, as a browser has no safe place for it, and no cache to clear: the browser keeps it.
 - Signing in works there too, with the session kept by the site (`api/auth`). It needs no other variable.
 - Locally, `npm run dev` and `npx vite preview` answer `/api/tmdb`, `/api/auth` and `/api/account` with the same code, so opening the address they print in a browser shows the web version.
 - Vercel does not build the functions with Vite: it compiles them with `api/tsconfig.json`, which makes them CommonJS, the only format in which Node finds the files they import without an extension. `shared/tmdb/vercel.spec.ts` builds and loads them the same way.
@@ -114,6 +114,10 @@ The page of a title also has **Your rating**: a list from 0.5 to 10, in steps of
 ### Watched titles 👁️
 
 TMDB keeps no "watched", so the app keeps it in a list of the TMDB account: a private one, made the first time a title is marked (**Watched** on the page of the title), named in the language of the app and found again by its description on any computer and on the web. Each title has the day it was marked as its comment. **Watched** lists them, movies and tv shows together, the last marked first. A list of the user takes their v4 access token, so whoever signed in before the v4 login (or with a key of their own) is asked to sign out and in again. Being a list, it shows on the TMDB website too, and deleting it there just makes the app start a new one.
+
+### Settings ⚙️
+
+**Settings** has the language and the theme (the same as the menu, plus following the system), and the country of where to watch: automatic (from the languages of the system, see below) or one of the countries TMDB knows where to watch in. In the desktop app it also has a key of your own (above) and **Clear cache**, which forgets the genres kept on disk and the images Chromium kept, asked again when needed. Everything is kept in the window (or browser) for the next launch.
 
 ### The page of a title 🎬
 

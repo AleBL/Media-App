@@ -70,6 +70,7 @@
     "pinia": "^4.1.0",
     "prettier": "^3.10.1",
     "primeicons": "^7.0.0",
+    "reka-ui": "^2.11.0",
     "tailwindcss": "^4.3.5",
     "taze": "^21.3.0",
     "typescript": "^5.9.3",

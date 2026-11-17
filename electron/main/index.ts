@@ -58,7 +58,10 @@ const appLocation: AppLocation = {
 function createWindow() {
   win = new BrowserWindow({
     title: 'Media App',
-    icon: join(process.env.PUBLIC, 'favicon.ico'),
+    icon: join(
+      process.env.PUBLIC,
+      process.platform === 'win32' ? 'favicon.ico' : 'favicon.png',
+    ),
     width: 1600,
     height: 900,
     minWidth: 765,

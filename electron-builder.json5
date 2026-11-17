@@ -1,17 +1,39 @@
 /**
- * @see https://www.electron.build/configuration/configuration
+ * @see https://www.electron.build/configuration
  */
 {
-  appId: 'YourAppID',
+  appId: 'io.github.alebl.mediaapp',
+  // Installers, menus and the macOS bundle only: app.getName() stays the
+  // package.json name, so the data folder is the same as in development.
+  productName: 'Media App',
+  icon: 'build/icon.png',
   asar: true,
-  icon: 'public/favicon.png',
   directories: {
     output: 'release/${version}',
   },
   files: ['dist-electron', 'dist'],
+  // Turns off Electron features the app does not use: running it as Node,
+  // NODE_OPTIONS and --inspect, and loading code from outside the checked asar.
+  electronFuses: {
+    runAsNode: false,
+    enableCookieEncryption: true,
+    enableNodeOptionsEnvironmentVariable: false,
+    enableNodeCliInspectArguments: false,
+    enableEmbeddedAsarIntegrityValidation: true,
+    onlyLoadAppFromAsar: true,
+    // Flipping fuses breaks the signature Electron ships with; without a
+    // certificate of our own, macOS on Apple silicon refuses an unsigned app.
+    resetAdHocDarwinSignature: true,
+  },
   mac: {
-    artifactName: '${productName}_${version}.${ext}',
-    target: ['dmg'],
+    category: 'public.app-category.entertainment',
+    target: [
+      {
+        target: 'dmg',
+        arch: ['arm64', 'x64'],
+      },
+    ],
+    artifactName: '${name}_${version}_${arch}.${ext}',
   },
   win: {
     target: [
@@ -20,15 +42,24 @@
         arch: ['x64'],
       },
     ],
-    artifactName: '${productName}_${version}.${ext}',
-  },
-  linux: {
-    target: ['snap'],
+    artifactName: '${name}_${version}_${arch}.${ext}',
   },
   nsis: {
     oneClick: false,
     perMachine: false,
     allowToChangeInstallationDirectory: true,
     deleteAppDataOnUninstall: false,
+  },
+  linux: {
+    target: ['AppImage', 'deb', 'snap'],
+    icon: 'build/icons',
+    // AudioVideo needs Audio or Video next to it.
+    category: 'AudioVideo;Video',
+    synopsis: 'Movies and TV shows from TMDB',
+    executableName: 'media-app',
+    // Names the .desktop file after package.json desktopName, which Electron
+    // uses as the window's app_id, so the running window matches its entry.
+    syncDesktopName: true,
+    artifactName: '${name}_${version}_${arch}.${ext}',
   },
 }

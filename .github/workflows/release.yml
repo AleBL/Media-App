@@ -1,0 +1,148 @@
+name: Release
+
+on:
+  # A tag such as v0.2.0 packages the app for the three systems and drafts a
+  # GitHub release with it.
+  push:
+    tags: ['v*']
+  # A change to the packaging is tried on the three systems, without a
+  # release and without the app credential.
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - electron-builder.json5
+      - build/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Check the version, the credential and the tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+
+      # electron-builder names the packages after package.json.
+      - name: The tag matches the version
+        if: github.ref_type == 'tag'
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "$version" ]; then
+            echo "::error::The tag is $GITHUB_REF_NAME, but package.json says $version"
+            exit 1
+          fi
+
+      - name: The app credential is set
+        if: github.ref_type == 'tag'
+        env:
+          TMDB_READ_TOKEN: ${{ secrets.TMDB_READ_TOKEN }}
+        run: |
+          if [ -z "$TMDB_READ_TOKEN" ]; then
+            echo "::error::Add the TMDB_READ_TOKEN secret to the repository: without it the app asks every user for a key"
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+  package:
+    name: Package for ${{ matrix.name }}
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+            target: --linux
+          - name: Windows
+            os: windows-latest
+            target: --win
+          - name: macOS
+            os: macos-latest
+            target: --mac
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      # There is no signing certificate yet: do not look for one.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build renderer, main and preload
+        run: npx vite build
+        env:
+          TMDB_READ_TOKEN: ${{ github.ref_type == 'tag' && secrets.TMDB_READ_TOKEN || '' }}
+
+      - name: Package
+        run: npx electron-builder ${{ matrix.target }} --publish never
+
+      - name: Keep the packages
+        if: github.ref_type == 'tag'
+        uses: actions/upload-artifact@v7
+        with:
+          name: packages-${{ matrix.name }}
+          path: |
+            release/*/*.AppImage
+            release/*/*.deb
+            release/*/*.snap
+            release/*/*.exe
+            release/*/*.dmg
+            release/*/*.blockmap
+            release/*/latest*.yml
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Draft the GitHub release
+    if: github.ref_type == 'tag'
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: packages-*
+          path: packages
+          merge-multiple: true
+
+      # A draft, published by hand once the packages were tried.
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME" packages/*
+          --repo "$GITHUB_REPOSITORY"
+          --draft
+          --generate-notes
+          --title "Media App ${GITHUB_REF_NAME#v}"

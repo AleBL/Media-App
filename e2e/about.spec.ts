@@ -28,4 +28,16 @@ test.describe('about', () => {
 
     await expect.poll(openedInBrowser).toEqual(['https://www.themoviedb.org/']);
   });
+
+  // The terms forbid suggesting that TMDB made or endorses the app.
+  test('the window has the name of the app alone', async ({ running }) => {
+    const { app, page } = running;
+
+    await expect(page).toHaveTitle('Media App');
+    expect(
+      await app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0].getTitle(),
+      ),
+    ).toBe('Media App');
+  });
 });

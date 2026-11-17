@@ -82,6 +82,7 @@ The same interface also runs as a web page, deployed by Vercel. A page cannot ho
 - The Settings page of the web version has no key of the user, as a browser has no safe place for it, and no cache to clear: the browser keeps it.
 - Signing in works there too, with the session kept by the site (`api/auth`). It needs no other variable.
 - Locally, `npm run dev` and `npx vite preview` answer `/api/tmdb`, `/api/auth` and `/api/account` with the same code, so opening the address they print in a browser shows the web version.
+- Vercel runs `npm run build:web` (set in `vercel.json`): the type check and the page in `dist`, without packaging the desktop app, whose Linux packages need tools its build image lacks.
 - Vercel does not build the functions with Vite: it compiles them with `api/tsconfig.json`, which makes them CommonJS, the only format in which Node finds the files they import without an extension. `shared/tmdb/vercel.spec.ts` builds and loads them the same way.
 
 ### Signing in with TMDB 👤
@@ -147,6 +148,22 @@ npm run build:linux # uses linux as build target
 ```
 
 Optional configuration options can be found in the [Electron Builder CLI docs](https://www.electron.build/cli.html).
+
+The packages land in `release/<version>`: a `.dmg` for macOS, an installer for Windows, and an AppImage, a `.deb` and a snap for Linux, configured in `electron-builder.json5`. They turn off what the app does not use of Electron (running it as Node, `--inspect`, loading code from outside the checked `app.asar`), so a packaged app cannot be debugged that way: use `npm run dev`.
+
+The icon is drawn in `build/icon.svg`. After changing it, `npm run icons` renders every size the packages and the site need (`build/icon.png`, `build/icons/`, `public/favicon.*`).
+
+#### Releases
+
+A tag such as `v0.2.0` runs `.github/workflows/release.yml`: it checks that the tag matches the version in `package.json` and that the repository has the `TMDB_READ_TOKEN` secret (Settings, Secrets and variables, Actions), runs the tests, packages the app on Linux, Windows and macOS (Apple silicon and Intel), and drafts a GitHub release with the packages. A pull request that changes the packaging runs the same packaging, without the secret and without a release.
+
+```bash
+npm version 0.2.0 --no-git-tag-version # on staging, then merge staging into master
+git tag v0.2.0 origin/master
+git push origin v0.2.0
+```
+
+Try the packages of the draft before publishing it. They are not signed: Windows warns before running the installer (More info, Run anyway), macOS blocks the app the first time (System Settings, Privacy & Security, Open Anyway), and the snap installs with `snap install --dangerous`.
 
 #### Lint and Prettier
 

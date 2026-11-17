@@ -1,6 +1,7 @@
 import { MISSING_MOVIE, TRAILER_KEY } from './support/fake-tmdb';
 import {
   cards,
+  chooseLanguage,
   expect,
   heading,
   openPage,
@@ -104,8 +105,7 @@ test.describe('page of a title', () => {
     await cards(page).first().getByRole('link').click();
     await expect(heading(page)).toHaveText('Movie 1 [en] (2020)');
 
-    await page.locator('header button:has(.pi-language)').click();
-    await page.getByText('pt-BR', { exact: true }).click();
+    await chooseLanguage(page, 'Português (Brasil)');
 
     await expect(heading(page)).toHaveText('Movie 1 [pt-BR] (2020)');
     await expect(page.getByText('Onde assistir: Estados Unidos')).toBeVisible();

@@ -1,254 +1,109 @@
 <script setup lang="ts">
-  import { computed, ref } from 'vue';
-  import { onClickOutside, onKeyStroke } from '@vueuse/core';
+  import { computed, ref, watch } from 'vue';
+  import { useRoute } from 'vue-router';
+  // The icon of the app, drawn once in build/ for the packages too.
+  import appIcon from '../../../build/icon.svg';
+  import AppButton from '@/components/ui/AppButton.vue';
+  import AppIconButton from '@/components/ui/AppIconButton.vue';
   import { useSessionStore } from '@/stores/session';
-  import { avatarUrl } from '@/util/images';
-  import { ThemeItem } from './theme';
-  import { LanguageItem, type LanguageOption } from './language';
+  import AccountMenu from './AccountMenu.vue';
+  import LanguageMenu from './LanguageMenu.vue';
+  import NavDrawer from './NavDrawer.vue';
+  import { appLinks, mainLinks } from './links';
+  import { NAV_LINK } from './menu';
+  import { isDark, toggleTheme } from './theme';
 
-  const { t, availableLocales, locale } = useI18n();
+  const { t } = useI18n();
+  const route = useRoute();
   const session = useSessionStore();
 
-  const {
-    label: themeLabel,
-    icon: themeIcon,
-    command: toggleTheme,
-  } = new ThemeItem(t).getThemes();
-  const languageItem = new LanguageItem(availableLocales, locale);
-  const languages = languageItem.getLanguages().items;
+  const pages = computed(() => mainLinks(t));
+  const tools = computed(() => appLinks(t));
 
-  const currentLocaleBand = computed(() => {
-    return new URL(languageItem.getCurrentLocaleIcon(), import.meta.url).href;
-  });
-
-  const leading = computed(() => [
-    { to: '/home', icon: 'pi pi-home', label: t('pageTitles.home') },
-    { to: '/search', icon: 'pi pi-search', label: t('pageTitles.search') },
-  ]);
-
-  const trailing = computed(() => {
-    const account = session.account;
-
-    return [
-      { to: '/settings', icon: 'pi pi-cog', label: t('pageTitles.settings') },
-      { to: '/about', icon: 'pi pi-info-circle', label: t('pageTitles.about') },
-      ...(account
-        ? []
-        : [
-            {
-              to: '/account',
-              icon: 'pi pi-sign-in',
-              label: t('account.signIn'),
-            },
-          ]),
-    ];
-  });
-
-  // Whoever signed in has a menu of their own, under their name.
-  const accountLinks = computed(() => [
-    { to: '/watchlist', icon: 'pi pi-bookmark', label: t('lists.watchlist') },
-    { to: '/favorites', icon: 'pi pi-heart', label: t('lists.favorites') },
-    { to: '/rated', icon: 'pi pi-star', label: t('lists.rated') },
-    { to: '/watched', icon: 'pi pi-eye', label: t('lists.watched') },
-    { to: '/account', icon: 'pi pi-user', label: t('pageTitles.account') },
-  ]);
-  const avatar = computed(() =>
-    session.account?.avatarPath ? avatarUrl(session.account.avatarPath) : null,
+  // The icon says the theme in use, the hint what pressing it does.
+  const themeIcon = computed(() => (isDark.value ? 'pi pi-moon' : 'pi pi-sun'));
+  const themeLabel = computed(() =>
+    t(isDark.value ? 'theme.toLight' : 'theme.toDark'),
   );
 
-  // Windows narrower than the menu in one row (a phone, a tablet, a small
-  // desktop window; about 900px in Spanish) fold it behind a button. It,
-  // the languages and the account are disclosures: a button that shows and
-  // hides what follows it, the pattern meant for navigation.
-  const menuOpen = ref(false);
-  const languagesOpen = ref(false);
-  const languageMenu = ref<HTMLElement>();
-  const languageButton = ref<HTMLButtonElement>();
-  const accountOpen = ref(false);
-  const accountMenu = ref<HTMLElement>();
-  const accountButton = ref<HTMLButtonElement>();
+  // Narrow windows (below 1024px, where the bar no longer fits in one row
+  // in every language) keep the pages in a drawer instead.
+  const drawerOpen = ref(false);
 
-  onClickOutside(languageMenu, () => {
-    languagesOpen.value = false;
-  });
-
-  onClickOutside(accountMenu, () => {
-    accountOpen.value = false;
-  });
-
-  onKeyStroke('Escape', () => {
-    if (languagesOpen.value) {
-      languagesOpen.value = false;
-      languageButton.value?.focus();
-    }
-
-    if (accountOpen.value) {
-      accountOpen.value = false;
-      accountButton.value?.focus();
-    }
-  });
-
-  function chooseLanguage(language: LanguageOption) {
-    language.command();
-    languagesOpen.value = false;
-    menuOpen.value = false;
-  }
-
-  function closeMenus() {
-    accountOpen.value = false;
-    menuOpen.value = false;
-  }
-
-  async function signOut() {
-    closeMenus();
-    await session.logout();
-  }
-
-  // In the green of the links of the app, as with PrimeVue.
-  const ITEM =
-    'flex w-full cursor-pointer select-none items-center rounded-md px-3 py-2 font-medium text-[#42b983] no-underline transition-all duration-200 hover:bg-surface-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 lg:w-auto lg:text-sm dark:hover:bg-surface-800 dark:focus-visible:ring-primary-400';
-  const CURRENT =
-    'aria-[current=page]:bg-surface-100 dark:aria-[current=page]:bg-surface-700';
+  watch(
+    () => route.fullPath,
+    () => {
+      drawerOpen.value = false;
+    },
+  );
 </script>
 
 <template>
-  <header>
+  <!-- Stays at the top while the page scrolls. The name of the app leads
+       home; then the pages, the tools as icons with a hint, and the
+       account. -->
+  <header
+    class="sticky top-0 z-30 border-b border-surface-200 bg-surface-0/90 backdrop-blur-md dark:border-surface-700 dark:bg-surface-900/90"
+  >
     <nav
       :aria-label="t('menu.label')"
-      class="relative z-20 flex min-h-[4rem] items-center gap-6 rounded-md bg-surface-0 px-6 shadow-md ring-1 ring-inset ring-surface-100 dark:bg-surface-900 dark:ring-surface-800"
+      class="mx-auto flex h-16 max-w-7xl items-center gap-1 px-4"
     >
-      <button
-        type="button"
-        class="flex h-8 w-8 items-center justify-center rounded-full text-surface-500 transition duration-200 hover:bg-surface-50 hover:text-surface-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 lg:hidden dark:text-white/80 dark:hover:bg-surface-800/80 dark:hover:text-white/80"
-        :aria-label="t('menu.toggle')"
-        :aria-expanded="menuOpen"
-        aria-controls="main-menu"
-        @click="menuOpen = !menuOpen"
+      <AppIconButton
+        class="lg:hidden"
+        icon="pi pi-bars"
+        :label="t('menu.toggle')"
+        :aria-expanded="drawerOpen"
+        aria-haspopup="dialog"
+        @click="drawerOpen = true"
+      />
+
+      <RouterLink
+        to="/"
+        class="mr-3 flex shrink-0 items-center gap-2 rounded-md font-semibold text-surface-900 no-underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-surface-0"
       >
-        <span class="pi pi-bars" aria-hidden="true" />
-      </button>
+        <img :src="appIcon" alt="" class="h-8 w-8 rounded-lg" />
+        <span>Media App</span>
+      </RouterLink>
 
-      <ul
-        id="main-menu"
-        :class="[
-          menuOpen ? 'flex' : 'hidden',
-          'absolute left-0 top-full z-10 m-0 w-full list-none flex-col gap-1 rounded-md bg-surface-0 px-1.5 py-2 shadow-md dark:bg-surface-900',
-          'lg:relative lg:left-auto lg:top-auto lg:flex lg:w-auto lg:flex-row lg:flex-wrap lg:items-center lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none dark:lg:bg-transparent',
-        ]"
-      >
-        <li v-for="link in leading" :key="link.to">
-          <RouterLink
-            :to="link.to"
-            :class="[ITEM, CURRENT]"
-            @click="menuOpen = false"
-          >
+      <ul class="m-0 hidden list-none gap-1 p-0 lg:flex">
+        <li v-for="link in pages" :key="link.to">
+          <RouterLink :to="link.to" :class="NAV_LINK">
             <span :class="link.icon" aria-hidden="true" />
-            <span class="ml-2">{{ link.label }}</span>
+            {{ link.label }}
           </RouterLink>
-        </li>
-
-        <li>
-          <button type="button" :class="ITEM" @click="toggleTheme">
-            <span :class="themeIcon" aria-hidden="true" />
-            <span class="ml-2">{{ themeLabel }}</span>
-          </button>
-        </li>
-
-        <li ref="languageMenu" class="lg:relative">
-          <button
-            ref="languageButton"
-            type="button"
-            :class="ITEM"
-            :aria-expanded="languagesOpen"
-            aria-controls="language-menu"
-            @click="languagesOpen = !languagesOpen"
-          >
-            <span class="pi pi-language" aria-hidden="true" />
-            <span class="sr-only">{{ t('language.label') }}</span>
-            <img class="ml-2 h-6 w-6" :src="currentLocaleBand" alt="" />
-            <span class="pi pi-fw pi-angle-down ml-2" aria-hidden="true" />
-          </button>
-
-          <ul
-            v-show="languagesOpen"
-            id="language-menu"
-            class="static z-10 m-0 w-full list-none rounded-md bg-surface-0 py-1 lg:absolute lg:w-48 lg:shadow-md dark:bg-surface-900"
-          >
-            <li v-for="language in languages" :key="language.label">
-              <button
-                type="button"
-                :class="ITEM"
-                :lang="language.label"
-                :aria-current="language.label === locale ? 'true' : undefined"
-                @click="chooseLanguage(language)"
-              >
-                <!-- An <img>: as a CSS background, the flags inlined as
-                     data: addresses by the build never showed. -->
-                <img class="h-6 w-6" :src="language.imageURL" alt="" />
-                <span class="ml-2">{{ language.label }}</span>
-              </button>
-            </li>
-          </ul>
-        </li>
-
-        <li v-for="link in trailing" :key="link.to">
-          <RouterLink
-            :to="link.to"
-            :class="[ITEM, CURRENT]"
-            @click="menuOpen = false"
-          >
-            <span :class="link.icon" aria-hidden="true" />
-            <span class="ml-2">{{ link.label }}</span>
-          </RouterLink>
-        </li>
-
-        <li v-if="session.account" ref="accountMenu" class="lg:relative">
-          <button
-            ref="accountButton"
-            type="button"
-            :class="ITEM"
-            :aria-expanded="accountOpen"
-            aria-controls="account-menu"
-            @click="accountOpen = !accountOpen"
-          >
-            <img
-              v-if="avatar"
-              :src="avatar"
-              alt=""
-              class="h-6 w-6 rounded-full object-cover"
-            />
-            <span v-else class="pi pi-user" aria-hidden="true" />
-            <!-- Cut short in the row, so a long name keeps it one row -->
-            <span class="ml-2 lg:max-w-40 lg:truncate">{{
-              session.account.name ?? session.account.username
-            }}</span>
-            <span class="pi pi-fw pi-angle-down ml-2" aria-hidden="true" />
-          </button>
-
-          <ul
-            v-show="accountOpen"
-            id="account-menu"
-            class="static z-10 m-0 w-full list-none rounded-md bg-surface-0 py-1 lg:absolute lg:right-0 lg:w-48 lg:shadow-md dark:bg-surface-900"
-          >
-            <li v-for="link in accountLinks" :key="link.to">
-              <RouterLink
-                :to="link.to"
-                :class="[ITEM, CURRENT]"
-                @click="closeMenus"
-              >
-                <span :class="link.icon" aria-hidden="true" />
-                <span class="ml-2">{{ link.label }}</span>
-              </RouterLink>
-            </li>
-            <li>
-              <button type="button" :class="ITEM" @click="signOut">
-                <span class="pi pi-sign-out" aria-hidden="true" />
-                <span class="ml-2">{{ t('account.signOut') }}</span>
-              </button>
-            </li>
-          </ul>
         </li>
       </ul>
+
+      <div class="ml-auto flex items-center gap-1">
+        <div class="hidden items-center gap-1 lg:flex">
+          <AppIconButton
+            :icon="themeIcon"
+            :label="themeLabel"
+            @click="toggleTheme()"
+          />
+          <LanguageMenu />
+          <AppIconButton
+            v-for="link in tools"
+            :key="link.to"
+            :icon="link.icon"
+            :label="link.label"
+            :to="link.to"
+            class="aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-800 dark:aria-[current=page]:bg-primary-950 dark:aria-[current=page]:text-primary-200"
+          />
+        </div>
+
+        <AccountMenu v-if="session.account" class="ml-1" />
+        <AppButton
+          v-else
+          class="ml-1"
+          to="/account"
+          icon="pi pi-sign-in"
+          :label="t('account.signIn')"
+        />
+      </div>
     </nav>
+
+    <NavDrawer v-model:open="drawerOpen" />
   </header>
 </template>

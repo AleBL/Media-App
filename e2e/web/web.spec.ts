@@ -1,6 +1,12 @@
 import type { Page } from '@playwright/test';
 import { APP_TOKEN, TRAILER_KEY } from '../support/fake-tmdb';
-import { cards, heading, openPage, searchBox } from '../support/fixtures';
+import {
+  cards,
+  chooseLanguage,
+  heading,
+  openPage,
+  searchBox,
+} from '../support/fixtures';
 import { expect, test } from './fixtures';
 
 // The same interface as a web page, in a browser: no Electron, no preload
@@ -49,8 +55,7 @@ test.describe('web version', () => {
     await expect(cards(page)).toHaveCount(5);
     expect(tmdb.lastSearch()?.page).toBe('3');
 
-    await page.locator('header button:has(.pi-language)').click();
-    await page.getByText('pt-BR', { exact: true }).click();
+    await chooseLanguage(page, 'Português (Brasil)');
 
     await expect(cards(page).first()).toContainText('[pt-BR]');
     await expect(cards(page).first()).toContainText('Ação');
@@ -253,18 +258,24 @@ test.describe('web version', () => {
     await page.goto(site.url);
 
     const toggle = page.getByRole('button', { name: 'Menú' });
-    const menu = page.locator('#main-menu');
+    const homeInTheBar = page.locator('header nav a[href$="#/home"]');
+    const drawer = page.getByRole('dialog', { name: 'Media App' });
 
     await expect(toggle).toBeVisible();
-    await expect(menu).toBeHidden();
+    await expect(homeInTheBar).toBeHidden();
 
+    // The drawer has the pages, and closes once one is chosen.
     await toggle.click();
-    await expect(menu).toBeVisible();
+    await expect(drawer).toBeVisible();
+    await drawer.getByRole('link', { name: 'Buscar' }).click();
+    await expect(page).toHaveURL(/#\/search$/);
+    await expect(drawer).toBeHidden();
 
     await page.setViewportSize({ width: 1024, height: 800 });
 
     // The bar keeps its height: its items did not wrap to a second row.
     await expect(toggle).toBeHidden();
+    await expect(homeInTheBar).toBeVisible();
     expect((await page.locator('header nav').boundingBox())?.height).toBe(64);
   });
 
@@ -443,7 +454,18 @@ test.describe('web version', () => {
       await openPage(page, name);
     }
     // Changing the theme too, which once added a <style> element.
-    await page.getByRole('button', { name: /^Theme/ }).click();
+    await page
+      .getByRole('button', { name: 'Switch to the dark theme' })
+      .click();
+    // And opening a hint, a menu and the drawer, which float over the page
+    // where they are placed: a choice in the menu can be clicked.
+    await page.getByRole('link', { name: 'Settings' }).hover();
+    await expect(page.getByRole('tooltip')).toHaveText('Settings');
+    await chooseLanguage(page, 'English');
+    await expect(page.getByRole('menu')).toBeHidden();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('button', { name: 'Menu' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
     await expect(page.locator('html')).toHaveClass(/dark/);
 
     expect(

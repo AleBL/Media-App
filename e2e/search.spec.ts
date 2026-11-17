@@ -1,6 +1,7 @@
 import { QUERY_WITHOUT_RESULTS } from './support/fake-tmdb';
 import {
   cards,
+  chooseLanguage,
   expect,
   heading,
   openPage,
@@ -101,8 +102,7 @@ test.describe('search', () => {
     await searchBox(page).fill('matrix');
     await expect(cards(page).first()).toContainText('Movie 1 [en]');
 
-    await page.locator('header button:has(.pi-language)').click();
-    await page.getByText('pt-BR', { exact: true }).click();
+    await chooseLanguage(page, 'Português (Brasil)');
 
     await expect(cards(page).first()).toContainText('Movie 1 [pt-BR]');
     await expect(cards(page).first()).toContainText('Ação');

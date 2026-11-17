@@ -241,6 +241,32 @@ test.describe('web version', () => {
     ).toBeLessThanOrEqual(390);
   });
 
+  test('folds the menu behind a button until it fits in one row', async ({
+    page,
+    site,
+  }) => {
+    // Spanish and the dark theme have the longest labels.
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.addInitScript(() => localStorage.setItem('locale', 'es'));
+    await page.setViewportSize({ width: 1023, height: 800 });
+    await page.goto(site.url);
+
+    const toggle = page.getByRole('button', { name: 'Menú' });
+    const menu = page.locator('#main-menu');
+
+    await expect(toggle).toBeVisible();
+    await expect(menu).toBeHidden();
+
+    await toggle.click();
+    await expect(menu).toBeVisible();
+
+    await page.setViewportSize({ width: 1024, height: 800 });
+
+    // The bar keeps its height: its items did not wrap to a second row.
+    await expect(toggle).toBeHidden();
+    expect((await page.locator('header nav').boundingBox())?.height).toBe(64);
+  });
+
   test('keeps the dark theme down to the end of a long page', async ({
     page,
     site,

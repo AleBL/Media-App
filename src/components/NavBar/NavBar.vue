@@ -56,9 +56,10 @@
     session.account?.avatarPath ? avatarUrl(session.account.avatarPath) : null,
   );
 
-  // Narrow windows (the web version on a phone) fold the menu behind a
-  // button. It, the languages and the account are disclosures: a button
-  // that shows and hides what follows it, the pattern meant for navigation.
+  // Windows narrower than the menu in one row (a phone, a tablet, a small
+  // desktop window; about 900px in Spanish) fold it behind a button. It,
+  // the languages and the account are disclosures: a button that shows and
+  // hides what follows it, the pattern meant for navigation.
   const menuOpen = ref(false);
   const languagesOpen = ref(false);
   const languageMenu = ref<HTMLElement>();
@@ -105,7 +106,7 @@
 
   // In the green of the links of the app, as with PrimeVue.
   const ITEM =
-    'flex w-full cursor-pointer select-none items-center rounded-md px-3 py-2 font-medium text-[#42b983] no-underline transition-all duration-200 hover:bg-surface-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 sm:w-auto sm:text-sm dark:hover:bg-surface-800 dark:focus-visible:ring-primary-400';
+    'flex w-full cursor-pointer select-none items-center rounded-md px-3 py-2 font-medium text-[#42b983] no-underline transition-all duration-200 hover:bg-surface-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 lg:w-auto lg:text-sm dark:hover:bg-surface-800 dark:focus-visible:ring-primary-400';
   const CURRENT =
     'aria-[current=page]:bg-surface-100 dark:aria-[current=page]:bg-surface-700';
 </script>
@@ -118,7 +119,7 @@
     >
       <button
         type="button"
-        class="flex h-8 w-8 items-center justify-center rounded-full text-surface-500 transition duration-200 hover:bg-surface-50 hover:text-surface-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 sm:hidden dark:text-white/80 dark:hover:bg-surface-800/80 dark:hover:text-white/80"
+        class="flex h-8 w-8 items-center justify-center rounded-full text-surface-500 transition duration-200 hover:bg-surface-50 hover:text-surface-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 lg:hidden dark:text-white/80 dark:hover:bg-surface-800/80 dark:hover:text-white/80"
         :aria-label="t('menu.toggle')"
         :aria-expanded="menuOpen"
         aria-controls="main-menu"
@@ -132,7 +133,7 @@
         :class="[
           menuOpen ? 'flex' : 'hidden',
           'absolute left-0 top-full z-10 m-0 w-full list-none flex-col gap-1 rounded-md bg-surface-0 px-1.5 py-2 shadow-md dark:bg-surface-900',
-          'sm:relative sm:left-auto sm:top-auto sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:rounded-none sm:bg-transparent sm:p-0 sm:shadow-none dark:sm:bg-transparent',
+          'lg:relative lg:left-auto lg:top-auto lg:flex lg:w-auto lg:flex-row lg:flex-wrap lg:items-center lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none dark:lg:bg-transparent',
         ]"
       >
         <li v-for="link in leading" :key="link.to">
@@ -153,7 +154,7 @@
           </button>
         </li>
 
-        <li ref="languageMenu" class="sm:relative">
+        <li ref="languageMenu" class="lg:relative">
           <button
             ref="languageButton"
             type="button"
@@ -171,7 +172,7 @@
           <ul
             v-show="languagesOpen"
             id="language-menu"
-            class="static z-10 m-0 w-full list-none rounded-md bg-surface-0 py-1 sm:absolute sm:w-48 sm:shadow-md dark:bg-surface-900"
+            class="static z-10 m-0 w-full list-none rounded-md bg-surface-0 py-1 lg:absolute lg:w-48 lg:shadow-md dark:bg-surface-900"
           >
             <li v-for="language in languages" :key="language.label">
               <button
@@ -201,7 +202,7 @@
           </RouterLink>
         </li>
 
-        <li v-if="session.account" ref="accountMenu" class="sm:relative">
+        <li v-if="session.account" ref="accountMenu" class="lg:relative">
           <button
             ref="accountButton"
             type="button"
@@ -217,7 +218,8 @@
               class="h-6 w-6 rounded-full object-cover"
             />
             <span v-else class="pi pi-user" aria-hidden="true" />
-            <span class="ml-2">{{
+            <!-- Cut short in the row, so a long name keeps it one row -->
+            <span class="ml-2 lg:max-w-40 lg:truncate">{{
               session.account.name ?? session.account.username
             }}</span>
             <span class="pi pi-fw pi-angle-down ml-2" aria-hidden="true" />
@@ -226,7 +228,7 @@
           <ul
             v-show="accountOpen"
             id="account-menu"
-            class="static z-10 m-0 w-full list-none rounded-md bg-surface-0 py-1 sm:absolute sm:right-0 sm:w-48 sm:shadow-md dark:bg-surface-900"
+            class="static z-10 m-0 w-full list-none rounded-md bg-surface-0 py-1 lg:absolute lg:right-0 lg:w-48 lg:shadow-md dark:bg-surface-900"
           >
             <li v-for="link in accountLinks" :key="link.to">
               <RouterLink

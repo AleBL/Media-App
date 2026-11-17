@@ -21,10 +21,18 @@
     enableNodeCliInspectArguments: false,
     enableEmbeddedAsarIntegrityValidation: true,
     onlyLoadAppFromAsar: true,
+    // Flipping fuses breaks the signature Electron ships with; without a
+    // certificate of our own, macOS on Apple silicon refuses an unsigned app.
+    resetAdHocDarwinSignature: true,
   },
   mac: {
     category: 'public.app-category.entertainment',
-    target: ['dmg'],
+    target: [
+      {
+        target: 'dmg',
+        arch: ['arm64', 'x64'],
+      },
+    ],
     artifactName: '${name}_${version}_${arch}.${ext}',
   },
   win: {

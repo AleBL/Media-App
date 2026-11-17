@@ -138,6 +138,10 @@ export const useWatchedStore = defineStore('watched', () => {
 
     if (!answer.ok) {
       states.value[at] = current;
+
+      // The page only says it failed; this says how, for whoever looks
+      // (nothing in it is a secret: a code and what TMDB answered).
+      console.warn('The watched title could not be saved:', answer.error);
     }
 
     return answer;

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import type { Result } from '@shared/api';
@@ -67,16 +67,21 @@ describe('watched store', () => {
     expect(store.isSaving(MATRIX)).toBe(false);
   });
 
-  it('undoes a mark that TMDB did not take', async () => {
+  it('undoes a mark that TMDB did not take, and says how it failed', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     await store.load(MATRIX);
-    api.watched.mark.mockResolvedValue({
-      ok: false,
-      error: { code: 'network' },
-    });
+    const failure = {
+      code: 'not-found',
+      status: 404,
+      message: 'Not found.',
+    } as const;
+    api.watched.mark.mockResolvedValue({ ok: false, error: failure });
 
     await expect(store.toggle(MATRIX)).resolves.toMatchObject({ ok: false });
 
     expect(store.stateOf(MATRIX)).toBe(false);
+    expect(warn).toHaveBeenCalledWith(expect.any(String), failure);
+    warn.mockRestore();
   });
 
   it('does nothing before TMDB said, nor twice at once', async () => {

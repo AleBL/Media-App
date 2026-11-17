@@ -306,6 +306,32 @@ describe('web api', () => {
       expect(fetch.mock.calls[0][1].method).toBe('POST');
     });
 
+    it('asks the site about the watched titles, and marks one with a POST', async () => {
+      const fetch = answering({ ok: true, data: null });
+      const api = createWebApi(fetch);
+
+      await api.watched.state({ type: 'movie', id: 603 });
+      await api.watched.mark({
+        type: 'tv',
+        id: 1396,
+        value: true,
+        date: '2026-11-16',
+        language: 'pt-BR',
+      });
+      await api.watched.list({ page: 2, language: 'es' });
+
+      expect(fetch.mock.calls.map(([url, init]) => [url, init.method])).toEqual(
+        [
+          ['/api/account?resource=watched-state&type=movie&id=603', undefined],
+          [
+            '/api/account?resource=watched-mark&type=tv&id=1396&value=true&date=2026-11-16&language=pt-BR',
+            'POST',
+          ],
+          ['/api/account?resource=watched-list&page=2&language=es', undefined],
+        ],
+      );
+    });
+
     it('rates a title, and takes the rating away, with a POST', async () => {
       const fetch = answering({ ok: true, data: null });
       const api = createWebApi(fetch);

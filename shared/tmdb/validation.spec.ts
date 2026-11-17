@@ -11,7 +11,51 @@ import {
   parseRegion,
   parseSearchRequest,
   parseTitleRequest,
+  parseWatchedListRequest,
+  parseWatchedRequest,
 } from './validation';
+
+describe('requests about the watched titles', () => {
+  const mark = {
+    type: 'movie',
+    id: 603,
+    value: true,
+    date: '2026-11-16',
+    language: 'pt-BR',
+  };
+
+  it('accepts them and drops fields they do not know', () => {
+    expect(parseWatchedRequest({ ...mark, listId: 7 })).toEqual(mark);
+    expect(parseWatchedRequest({ ...mark, value: false })).toEqual({
+      ...mark,
+      value: false,
+    });
+    expect(parseWatchedListRequest({ page: 3, language: 'es', x: 1 })).toEqual({
+      page: 3,
+      language: 'es',
+    });
+  });
+
+  it.each([
+    ['a value that is not true or false', { ...mark, value: 'true' }],
+    ['a day in another shape', { ...mark, date: '16/11/2026' }],
+    ['a day that does not exist', { ...mark, date: '2026-02-30' }],
+    ['no day', { ...mark, date: undefined }],
+    ['a language that is not a locale', { ...mark, language: '../x' }],
+    ['a person', { ...mark, type: 'person' }],
+  ])('refuses a mark with %s', (_case, request) => {
+    expect(parseWatchedRequest(request)).toBeNull();
+  });
+
+  it.each([
+    ['page zero', { page: 0, language: 'en' }],
+    ['a page past the last one', { page: 501, language: 'en' }],
+    ['no language', { page: 1 }],
+    ['nothing', null],
+  ])('refuses a page with %s', (_case, request) => {
+    expect(parseWatchedListRequest(request)).toBeNull();
+  });
+});
 
 describe('requests about the lists of the account', () => {
   const title = { type: 'movie', id: 603 };

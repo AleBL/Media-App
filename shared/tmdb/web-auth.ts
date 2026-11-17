@@ -43,6 +43,8 @@ const COOKIES = {
   access: 'media-app-access',
   /** With the v4 login, the id of the account in v4, which its lists take. */
   accountObject: 'media-app-account',
+  /** The id of the list of watched titles, once it was found. */
+  watchedList: 'media-app-watched-list',
   /** Why the last login failed, until the app is told. */
   failure: 'media-app-login-failure',
 } as const;
@@ -168,7 +170,7 @@ export function visit(request: Request) {
 type Visit = ReturnType<typeof visit>;
 
 /** What signing in gave, as the cookies of this browser keep it. */
-function accessOf(at: Visit): Access | null {
+export function accessOf(at: Visit): Access | null {
   const sessionId = at.cookie('session');
   const accessToken = at.cookie('access');
   const accountObjectId = at.cookie('accountObject');
@@ -197,6 +199,25 @@ export function dropAccess(at: Visit) {
   at.drop('session');
   at.drop('access');
   at.drop('accountObject');
+  at.drop('watchedList');
+}
+
+/**
+ * Keeps the id of the list of watched titles in this browser, so the site
+ * looks for it once. Not a secret: TMDB only shows the list to its owner.
+ */
+export function watchedListCache(at: Visit) {
+  return {
+    get: () => {
+      const id = Number(at.cookie('watchedList'));
+
+      return Number.isInteger(id) && id > 0 ? id : undefined;
+    },
+    set: (id: number | undefined) =>
+      id === undefined
+        ? at.drop('watchedList')
+        : at.keep('watchedList', String(id), SESSION_SECONDS),
+  };
 }
 
 /**

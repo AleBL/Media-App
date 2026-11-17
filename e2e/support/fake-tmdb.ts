@@ -54,7 +54,8 @@ export const wayBackOf = (requestToken: string) =>
 export interface TmdbRequest {
   path: string;
   /** Whose credential came with the request, if one that is accepted. */
-  credential: 'app' | 'user' | 'rejected';
+  /** `account`: the access token of a user (v4), for their own lists. */
+  credential: 'app' | 'user' | 'account' | 'rejected';
   query?: string;
   page?: string;
   language?: string;
@@ -123,6 +124,180 @@ export async function startFakeTmdb() {
   // The ratings of the account, by title, with when each was given.
   const ratings = new Map<string, { value: number; at: number }>();
   let added = 0;
+  // The lists the user made (v4), by id: titles as "movie:603", with when
+  // each was added and its comment.
+  const userLists = new Map<
+    number,
+    {
+      name: string;
+      description: string;
+      public: boolean;
+      sortBy: string;
+      items: Map<string, { at: number; comment: string | null }>;
+    }
+  >();
+  let lastListId = 7000;
+  // Deleted, but still among the lists of the user for a while.
+  const deletedLists = new Map<number, { name: string; description: string }>();
+
+  type Title = { id: number; [field: string]: unknown };
+
+  /** The v4 lists of the user, as at TMDB, for their access token alone. */
+  function answerList(
+    url: URL,
+    method: string,
+    query: Record<string, string>,
+    sent: Record<string, unknown>,
+    send: (status: number, body: unknown) => void,
+    titles: { movie: (n: number) => Title; show: (n: number) => Title },
+  ) {
+    const notFound = () =>
+      send(404, {
+        success: false,
+        status_code: 34,
+        status_message: 'The resource you requested could not be found.',
+      });
+    const page = Number(query.page) || 1;
+    const paged = <T>(all: T[]) => ({
+      page,
+      slice: all.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+      total_pages: Math.max(1, Math.ceil(all.length / PAGE_SIZE)),
+      total_results: all.length,
+    });
+    const owned = /^\/4\/account\/([^/]+)\/lists$/.exec(url.pathname);
+
+    if (owned) {
+      if (owned[1] !== ACCOUNT_OBJECT_ID) {
+        return notFound();
+      }
+
+      // As TMDB did when tried: a list deleted on the website is still
+      // listed for a while, though it is no more.
+      const { slice, ...counts } = paged([
+        ...[...userLists].map(([id, list]) => ({
+          id,
+          name: list.name,
+          description: list.description,
+          public: list.public ? 1 : 0,
+          number_of_items: list.items.size,
+        })),
+        ...[...deletedLists].map(([id, list]) => ({
+          id,
+          ...list,
+          public: 1,
+          number_of_items: 0,
+        })),
+      ]);
+
+      return send(200, { ...counts, results: slice });
+    }
+
+    if (url.pathname === '/4/list' && method === 'POST') {
+      lastListId += 1;
+      userLists.set(lastListId, {
+        name: String(sent.name),
+        description: String(sent.description ?? ''),
+        // As TMDB did when tried: public, whatever `public` says. Only an
+        // update makes it private.
+        public: true,
+        sortBy: 'original_order.asc',
+        items: new Map(),
+      });
+
+      return send(201, { success: true, status_code: 1, id: lastListId });
+    }
+
+    const path = /^\/4\/list\/(\d+)(\/items|\/item_status)?$/.exec(
+      url.pathname,
+    );
+    const list = path && userLists.get(Number(path[1]));
+
+    if (!path || !list) {
+      return notFound();
+    }
+
+    const sentItems = (Array.isArray(sent.items) ? sent.items : []) as {
+      media_type?: unknown;
+      media_id?: unknown;
+      comment?: unknown;
+    }[];
+    const keyOf = (item: { media_type?: unknown; media_id?: unknown }) =>
+      `${String(item.media_type)}:${Number(item.media_id)}`;
+
+    if (path[2] === '/item_status') {
+      const key = `${query.media_type}:${Number(query.media_id)}`;
+
+      return list.items.has(key)
+        ? send(200, {
+            success: true,
+            status_code: 1,
+            status_message: 'Success.',
+            id: Number(path[1]),
+            media_id: Number(query.media_id),
+            media_type: query.media_type,
+          })
+        : notFound();
+    }
+
+    if (path[2] === '/items') {
+      for (const item of sentItems) {
+        const key = keyOf(item);
+
+        if (method === 'POST' && !list.items.has(key)) {
+          list.items.set(key, { at: (added += 1), comment: null });
+        } else if (method === 'PUT' && list.items.has(key)) {
+          list.items.get(key)!.comment = String(item.comment ?? '');
+        } else if (method === 'DELETE') {
+          list.items.delete(key);
+        }
+      }
+
+      return send(200, {
+        success: true,
+        status_code: 1,
+        results: sentItems.map((item) => ({
+          media_type: item.media_type,
+          media_id: item.media_id,
+          success: true,
+        })),
+      });
+    }
+
+    if (method === 'PUT') {
+      if (typeof sent.sort_by === 'string') {
+        list.sortBy = sent.sort_by;
+      }
+
+      if (typeof sent.public === 'boolean') {
+        list.public = sent.public;
+      }
+
+      return send(201, { success: true, status_code: 12 });
+    }
+
+    const order = [...list.items].sort(([, a], [, b]) =>
+      list.sortBy === 'original_order.desc' ? b.at - a.at : a.at - b.at,
+    );
+    const { slice, ...counts } = paged(order);
+
+    return send(200, {
+      ...counts,
+      id: Number(path[1]),
+      name: list.name,
+      description: list.description,
+      sort_by: list.sortBy,
+      results: slice.map(([key]) => {
+        const [type, id] = key.split(':');
+
+        return type === 'movie'
+          ? { ...titles.movie(Number(id)), media_type: 'movie' }
+          : { ...titles.show(Number(id) - 9000), media_type: 'tv' };
+      }),
+      comments: Object.fromEntries(
+        slice.map(([key, item]) => [key, item.comment]),
+      ),
+    });
+  }
 
   const server = createServer(async (request, response) => {
     // Like a computer without a connection: no answer at all.
@@ -191,11 +366,14 @@ export async function startFakeTmdb() {
     const fromApp =
       !appTokenRevoked &&
       request.headers.authorization === `Bearer ${APP_TOKEN}`;
+    const bearer = request.headers.authorization?.replace(/^Bearer /, '');
     const credential = fromApp
       ? 'app'
-      : apiKey === VALID_KEY
-        ? 'user'
-        : 'rejected';
+      : bearer && accessTokens.has(bearer)
+        ? 'account'
+        : apiKey === VALID_KEY
+          ? 'user'
+          : 'rejected';
 
     // Sessions are left out of the record on purpose: see sessions().
     requests.push({ path: url.pathname, credential, ...query });
@@ -244,8 +422,8 @@ export async function startFakeTmdb() {
       return send(200, { success: true });
     }
 
-    // v4 only takes the access token of the app, in the header.
-    if (url.pathname.startsWith('/4/') && credential !== 'app') {
+    // Signing in to v4 only takes the access token of the app, in the header.
+    if (url.pathname.startsWith('/4/auth/') && credential !== 'app') {
       return send(401, { status_code: 7, status_message: 'Invalid API key.' });
     }
 
@@ -410,6 +588,22 @@ export async function startFakeTmdb() {
       poster_path: null,
       vote_average: 8.9,
     });
+
+    // The lists a user makes (v4), which only their access token reaches.
+    if (
+      url.pathname.startsWith('/4/list') ||
+      url.pathname.startsWith('/4/account/')
+    ) {
+      if (credential !== 'account') {
+        return send(401, {
+          success: false,
+          status_code: 3,
+          status_message: 'Authentication failed.',
+        });
+      }
+
+      return answerList(url, method, query, sent, send, { movie, show });
+    }
 
     if (url.pathname === '/3/trending/all/week') {
       return send(200, {
@@ -673,6 +867,43 @@ export async function startFakeTmdb() {
     sessions: () => [...sessions],
     /** The access tokens of the user (v4) that TMDB still takes. */
     accessTokens: () => [...accessTokens],
+    /** The lists the user made (v4): their names, and whether they are public. */
+    userLists: () =>
+      [...userLists.values()].map((list) => ({
+        name: list.name,
+        public: list.public,
+        sortBy: list.sortBy,
+      })),
+    /**
+     * What the list of watched titles has, such as { "movie:1": "2026-11-16" },
+     * last marked first; null while there is no such list.
+     */
+    watched: () => {
+      const list = [...userLists.values()].find(({ description }) =>
+        description.includes('media-app:watched'),
+      );
+
+      return list
+        ? Object.fromEntries(
+            [...list.items]
+              .sort(([, a], [, b]) => b.at - a.at)
+              .map(([title, { comment }]) => [title, comment]),
+          )
+        : null;
+    },
+    /**
+     * What the user does on the TMDB website: deletes every list of theirs,
+     * which TMDB goes on listing for a while (`stillListed`).
+     */
+    deleteUserLists: ({ stillListed = false } = {}) => {
+      for (const [id, { name, description }] of userLists) {
+        if (stillListed) {
+          deletedLists.set(id, { name, description });
+        }
+      }
+
+      userLists.clear();
+    },
     /** What the user does on the TMDB website: puts a title in a list. */
     addToList: (list: 'watchlist' | 'favorite', title: string) => {
       accountLists[list].set(title, (added += 1));

@@ -129,7 +129,12 @@
     "yourRating": "Your rating",
     "yourRatingIs": "Your rating: {rating}",
     "notRated": "Not rated",
-    "rateFailed": "The rating could not be saved. Try again."
+    "rateFailed": "The rating could not be saved. Try again.",
+    "watched": "Watched",
+    "watchedButton": "Watched",
+    "watchedOn": "Watched on {date}",
+    "emptyWatched": "Nothing watched yet. Mark movies and TV shows as watched from their pages.",
+    "signInAgain": "To mark what you watched, sign out and sign in with TMDB again: the app now keeps it in a list of your account."
   },
 
   "account": {

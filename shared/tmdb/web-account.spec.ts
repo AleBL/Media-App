@@ -73,6 +73,8 @@ interface Options {
   session?: string | null;
   method?: string;
   origin?: string;
+  /** More cookies of the site, by name. */
+  cookies?: Record<string, string>;
 }
 
 async function visit(query: string, options: Options = {}) {
@@ -80,9 +82,13 @@ async function visit(query: string, options: Options = {}) {
   const account = createWebAccount({ credential: TOKEN, fetch });
   const session = options.session === undefined ? SESSION : options.session;
   const headers: Record<string, string> = {};
+  const cookies = Object.entries({
+    ...(session ? { [KEPT]: session } : {}),
+    ...options.cookies,
+  });
 
-  if (session) {
-    headers.cookie = `${KEPT}=${session}`;
+  if (cookies.length) {
+    headers.cookie = cookies.map((pair) => pair.join('=')).join('; ');
   }
 
   if (options.origin) {
@@ -228,10 +234,145 @@ describe('web account', () => {
     expect(body).toEqual({ ok: false, error: { code: 'signed-out' } });
     // with what the v4 login kept besides the session
     expect(response.headers.getSetCookie()).toEqual(
-      [KEPT, '__Host-media-app-access', '__Host-media-app-account'].map(
+      [
+        KEPT,
+        '__Host-media-app-access',
+        '__Host-media-app-account',
+        '__Host-media-app-watched-list',
+      ].map(
         (name) => `${name}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`,
       ),
     );
+  });
+
+  describe('watched titles', () => {
+    const USER = 'u.s.r';
+    const OBJECT = '5f0c4a1b2c3d4e5f6a7b8c9d';
+    const LIST_COOKIE = '__Host-media-app-watched-list';
+    const v4 = {
+      '__Host-media-app-access': USER,
+      '__Host-media-app-account': OBJECT,
+    };
+    const LISTS = `GET /4/account/${OBJECT}/lists`;
+    const STATUS = 'GET /4/list/77/item_status';
+    const ADD = 'POST /4/list/77/items';
+    const COMMENT = 'PUT /4/list/77/items';
+    const PAGE = 'GET /4/list/77';
+    const withList = () =>
+      tmdbWith({
+        [LISTS]: [
+          200,
+          {
+            page: 1,
+            results: [
+              { id: 77, name: 'Watched', description: 'media-app:watched' },
+            ],
+            total_pages: 1,
+          },
+        ],
+        [STATUS]: [200, { success: true, media_id: 603 }],
+        [ADD]: [200, { success: true }],
+        [COMMENT]: [200, { success: true }],
+        [PAGE]: [
+          200,
+          {
+            page: 1,
+            results: [{ id: 603, media_type: 'movie', title: 'The Matrix' }],
+            comments: { 'movie:603': '2026-11-16' },
+            total_pages: 1,
+            total_results: 1,
+          },
+        ],
+      });
+    const STATE_QUERY = 'resource=watched-state&type=movie&id=603';
+    const WATCH_QUERY =
+      'resource=watched-mark&type=movie&id=603&value=true&date=2026-11-16&language=en';
+
+    it('says whether a title was watched, with the access token of the user', async () => {
+      const { response, body, fetch } = await visit(STATE_QUERY, {
+        cookies: v4,
+        fetch: withList(),
+      });
+
+      expect(body).toEqual({ ok: true, data: true });
+      expect(asked(fetch)).toEqual([LISTS, STATUS]);
+      expect(
+        fetch.mock.calls.map(([, init]) => init.headers.Authorization),
+      ).toEqual([`Bearer ${USER}`, `Bearer ${USER}`]);
+      // the list is looked for once: its id stays with the browser
+      expect(response.headers.getSetCookie()).toEqual([
+        `${LIST_COOKIE}=77; Path=/; Max-Age=${180 * 24 * 60 * 60}; HttpOnly; SameSite=Lax; Secure`,
+      ]);
+    });
+
+    it('goes straight to the list it found before', async () => {
+      const { fetch } = await visit(STATE_QUERY, {
+        cookies: { ...v4, [LIST_COOKIE]: '77' },
+        fetch: withList(),
+      });
+
+      expect(asked(fetch)).toEqual([STATUS]);
+    });
+
+    it('marks a title watched, on the day of the user, with a change from the site', async () => {
+      const { body, fetch } = await visit(WATCH_QUERY, {
+        ...change,
+        cookies: { ...v4, [LIST_COOKIE]: '77' },
+        fetch: withList(),
+      });
+
+      expect(body).toEqual({ ok: true, data: null });
+      expect(asked(fetch)).toEqual([ADD, COMMENT]);
+      expect(JSON.parse(fetch.mock.calls[1][1].body!)).toEqual({
+        items: [{ media_type: 'movie', media_id: 603, comment: '2026-11-16' }],
+      });
+    });
+
+    it('reads a page of the watched titles', async () => {
+      const { body } = await visit('resource=watched-list&page=1&language=en', {
+        cookies: { ...v4, [LIST_COOKIE]: '77' },
+        fetch: withList(),
+      });
+
+      expect(body).toMatchObject({
+        ok: true,
+        data: { results: [{ id: 603, watchedAt: '2026-11-16' }] },
+      });
+    });
+
+    it('asks to sign in again without the access token of the user', async () => {
+      const { response, body, fetch } = await visit(STATE_QUERY);
+
+      expect(response.status).toBe(403);
+      expect(body).toEqual({ ok: false, error: { code: 'sign-in-again' } });
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['a GET', { method: 'GET', origin: SITE }],
+      [
+        'a POST from another site',
+        { method: 'POST', origin: 'https://x.test' },
+      ],
+    ])('changes nothing for %s', async (_case, options) => {
+      const { response, fetch } = await visit(WATCH_QUERY, {
+        ...options,
+        cookies: v4,
+      });
+
+      expect([403, 405]).toContain(response.status);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('refuses a day that is not one, without asking TMDB', async () => {
+      const { response, fetch } = await visit(
+        WATCH_QUERY.replace('2026-11-16', '2026-13-01'),
+        { ...change, cookies: v4 },
+      );
+
+      expect(response.status).toBe(400);
+      expect(fetch).not.toHaveBeenCalled();
+    });
   });
 
   it('keeps the session when TMDB fails in another way', async () => {

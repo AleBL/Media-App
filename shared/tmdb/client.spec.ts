@@ -907,6 +907,198 @@ describe('lists of the account', () => {
   });
 });
 
+describe('lists of the user (v4)', () => {
+  const USER = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.dXNlcg';
+  const MATRIX = { type: 'movie', id: 603 } as const;
+
+  /** With a key of the app, so a request with the token of the user shows. */
+  const asked = (fetch: ReturnType<typeof setup>['fetch'], call = 0) => {
+    const [url, init] = fetch.mock.calls[call];
+
+    return {
+      url: new URL(url),
+      method: init.method ?? 'GET',
+      body: init.body ? JSON.parse(init.body) : undefined,
+      authorization: init.headers.Authorization,
+    };
+  };
+
+  it('reads the lists of the user with their token, never with the key of the app', async () => {
+    const { client, fetch } = setup([
+      answer(200, {
+        page: 2,
+        results: [
+          { id: 5, name: 'Noir', description: 'Old films', public: 0 },
+          { name: 'no id' },
+        ],
+        total_pages: 3,
+      }),
+    ]);
+
+    await expect(client.userLists(USER, 'abc123', 2)).resolves.toEqual({
+      lists: [{ id: 5, name: 'Noir', description: 'Old films' }],
+      totalPages: 3,
+    });
+
+    const request = asked(fetch);
+    expect(request.url.pathname).toBe('/4/account/abc123/lists');
+    expect(request.url.searchParams.get('page')).toBe('2');
+    expect(request.url.searchParams.has('api_key')).toBe(false);
+    expect(request.authorization).toBe(`Bearer ${USER}`);
+  });
+
+  it('makes a list, asking for it private', async () => {
+    const { client, fetch } = setup([
+      answer(201, { success: true, status_code: 1, id: 88 }),
+    ]);
+
+    await expect(
+      client.createList(USER, {
+        name: 'Assistidos',
+        description: 'Media App',
+        language: 'pt-BR',
+      }),
+    ).resolves.toBe(88);
+
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(asked(fetch)).toMatchObject({
+      method: 'POST',
+      body: {
+        name: 'Assistidos',
+        description: 'Media App',
+        iso_639_1: 'pt',
+        iso_3166_1: 'BR',
+        public: false,
+      },
+    });
+    expect(asked(fetch).url.pathname).toBe('/4/list');
+  });
+
+  it('makes a list private and sorts it by the last added first, with the whole list', async () => {
+    // TMDB makes a list public whatever `public` said when it was made
+    const { client, fetch } = setup([
+      answer(201, { success: true, status_code: 12 }),
+    ]);
+
+    await client.updateList(USER, 88, {
+      name: 'Assistidos',
+      description: 'Media App',
+    });
+
+    expect(asked(fetch)).toMatchObject({
+      method: 'PUT',
+      body: {
+        name: 'Assistidos',
+        description: 'Media App',
+        public: false,
+        sort_by: 'original_order.desc',
+      },
+      authorization: `Bearer ${USER}`,
+    });
+    expect(asked(fetch).url.pathname).toBe('/4/list/88');
+  });
+
+  it.each([
+    [
+      'in the list',
+      () => answer(200, { success: true, status_code: 1, media_id: 603 }),
+      true,
+    ],
+    ['not in it, as a 404', () => answer(404, { status_code: 34 }), false],
+    ['not in it, as a failure', () => answer(200, { success: false }), false],
+  ])('tells a title that is %s', async (_case, response, inList) => {
+    const { client, fetch } = setup([response()]);
+
+    await expect(client.listItemStatus(USER, 77, MATRIX)).resolves.toBe(inList);
+
+    const request = asked(fetch);
+    expect(request.url.pathname).toBe('/4/list/77/item_status');
+    expect(Object.fromEntries(request.url.searchParams)).toEqual({
+      media_id: '603',
+      media_type: 'movie',
+    });
+  });
+
+  it('puts a title in a list, with the day in its comment', async () => {
+    const { client, fetch } = setup([
+      answer(200, { success: true, results: [] }),
+      answer(200, { success: true, results: [] }),
+    ]);
+
+    await client.addToList(USER, 77, MATRIX, '2026-11-16');
+
+    expect(asked(fetch, 0)).toMatchObject({
+      method: 'POST',
+      body: { items: [{ media_type: 'movie', media_id: 603 }] },
+    });
+    expect(asked(fetch, 1)).toMatchObject({
+      method: 'PUT',
+      body: {
+        items: [{ media_type: 'movie', media_id: 603, comment: '2026-11-16' }],
+      },
+    });
+    expect(asked(fetch, 1).url.pathname).toBe('/4/list/77/items');
+  });
+
+  it('keeps the title in the list when the comment fails', async () => {
+    const { client } = setup([
+      answer(200, { success: true }),
+      answer(500, { status_code: 11 }),
+    ]);
+
+    await expect(
+      client.addToList(USER, 77, MATRIX, '2026-11-16'),
+    ).resolves.toBeUndefined();
+  });
+
+  it('takes a title out of a list', async () => {
+    const { client, fetch } = setup([answer(200, { success: true })]);
+
+    await client.removeFromList(USER, 77, { type: 'tv', id: 1396 });
+
+    expect(asked(fetch)).toMatchObject({
+      method: 'DELETE',
+      body: { items: [{ media_type: 'tv', media_id: 1396 }] },
+    });
+  });
+
+  it('reads a page of a list, movies and tv shows, each with the day it was watched', async () => {
+    const { client, fetch } = setup([
+      answer(200, {
+        page: 1,
+        results: [
+          { id: 603, media_type: 'movie', title: 'The Matrix' },
+          { id: 1396, media_type: 'tv', name: 'Breaking Bad' },
+          { id: 31, media_type: 'person', name: 'Tom Hanks' },
+        ],
+        comments: { 'movie:603': '2026-11-16', 'tv:1396': 'great show' },
+        total_pages: 1,
+        total_results: 3,
+      }),
+    ]);
+
+    await expect(client.listItems(USER, 77, 1, 'pt-BR')).resolves.toEqual({
+      page: 1,
+      results: [
+        {
+          id: 603,
+          media_type: 'movie',
+          title: 'The Matrix',
+          watchedAt: '2026-11-16',
+        },
+        // a comment that is not a day is not one
+        { id: 1396, media_type: 'tv', name: 'Breaking Bad' },
+      ],
+      totalPages: 1,
+      totalResults: 3,
+    });
+    expect(Object.fromEntries(asked(fetch).url.searchParams)).toEqual({
+      page: '1',
+      language: 'pt-BR',
+    });
+  });
+});
+
 describe('signing in', () => {
   const REQUEST_TOKEN = 'a1b2c3d4e5f6';
   const SESSION = 'the-session-id-works-as-a-password';

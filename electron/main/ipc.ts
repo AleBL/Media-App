@@ -18,6 +18,8 @@ import {
   type TitleRequest,
   type TitleStates,
   type TmdbFailure,
+  type WatchedListRequest,
+  type WatchedRequest,
 } from '../../shared/api';
 import { isNativeTheme } from './security';
 import { TmdbError } from '../../shared/tmdb/client';
@@ -31,6 +33,8 @@ import {
   parseRateRequest,
   parseSearchRequest,
   parseTitleRequest,
+  parseWatchedListRequest,
+  parseWatchedRequest,
 } from '../../shared/tmdb/validation';
 
 /** The part of an IPC event that the handlers look at. */
@@ -66,6 +70,12 @@ export interface IpcServices {
     mark(request: MarkRequest): Promise<null>;
     rate(request: RateRequest): Promise<null>;
     list(request: AccountListRequest): Promise<Paged<MediaItem>>;
+  };
+  /** With the access token of the user; `sign-in-again` without it. */
+  watched: {
+    state(request: TitleRequest): Promise<boolean>;
+    mark(request: WatchedRequest): Promise<null>;
+    list(request: WatchedListRequest): Promise<Paged<MediaItem>>;
   };
   credentials: {
     status(): CredentialStatus;
@@ -177,6 +187,24 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
     const request = trusted(event) ? parseAccountListRequest(value) : null;
 
     return request ? attempt(() => services.account.list(request)) : invalid();
+  });
+
+  ipc.handle(IPC.watchedState, (event, value) => {
+    const request = trusted(event) ? parseTitleRequest(value) : null;
+
+    return request ? attempt(() => services.watched.state(request)) : invalid();
+  });
+
+  ipc.handle(IPC.watchedMark, (event, value) => {
+    const request = trusted(event) ? parseWatchedRequest(value) : null;
+
+    return request ? attempt(() => services.watched.mark(request)) : invalid();
+  });
+
+  ipc.handle(IPC.watchedList, (event, value) => {
+    const request = trusted(event) ? parseWatchedListRequest(value) : null;
+
+    return request ? attempt(() => services.watched.list(request)) : invalid();
   });
 
   ipc.handle(IPC.credentialStatus, (event) =>

@@ -140,6 +140,21 @@ export function installFakeApi() {
         data: pageOf() as Paged<MediaItem>,
       })),
     },
+    // Nothing watched yet, and marks that go through.
+    watched: {
+      state: vi.fn<MediaAppApi['watched']['state']>(async () => ({
+        ok: true,
+        data: false,
+      })),
+      mark: vi.fn<MediaAppApi['watched']['mark']>(async () => ({
+        ok: true,
+        data: null,
+      })),
+      list: vi.fn<MediaAppApi['watched']['list']>(async () => ({
+        ok: true,
+        data: pageOf() as Paged<MediaItem>,
+      })),
+    },
     credentials: {
       status: vi.fn<MediaAppApi['credentials']['status']>(async () => NO_KEY),
       save: vi.fn<MediaAppApi['credentials']['save']>(async () => SAVED_KEY),

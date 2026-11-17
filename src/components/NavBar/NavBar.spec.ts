@@ -87,6 +87,7 @@ describe('NavBar', () => {
       ['/watchlist', 'My list'],
       ['/favorites', 'Favorites'],
       ['/rated', 'Rated'],
+      ['/watched', 'Watched'],
       ['/account', 'Account'],
     ]);
 

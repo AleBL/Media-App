@@ -209,6 +209,58 @@ test.describe('web version', () => {
       .toBeGreaterThan(0);
   });
 
+  test('fits the tools of the about page on a phone', async ({
+    page,
+    site,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${site.url}#/about`);
+
+    const versions = page.locator('.waviy');
+
+    await expect(versions).toHaveCount(9);
+
+    // Each version stays on one line, beside its logo.
+    for (const version of await versions.all()) {
+      const lines = await version.evaluate(
+        (element) =>
+          new Set(
+            Array.from(
+              element.children,
+              (character) => (character as HTMLElement).offsetTop,
+            ),
+          ).size,
+      );
+
+      expect(lines).toBe(1);
+    }
+
+    // And nothing pushes the page sideways.
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(390);
+  });
+
+  test('keeps the dark theme down to the end of a long page', async ({
+    page,
+    site,
+  }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${site.url}#/about`);
+    await expect(page.locator('html')).toHaveClass(/dark/);
+
+    // What shows past the app, as below the margin of its last element,
+    // has the color of the app.
+    const [app, body] = await page.evaluate(() =>
+      [document.getElementById('app')!, document.body].map(
+        (element) => getComputedStyle(element).backgroundColor,
+      ),
+    );
+
+    expect(body).toBe(app);
+  });
+
   test('shows where to watch in the country chosen in the settings', async ({
     page,
     site,

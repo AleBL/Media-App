@@ -41,9 +41,10 @@
 }
 
 @layer base {
-  /* The page as it was with Bootstrap, which set these. */
+  /* The page as it was with Bootstrap, which set these. Dark like #app
+     (index.html), for what shows past it, as the last margin of a page. */
   body {
-    @apply bg-white text-[#212529];
+    @apply bg-white text-[#212529] dark:bg-slate-800;
   }
 
   /* Tailwind 4 gives buttons the default cursor; the app keeps the hand. */

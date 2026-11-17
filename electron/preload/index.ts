@@ -16,11 +16,13 @@ const api: MediaAppApi = {
     chrome: process.versions.chrome,
   },
   setNativeTheme: (theme) => ipcRenderer.send(IPC.setNativeTheme, theme),
+  clearCache: () => ipcRenderer.invoke(IPC.clearCache),
   tmdb: {
     search: (request) => ipcRenderer.invoke(IPC.tmdbSearch, request),
     genres: (language) => ipcRenderer.invoke(IPC.tmdbGenres, language),
     details: (request) => ipcRenderer.invoke(IPC.tmdbDetails, request),
     list: (request) => ipcRenderer.invoke(IPC.tmdbList, request),
+    regions: () => ipcRenderer.invoke(IPC.tmdbRegions),
   },
   account: {
     states: (request) => ipcRenderer.invoke(IPC.accountStates, request),

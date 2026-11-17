@@ -501,6 +501,19 @@ export async function startFakeTmdb() {
           });
     }
 
+    // The countries where TMDB knows where to watch: the two that the
+    // page of a title has services in, and two more.
+    if (url.pathname === '/3/watch/providers/regions') {
+      return send(200, {
+        results: [
+          { iso_3166_1: 'US', english_name: 'United States of America' },
+          { iso_3166_1: 'BR', english_name: 'Brazil' },
+          { iso_3166_1: 'PT', english_name: 'Portugal' },
+          { iso_3166_1: 'DE', english_name: 'Germany' },
+        ],
+      });
+    }
+
     if (url.pathname === '/3/genre/movie/list') {
       return send(200, {
         genres: [

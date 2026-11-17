@@ -12,7 +12,8 @@
   "theme": {
     "text": "Tema",
     "light": "Claro",
-    "dark": "Oscuro"
+    "dark": "Oscuro",
+    "system": "Igual que el sistema"
   },
 
   "menu": {
@@ -50,7 +51,6 @@
     "ownKeyOptional": "La aplicación ya tiene acceso a TMDB, así que esto es opcional. Una clave tuya se usa en lugar de la de la aplicación, lo que mantiene la búsqueda funcionando si el acceso de la aplicación deja de funcionar algún día.",
     "ownKeyRequired": "Esta copia de la aplicación se generó sin acceso a TMDB. Guarda una clave tuya para poder buscar.",
     "getKey": "Obtener una clave en el sitio web de TMDB",
-    "nothingOnWeb": "No hay nada que configurar en la versión web: solo busca.",
     "keyLabel": "Clave de TMDB",
     "keySaved": "Hay una clave guardada",
     "saveKey": "Guardar clave",
@@ -58,7 +58,18 @@
     "invalidKey": "Esto no parece una clave de TMDB.",
     "keyNotPersisted": "La clave no se pudo guardar en disco, así que solo se conserva hasta cerrar la aplicación.",
     "keyNotEncrypted": "Este sistema no tiene un llavero, así que la clave se guarda sin cifrar.",
-    "showKey": "Mostrar la clave"
+    "showKey": "Mostrar la clave",
+    "languageTitle": "Idioma",
+    "regionTitle": "Dónde ver",
+    "regionHint": "El país cuyos servicios de streaming, alquiler y compra muestra la página de cada título.",
+    "regionLabel": "País",
+    "regionAuto": "Automático ({country})",
+    "regionsFailed": "No se pudo cargar la lista de países. Inténtalo de nuevo más tarde.",
+    "cacheTitle": "Caché",
+    "cacheHint": "La app guarda los nombres de los géneros y las imágenes para ser más rápida. Borrarlos hace que los pida de nuevo a TMDB.",
+    "clearCache": "Borrar caché",
+    "cacheCleared": "Caché borrada.",
+    "cacheFailed": "No se pudo borrar la caché. Inténtalo de nuevo."
   },
 
   "search": {

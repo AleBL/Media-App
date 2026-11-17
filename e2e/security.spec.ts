@@ -22,6 +22,7 @@ test.describe('renderer isolation', () => {
       api: [
         'account',
         'auth',
+        'clearCache',
         'credentials',
         'platform',
         'setNativeTheme',

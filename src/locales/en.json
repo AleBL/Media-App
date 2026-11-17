@@ -12,7 +12,8 @@
   "theme": {
     "text": "Theme",
     "light": "Light",
-    "dark": "Dark"
+    "dark": "Dark",
+    "system": "Same as the system"
   },
 
   "menu": {
@@ -50,7 +51,6 @@
     "ownKeyOptional": "The app already has access to TMDB, so this is optional. A key of your own is used instead of the app's, which keeps the search working if the app's access ever stops.",
     "ownKeyRequired": "This copy of the app was built without access to TMDB. Save a key of your own to be able to search.",
     "getKey": "Get a key on the TMDB website",
-    "nothingOnWeb": "There is nothing to set up in the web version: just search.",
     "keyLabel": "TMDB key",
     "keySaved": "A key is saved",
     "saveKey": "Save key",
@@ -58,7 +58,18 @@
     "invalidKey": "This does not look like a TMDB key.",
     "keyNotPersisted": "The key could not be saved to disk, so it is kept only until the app closes.",
     "keyNotEncrypted": "This system has no keyring, so the key is saved without encryption.",
-    "showKey": "Show the key"
+    "showKey": "Show the key",
+    "languageTitle": "Language",
+    "regionTitle": "Where to watch",
+    "regionHint": "The country whose streaming services, rentals and purchases the page of each title shows.",
+    "regionLabel": "Country",
+    "regionAuto": "Automatic ({country})",
+    "regionsFailed": "The list of countries could not be loaded. Try again later.",
+    "cacheTitle": "Cache",
+    "cacheHint": "The app keeps the names of the genres and the images to be faster. Clearing them makes it ask TMDB again.",
+    "clearCache": "Clear cache",
+    "cacheCleared": "Cache cleared.",
+    "cacheFailed": "The cache could not be cleared. Try again."
   },
 
   "search": {

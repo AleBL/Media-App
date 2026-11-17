@@ -334,6 +334,25 @@ describe('failures', () => {
   });
 });
 
+describe('regions', () => {
+  it('reads the countries where TMDB knows where to watch, each once, sorted', async () => {
+    const { client, requestedUrl } = setup([
+      answer(200, {
+        results: [
+          { iso_3166_1: 'US', english_name: 'United States' },
+          { iso_3166_1: 'BR', english_name: 'Brazil' },
+          { iso_3166_1: 'BR', english_name: 'Brazil' },
+          { iso_3166_1: '419', english_name: 'Latin America' },
+          { english_name: 'Nowhere' },
+        ],
+      }),
+    ]);
+
+    await expect(client.regions()).resolves.toEqual(['BR', 'US']);
+    expect(requestedUrl().pathname).toBe('/3/watch/providers/regions');
+  });
+});
+
 describe('genres', () => {
   it('merges the movie and tv lists without repeating ids', async () => {
     const { client, requestedUrl } = setup([

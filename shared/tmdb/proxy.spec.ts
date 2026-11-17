@@ -184,6 +184,32 @@ describe('tmdb proxy', () => {
     });
   });
 
+  describe('regions', () => {
+    it('answers the countries where TMDB knows where to watch, kept a day', async () => {
+      const fetch = vi.fn<FetchLike>(
+        async () =>
+          new Response(
+            JSON.stringify({
+              results: [
+                { iso_3166_1: 'US', english_name: 'United States' },
+                { iso_3166_1: 'BR', english_name: 'Brazil' },
+              ],
+            }),
+          ),
+      );
+
+      const { response, body } = await ask('?resource=regions', fetch);
+
+      expect(body).toEqual({ ok: true, data: ['BR', 'US'] });
+      expect(new URL(fetch.mock.calls[0][0]).pathname).toBe(
+        '/3/watch/providers/regions',
+      );
+      expect(response.headers.get('Cache-Control')).toBe(
+        'public, max-age=0, s-maxage=86400, stale-while-revalidate=604800',
+      );
+    });
+  });
+
   describe('lists of the home page', () => {
     it('answers with the titles, kept by the CDN for an hour', async () => {
       const fetch = tmdbAnswers(200, {

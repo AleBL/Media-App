@@ -5,8 +5,9 @@ const toggleDark = useToggle(isDark);
 
 // useDark keeps 'auto', 'dark' or 'light' under this key. The native theme
 // follows it, so the window chrome matches the app and 'auto' keeps tracking
-// the operating system.
-const colorScheme = useStorage('vueuse-color-scheme', 'auto');
+// the operating system. The settings page sets it; the menu flips between
+// light and dark.
+export const colorScheme = useStorage('vueuse-color-scheme', 'auto');
 
 watch(
   colorScheme,

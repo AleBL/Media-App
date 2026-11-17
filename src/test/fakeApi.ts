@@ -102,6 +102,10 @@ export function installFakeApi() {
     platform: 'desktop' as MediaAppApi['platform'],
     versions: { electron: '45.0.0', node: '24.0.0', chrome: '156.0.0' },
     setNativeTheme: vi.fn<MediaAppApi['setNativeTheme']>(),
+    clearCache: vi.fn<MediaAppApi['clearCache']>(async () => ({
+      ok: true,
+      data: null,
+    })),
     tmdb: {
       search: vi.fn<MediaAppApi['tmdb']['search']>(async () => ({
         ok: true,
@@ -118,6 +122,10 @@ export function installFakeApi() {
       list: vi.fn<MediaAppApi['tmdb']['list']>(async () => ({
         ok: true,
         data: [],
+      })),
+      regions: vi.fn<MediaAppApi['tmdb']['regions']>(async () => ({
+        ok: true,
+        data: ['BR', 'DE', 'PT', 'US'],
       })),
     },
     // An account with nothing in its lists, nothing rated, and changes that

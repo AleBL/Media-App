@@ -175,23 +175,35 @@ test.describe('web version', () => {
     }
   });
 
-  test('has no settings, and no place for a key of the user', async ({
+  test('has settings, with no place for a key of the user', async ({
     page,
     site,
   }) => {
     await page.goto(site.url);
+    await openPage(page, 'settings');
 
-    await expect(page.locator('header nav a[href$="#/search"]')).toBeVisible();
-    await expect(page.locator('header nav a[href$="#/settings"]')).toHaveCount(
+    await expect(page.getByLabel('Country')).toBeVisible();
+    await expect(page.getByLabel('TMDB key', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Clear cache' })).toHaveCount(
       0,
     );
+  });
 
-    await page.goto(`${site.url}#/settings`);
+  test('shows where to watch in the country chosen in the settings', async ({
+    page,
+    site,
+  }) => {
+    await page.goto(site.url);
+    await openPage(page, 'settings');
+    await page.getByLabel('Country').selectOption({ label: 'Brazil' });
+
+    await openPage(page, 'search');
+    await searchBox(page).fill('matrix');
+    await cards(page).first().getByRole('link').click();
 
     await expect(
-      page.getByText('nothing to set up in the web version'),
+      page.getByRole('heading', { name: 'Where to watch in Brazil' }),
     ).toBeVisible();
-    await expect(page.locator('input')).toHaveCount(0);
   });
 
   test('drops the key that the old web version kept in the browser', async ({

@@ -60,11 +60,11 @@ describe('NavBar', () => {
     );
   });
 
-  it('has no settings on the web', async () => {
+  it('has the settings on the web too', async () => {
     api.platform = 'web';
     await mountNavBar();
 
-    expect(links().map((link) => link.href)).not.toContain('/settings');
+    expect(links().map((link) => link.href)).toContain('/settings');
   });
 
   it('shows who is signed in, with a menu of their own', async () => {

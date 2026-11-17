@@ -187,6 +187,8 @@ export function createWebApi(
     platform: 'web',
     // The browser follows the theme of the system by itself.
     setNativeTheme: () => {},
+    // The browser keeps the images, and the site the rest.
+    clearCache: async () => ({ ok: true, data: null }),
     tmdb: {
       search: ({ type, query, page, language }) =>
         ask({ resource: 'search', type, query, page: String(page), language }),
@@ -194,6 +196,7 @@ export function createWebApi(
       details: ({ type, id, language, region }) =>
         ask({ resource: 'details', type, id: String(id), language, region }),
       list: ({ list, language }) => ask({ resource: 'list', list, language }),
+      regions: () => ask({ resource: 'regions' }),
     },
     // With the session in the cookie of the site, which the browser sends
     // along (shared/tmdb/web-account.ts).

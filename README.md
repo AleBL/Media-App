@@ -153,6 +153,18 @@ The packages land in `release/<version>`: a `.dmg` for macOS, an installer for W
 
 The icon is drawn in `build/icon.svg`. After changing it, `npm run icons` renders every size the packages and the site need (`build/icon.png`, `build/icons/`, `public/favicon.*`).
 
+#### Releases
+
+A tag such as `v0.2.0` runs `.github/workflows/release.yml`: it checks that the tag matches the version in `package.json` and that the repository has the `TMDB_READ_TOKEN` secret (Settings, Secrets and variables, Actions), runs the tests, packages the app on Linux, Windows and macOS (Apple silicon and Intel), and drafts a GitHub release with the packages. A pull request that changes the packaging runs the same packaging, without the secret and without a release.
+
+```bash
+npm version 0.2.0 --no-git-tag-version # on staging, then merge staging into master
+git tag v0.2.0 origin/master
+git push origin v0.2.0
+```
+
+Try the packages of the draft before publishing it. They are not signed: Windows warns before running the installer (More info, Run anyway), macOS blocks the app the first time (System Settings, Privacy & Security, Open Anyway), and the snap installs with `snap install --dangerous`.
+
 #### Lint and Prettier
 
 ```bash

@@ -14,6 +14,7 @@ test.describe('renderer isolation', () => {
       credentials: Object.keys(window.api?.credentials ?? {}).sort(),
       account: Object.keys(window.api?.account ?? {}).sort(),
       watched: Object.keys(window.api?.watched ?? {}).sort(),
+      updates: Object.keys(window.api?.updates ?? {}).sort(),
     }));
 
     expect(seen).toEqual({
@@ -27,6 +28,7 @@ test.describe('renderer isolation', () => {
         'platform',
         'setNativeTheme',
         'tmdb',
+        'updates',
         'versions',
         'watched',
       ],
@@ -36,6 +38,7 @@ test.describe('renderer isolation', () => {
       // they are used in the main process
       account: ['list', 'mark', 'rate', 'states'],
       watched: ['list', 'mark', 'state'],
+      updates: ['install', 'onChange', 'state'],
     });
   });
 

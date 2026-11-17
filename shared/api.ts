@@ -273,6 +273,15 @@ export type SessionPersistence =
   /** Could not be written: lasts until the app closes. */
   | 'failed';
 
+/** A newer version on GitHub Releases. Always `idle` on the web and in development. */
+export type UpdateState =
+  | { status: 'idle' }
+  /** This copy cannot replace itself: the user downloads it from `url`. */
+  | { status: 'available'; version: string; url: string }
+  | { status: 'downloading'; version: string }
+  /** Downloaded: installed on restart, or when the app closes. */
+  | { status: 'ready'; version: string };
+
 export interface MediaAppApi {
   platform: 'desktop' | 'web';
   /** Desktop only. */
@@ -335,6 +344,13 @@ export interface MediaAppApi {
     /** Returns a function that stops listening. */
     onChange(listener: (state: SessionState) => void): () => void;
   };
+  updates: {
+    state(): Promise<UpdateState>;
+    /** Restarts into the downloaded version (status `ready`). */
+    install(): Promise<void>;
+    /** Returns a function that stops listening. */
+    onChange(listener: (state: UpdateState) => void): () => void;
+  };
 }
 
 export const IPC = {
@@ -361,9 +377,12 @@ export const IPC = {
   authCancel: 'auth:cancel',
   authLogout: 'auth:logout',
   authRemember: 'auth:remember',
+  updatesState: 'updates:state',
+  updatesInstall: 'updates:install',
 } as const;
 
 /** Sent by the main process without being asked. */
 export const IPC_EVENTS = {
   authChanged: 'auth:changed',
+  updatesChanged: 'updates:changed',
 } as const;

@@ -395,6 +395,16 @@ describe('web api', () => {
     });
   });
 
+  it('never has an update, and asks the site nothing about one', async () => {
+    const fetch = vi.fn<WebFetch>();
+    const api = createWebApi(fetch);
+
+    await expect(api.updates.state()).resolves.toEqual({ status: 'idle' });
+    await expect(api.updates.install()).resolves.toBeUndefined();
+    expect(api.updates.onChange(() => {})).toBeTypeOf('function');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('hands back a failure of the site as it came', async () => {
     const failure = { ok: false, error: { code: 'rate-limited', status: 429 } };
 

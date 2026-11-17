@@ -38,6 +38,18 @@
   --color-surface-800: rgb(30 41 59);
   --color-surface-900: rgb(15 23 42);
   --color-surface-950: rgb(3 6 23);
+
+  /* A stripe that runs across the loading bar (AppLoadingBar). */
+  --animate-loading-bar: loading-bar 1.2s ease-in-out infinite;
+
+  @keyframes loading-bar {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(300%);
+    }
+  }
 }
 
 /* The column of a page, and the titles in it, the same on every page. */

@@ -1,7 +1,6 @@
 <script setup lang="ts">
   import { computed, ref } from 'vue';
   import { onClickOutside, onKeyStroke } from '@vueuse/core';
-  import { isDesktop } from '@/services/api';
   import { useSessionStore } from '@/stores/session';
   import { avatarUrl } from '@/util/images';
   import { ThemeItem } from './theme';
@@ -22,8 +21,6 @@
     return new URL(languageItem.getCurrentLocaleIcon(), import.meta.url).href;
   });
 
-  const desktop = isDesktop();
-
   const leading = computed(() => [
     { to: '/home', icon: 'pi pi-home', label: t('pageTitles.home') },
     { to: '/search', icon: 'pi pi-search', label: t('pageTitles.search') },
@@ -33,17 +30,7 @@
     const account = session.account;
 
     return [
-      // The only setting so far is the user's own TMDB key, which a web
-      // page has no safe place to keep.
-      ...(desktop
-        ? [
-            {
-              to: '/settings',
-              icon: 'pi pi-cog',
-              label: t('pageTitles.settings'),
-            },
-          ]
-        : []),
+      { to: '/settings', icon: 'pi pi-cog', label: t('pageTitles.settings') },
       { to: '/about', icon: 'pi pi-info-circle', label: t('pageTitles.about') },
       ...(account
         ? []

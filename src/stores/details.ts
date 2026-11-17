@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import type { MediaDetails, MediaType, Result, TmdbFailure } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import { getApi } from '@/services/api';
-import { userRegion } from '@/util/region';
+import { useSettingsStore } from '@/stores/settings';
 
 /** The page of the movie or tv show being shown. */
 export const useDetailsStore = defineStore('details', () => {
@@ -23,7 +23,8 @@ export const useDetailsStore = defineStore('details', () => {
 
     error.value = null;
     loading.value = true;
-    region.value = userRegion(language);
+    // Chosen on the settings page, or the one of the system.
+    region.value = useSettingsStore().regionFor(language);
 
     // Another title: what is on the screen is not about it. The same title
     // stays while it is asked for again, in another language.

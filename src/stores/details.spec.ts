@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import type { MediaDetails, Result } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import { useDetailsStore } from '@/stores/details';
+import { useSettingsStore } from '@/stores/settings';
 import { installFakeApi, MATRIX } from '@/test/fakeApi';
 
 const BREAKING_BAD: MediaDetails = {
@@ -43,6 +44,18 @@ describe('details store', () => {
     expect(store.details).toEqual(MATRIX);
     expect(store.region).toBe('BR');
     expect(store.loading).toBe(false);
+  });
+
+  it('asks for the country chosen in the settings instead', async () => {
+    useSettingsStore().region = 'PT';
+
+    await store.load('movie', 603);
+
+    expect(api.tmdb.details).toHaveBeenCalledWith(
+      expect.objectContaining({ region: 'PT' }),
+    );
+    expect(store.region).toBe('PT');
+    useSettingsStore().region = '';
   });
 
   it('keeps the failure, and nothing of the title', async () => {

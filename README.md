@@ -82,6 +82,7 @@ The same interface also runs as a web page, deployed by Vercel. A page cannot ho
 - The Settings page of the web version has no key of the user, as a browser has no safe place for it, and no cache to clear: the browser keeps it.
 - Signing in works there too, with the session kept by the site (`api/auth`). It needs no other variable.
 - Locally, `npm run dev` and `npx vite preview` answer `/api/tmdb`, `/api/auth` and `/api/account` with the same code, so opening the address they print in a browser shows the web version.
+- Vercel runs `npm run build:web` (set in `vercel.json`): the type check and the page in `dist`, without packaging the desktop app, whose Linux packages need tools its build image lacks.
 - Vercel does not build the functions with Vite: it compiles them with `api/tsconfig.json`, which makes them CommonJS, the only format in which Node finds the files they import without an extension. `shared/tmdb/vercel.spec.ts` builds and loads them the same way.
 
 ### Signing in with TMDB 👤

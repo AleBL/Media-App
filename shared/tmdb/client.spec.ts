@@ -947,10 +947,9 @@ describe('lists of the user (v4)', () => {
     expect(request.authorization).toBe(`Bearer ${USER}`);
   });
 
-  it('makes a list, then makes it private and sorts it by the last added first', async () => {
+  it('makes a list, asking for it private', async () => {
     const { client, fetch } = setup([
       answer(201, { success: true, status_code: 1, id: 88 }),
-      answer(201, { success: true, status_code: 12 }),
     ]);
 
     await expect(
@@ -961,7 +960,8 @@ describe('lists of the user (v4)', () => {
       }),
     ).resolves.toBe(88);
 
-    expect(asked(fetch, 0)).toMatchObject({
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(asked(fetch)).toMatchObject({
       method: 'POST',
       body: {
         name: 'Assistidos',
@@ -971,10 +971,21 @@ describe('lists of the user (v4)', () => {
         public: false,
       },
     });
-    expect(asked(fetch, 0).url.pathname).toBe('/4/list');
-    // TMDB makes it public whatever `public` said: it is set again, with the
-    // whole list, as TMDB shows an update
-    expect(asked(fetch, 1)).toMatchObject({
+    expect(asked(fetch).url.pathname).toBe('/4/list');
+  });
+
+  it('makes a list private and sorts it by the last added first, with the whole list', async () => {
+    // TMDB makes a list public whatever `public` said when it was made
+    const { client, fetch } = setup([
+      answer(201, { success: true, status_code: 12 }),
+    ]);
+
+    await client.updateList(USER, 88, {
+      name: 'Assistidos',
+      description: 'Media App',
+    });
+
+    expect(asked(fetch)).toMatchObject({
       method: 'PUT',
       body: {
         name: 'Assistidos',
@@ -982,23 +993,9 @@ describe('lists of the user (v4)', () => {
         public: false,
         sort_by: 'original_order.desc',
       },
+      authorization: `Bearer ${USER}`,
     });
-    expect(asked(fetch, 1).url.pathname).toBe('/4/list/88');
-  });
-
-  it('keeps a list it made even when TMDB will not sort it', async () => {
-    const { client } = setup([
-      answer(201, { id: 88 }),
-      answer(400, { status_code: 5 }),
-    ]);
-
-    await expect(
-      client.createList(USER, {
-        name: 'Watched',
-        description: '',
-        language: 'en',
-      }),
-    ).resolves.toBe(88);
+    expect(asked(fetch).url.pathname).toBe('/4/list/88');
   });
 
   it.each([

@@ -4,6 +4,7 @@ import { TmdbError, type TmdbClient, type UserList } from './client';
 import {
   createWatched,
   MAX_LIST_PAGES,
+  MAX_LIST_TRIES,
   memoryCache,
   userAccess,
   WATCHED_MARKER,
@@ -33,6 +34,7 @@ function setup(pages: UserList[][] = [[OTHER]]) {
       }),
     ),
     createList: vi.fn<TmdbClient['createList']>(async () => 88),
+    updateList: vi.fn<TmdbClient['updateList']>(async () => {}),
     listItemStatus: vi.fn<TmdbClient['listItemStatus']>(async () => true),
     addToList: vi.fn<TmdbClient['addToList']>(async () => {}),
     removeFromList: vi.fn<TmdbClient['removeFromList']>(async () => {}),
@@ -155,7 +157,76 @@ describe('watched titles', () => {
       MATRIX,
       '2026-11-16',
     );
+    // made private (TMDB makes it public) only with the first title in it
+    expect(tmdb.updateList).toHaveBeenCalledExactlyOnceWith(
+      ACCESS.accessToken,
+      88,
+      {
+        name: 'Assistidos',
+        description: expect.stringContaining(WATCHED_MARKER),
+      },
+    );
+    expect(tmdb.addToList.mock.invocationCallOrder[0]).toBeLessThan(
+      tmdb.updateList.mock.invocationCallOrder[0],
+    );
     expect(cache.get()).toBe(88);
+  });
+
+  it('keeps the first title when TMDB will not make the list private', async () => {
+    const { watched, tmdb, cache } = setup();
+    tmdb.updateList.mockRejectedValue(new TmdbError('server', 500));
+
+    await expect(
+      watched.mark(ACCESS, cache, mark(true)),
+    ).resolves.toBeUndefined();
+  });
+
+  it('changes a list it found, or kept, as it is', async () => {
+    const { watched, tmdb, cache } = setup([[WATCHED]]);
+
+    await watched.mark(ACCESS, cache, mark(true));
+    await watched.mark(ACCESS, cache, mark(true));
+
+    expect(tmdb.updateList).not.toHaveBeenCalled();
+  });
+
+  it('goes past every deleted list that TMDB still lists', async () => {
+    const OLDER = { ...WATCHED, id: 66 };
+    const { watched, tmdb, cache } = setup([[OLDER, WATCHED]]);
+    tmdb.addToList.mockImplementation(async (_token, id) => {
+      if (id !== 88) {
+        throw new TmdbError('not-found', 404);
+      }
+    });
+
+    await watched.mark(ACCESS, cache, mark(true));
+
+    expect(tmdb.addToList.mock.calls.map(([, id]) => id)).toEqual([66, 77, 88]);
+    expect(tmdb.createList).toHaveBeenCalledOnce();
+  });
+
+  it('gives up after a few lists that are all gone', async () => {
+    const lists = Array.from({ length: MAX_LIST_TRIES + 2 }, (_, i) => ({
+      ...WATCHED,
+      id: 100 + i,
+    }));
+    const { watched, tmdb, cache } = setup([lists]);
+    tmdb.addToList.mockRejectedValue(new TmdbError('not-found', 404));
+
+    await expect(watched.mark(ACCESS, cache, mark(true))).rejects.toMatchObject(
+      { code: 'not-found' },
+    );
+    expect(tmdb.addToList).toHaveBeenCalledTimes(MAX_LIST_TRIES);
+  });
+
+  it('does not make one list after another when the new one fails', async () => {
+    const { watched, tmdb, cache } = setup();
+    tmdb.addToList.mockRejectedValue(new TmdbError('not-found', 404));
+
+    await expect(watched.mark(ACCESS, cache, mark(true))).rejects.toMatchObject(
+      { code: 'not-found' },
+    );
+    expect(tmdb.createList).toHaveBeenCalledOnce();
   });
 
   it('names the list in English in a language it has no name in', async () => {

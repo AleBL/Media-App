@@ -902,8 +902,8 @@ export function createTmdbClient(options: TmdbClientOptions) {
     },
 
     /**
-     * Makes a private list of the user, in the order its titles were added,
-     * the last first.
+     * Makes a list of the user. TMDB makes it public whatever `public` says
+     * (seen on 2026-11-16): `updateList` makes it private.
      */
     async createList(
       accessToken: string,
@@ -930,13 +930,20 @@ export function createTmdbClient(options: TmdbClientOptions) {
         4,
         accessToken,
       );
-      const id = typeof body.id === 'number' ? body.id : unreadable();
+      return typeof body.id === 'number' ? body.id : unreadable();
+    },
 
-      // TMDB makes it public whatever `public` says (seen on 2026-11-16), and
-      // sorts it its own way: both are set after, with the whole list, as
-      // TMDB shows an update. In another order the list still works.
+    /**
+     * Makes a list of the user private, its titles in the order they were
+     * added, the last first. With the whole list, as TMDB shows an update.
+     */
+    async updateList(
+      accessToken: string,
+      listId: number,
+      { name, description }: Omit<UserList, 'id'>,
+    ): Promise<void> {
       await request(
-        `/list/${id}`,
+        `/list/${listId}`,
         {},
         {
           method: 'PUT',
@@ -949,9 +956,7 @@ export function createTmdbClient(options: TmdbClientOptions) {
         },
         4,
         accessToken,
-      ).catch(() => {});
-
-      return id;
+      );
     },
 
     /** Whether a title is in a list of the user. */

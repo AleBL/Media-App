@@ -72,19 +72,32 @@ const EMPTY: Paged<MediaItem> = {
   totalResults: 0,
 };
 
+/**
+ * How many lists the app tries before it gives up: TMDB goes on listing a
+ * list for a while after it is deleted, so more than one can be gone.
+ */
+export const MAX_LIST_TRIES = 4;
+
 type ListClient = Pick<
   TmdbClient,
   | 'userLists'
   | 'createList'
+  | 'updateList'
   | 'listItemStatus'
   | 'addToList'
   | 'removeFromList'
   | 'listItems'
 >;
 
+/** What a list the app makes is called and says, in `language`. */
+const newList = (language: string) => ({
+  name: NAMES[language.slice(0, 2)] ?? NAMES.en,
+  description: `Media App (${WATCHED_MARKER})`,
+});
+
 export function createWatched(tmdb: ListClient) {
-  /** The list, among those of the user; never `gone`, one that is no more. */
-  async function find(access: UserAccess, gone?: number) {
+  /** The list, among those of the user; none of `gone`, lists no more. */
+  async function find(access: UserAccess, gone: Set<number>) {
     for (let page = 1; page <= MAX_LIST_PAGES; page += 1) {
       const { lists, totalPages } = await tmdb.userLists(
         access.accessToken,
@@ -92,7 +105,8 @@ export function createWatched(tmdb: ListClient) {
         page,
       );
       const found = lists.find(
-        (list) => list.id !== gone && list.description.includes(WATCHED_MARKER),
+        (list) =>
+          !gone.has(list.id) && list.description.includes(WATCHED_MARKER),
       );
 
       if (found) {
@@ -107,40 +121,47 @@ export function createWatched(tmdb: ListClient) {
     return undefined;
   }
 
-  /** The id of the list; made, in `language`, when given and missing. */
-  async function listId(
+  /**
+   * The id of the list, and whether it was made now: made, in `language`,
+   * when given and there is none.
+   */
+  async function listOf(
     access: UserAccess,
     cache: ListCache,
+    gone: Set<number>,
     language?: string,
-    gone?: number,
-  ) {
+  ): Promise<{ id: number; made: boolean } | undefined> {
     const kept = cache.get();
 
-    if (kept !== undefined) {
-      return kept;
+    if (kept !== undefined && !gone.has(kept)) {
+      return { id: kept, made: false };
     }
 
-    let id = await find(access, gone);
+    const found = await find(access, gone);
+    const list =
+      found !== undefined
+        ? { id: found, made: false }
+        : language
+          ? {
+              id: await tmdb.createList(access.accessToken, {
+                ...newList(language),
+                language,
+              }),
+              made: true,
+            }
+          : undefined;
 
-    if (id === undefined && language) {
-      id = await tmdb.createList(access.accessToken, {
-        name: NAMES[language.slice(0, 2)] ?? NAMES.en,
-        description: `Media App (${WATCHED_MARKER})`,
-        language,
-      });
+    if (list) {
+      cache.set(list.id);
     }
 
-    if (id !== undefined) {
-      cache.set(id);
-    }
-
-    return id;
+    return list;
   }
 
   /**
    * Runs `work` on the list. A list that is no more (deleted on the TMDB
-   * website) is looked for once more, leaving it out: TMDB still lists a
-   * list for a while after it is deleted. Without a list, `none`.
+   * website, which still lists it for a while) is left out, and the next
+   * one tried. Without a list, `none`.
    */
   async function withList<T>(
     access: UserAccess,
@@ -149,24 +170,38 @@ export function createWatched(tmdb: ListClient) {
     none: T,
     language?: string,
   ): Promise<T> {
-    const id = await listId(access, cache, language);
+    const gone = new Set<number>();
 
-    if (id === undefined) {
-      return none;
-    }
+    for (let tries = 1; ; tries += 1) {
+      const list = await listOf(access, cache, gone, language);
 
-    try {
-      return await work(id);
-    } catch (error) {
-      if (!(error instanceof TmdbError && error.code === 'not-found')) {
-        throw error;
+      if (!list) {
+        return none;
       }
 
-      cache.set(undefined);
+      try {
+        const done = await work(list.id);
 
-      const again = await listId(access, cache, language, id);
+        // TMDB makes a list public: it is made private only now, with the
+        // first title in it. Changed right after it was made, the first
+        // title failed to go in (2026-11-16): the likely cause.
+        if (list.made && language) {
+          await tmdb
+            .updateList(access.accessToken, list.id, newList(language))
+            .catch(() => {});
+        }
 
-      return again === undefined ? none : work(again);
+        return done;
+      } catch (error) {
+        const lost = error instanceof TmdbError && error.code === 'not-found';
+
+        if (!lost || list.made || tries >= MAX_LIST_TRIES) {
+          throw error;
+        }
+
+        gone.add(list.id);
+        cache.set(undefined);
+      }
     }
   }
 

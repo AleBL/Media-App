@@ -189,6 +189,26 @@ test.describe('web version', () => {
     );
   });
 
+  test('names TMDB as the source on the about page', async ({ page, site }) => {
+    await page.goto(site.url);
+    await openPage(page, 'about');
+
+    const tmdb = page.getByRole('region', {
+      name: 'Where the data comes from',
+    });
+
+    await expect(tmdb).toContainText(
+      'is not endorsed, certified, or otherwise approved by TMDB.',
+    );
+    await expect
+      .poll(() =>
+        tmdb
+          .getByRole('img', { name: 'The Movie Database (TMDB)' })
+          .evaluate((image: HTMLImageElement) => image.naturalWidth),
+      )
+      .toBeGreaterThan(0);
+  });
+
   test('shows where to watch in the country chosen in the settings', async ({
     page,
     site,

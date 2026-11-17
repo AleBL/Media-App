@@ -61,8 +61,9 @@ describe('updates', () => {
       version: '0.3.0',
     });
 
+    // Silently, opening the app again: no installer wizard on Windows.
     await updates.install();
-    expect(updater.quitAndInstall).toHaveBeenCalledOnce();
+    expect(updater.quitAndInstall).toHaveBeenCalledExactlyOnceWith(true, true);
     updates.dispose();
   });
 

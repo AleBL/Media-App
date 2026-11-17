@@ -72,6 +72,11 @@
     "cacheFailed": "Não foi possível limpar o cache. Tente de novo."
   },
 
+  "about": {
+    "dataTitle": "De onde vêm os dados",
+    "dataSource": "Filmes, séries, pessoas, imagens e contas vêm do TMDB, The Movie Database."
+  },
+
   "search": {
     "notFound": "Nenhum registro foi encontrado",
     "loading": "Buscando...",

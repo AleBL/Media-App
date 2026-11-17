@@ -72,6 +72,11 @@
     "cacheFailed": "No se pudo borrar la caché. Inténtalo de nuevo."
   },
 
+  "about": {
+    "dataTitle": "De dónde vienen los datos",
+    "dataSource": "Las películas, series, personas, imágenes y cuentas vienen de TMDB, The Movie Database."
+  },
+
   "search": {
     "notFound": "No se encontraron registros",
     "loading": "Buscando...",

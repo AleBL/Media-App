@@ -72,6 +72,8 @@ cp .env.example .env.local # ignored by git
 
 The token is compiled into the main process only (`dist-electron/main`), never into the renderer. It is not in the repository, but anyone can extract it from a distributed app: treat it as what identifies the app to TMDB, not as a secret, and be ready to replace it. A key that a user saves in **Settings** is used instead of it, which keeps their copy working if the token is ever revoked.
 
+The terms of the TMDB API ask every app that uses it to name TMDB as its source. The **About** page does it, on the desktop and on the web: the official logo (`src/assets/tmdb.svg`, smaller than what names the app, as the terms ask), linked to themoviedb.org, and the notice of the terms. The notice stays in English in every language, as it is their text, not ours.
+
 ### The web version 🌐
 
 The same interface also runs as a web page, deployed by Vercel. A page cannot hold the credential (everything a browser loads is public), so there it asks functions of the site, the files in `api`, which keep `TMDB_READ_TOKEN` on the server and only do what the app does: search movies, tv shows and people, list genres, show the lists of the home page and the page of a title, sign in, and read and change the watchlist, the favorites, the ratings and the watched titles of whoever signed in.

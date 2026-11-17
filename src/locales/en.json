@@ -72,6 +72,11 @@
     "cacheFailed": "The cache could not be cleared. Try again."
   },
 
+  "about": {
+    "dataTitle": "Where the data comes from",
+    "dataSource": "Movies, TV shows, people, images and accounts come from TMDB, The Movie Database."
+  },
+
   "search": {
     "notFound": "No records found",
     "loading": "Searching...",

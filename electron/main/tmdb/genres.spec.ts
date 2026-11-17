@@ -33,6 +33,18 @@ describe('genre cache', () => {
     await rm(directory, { recursive: true, force: true });
   });
 
+  it('forgets every list when cleared, and asks TMDB again', async () => {
+    const { cache, fetch } = setup(async () => ACTION);
+    await cache.get('en');
+
+    await cache.clear();
+    // clearing what is not there is fine too
+    await cache.clear();
+    await cache.get('en');
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it('asks TMDB once and answers from disk afterwards', async () => {
     const { cache, fetch } = setup(async () => ACTION);
 

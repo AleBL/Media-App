@@ -276,6 +276,22 @@ describe('web api', () => {
   });
 
   describe('lists of the account', () => {
+    it('asks the site for the countries, and has no cache of its own to clear', async () => {
+      const fetch = answering({ ok: true, data: ['BR'] });
+      const api = createWebApi(fetch);
+
+      await expect(api.tmdb.regions()).resolves.toEqual({
+        ok: true,
+        data: ['BR'],
+      });
+      expect(fetch.mock.calls[0][0]).toBe('/api/tmdb?resource=regions');
+      await expect(api.clearCache()).resolves.toEqual({
+        ok: true,
+        data: null,
+      });
+      expect(fetch).toHaveBeenCalledOnce();
+    });
+
     it('asks the site where a title is', async () => {
       const states = { watchlist: true, favorite: false, rated: 7 };
       const fetch = answering({ ok: true, data: states });

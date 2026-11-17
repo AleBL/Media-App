@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Genre } from '../../../shared/api';
 
@@ -70,6 +70,11 @@ export function createGenreCache(options: GenreCacheOptions) {
 
         throw error;
       }
+    },
+
+    /** Forgets every list: the next ones are asked from TMDB. */
+    async clear(): Promise<void> {
+      await rm(options.directory, { recursive: true, force: true });
     },
   };
 }

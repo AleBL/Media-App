@@ -58,10 +58,13 @@ export interface IpcServices {
   /** True when the message comes from the app's own page. */
   isTrustedSender(url: string): boolean;
   setNativeTheme(theme: NativeTheme): void;
+  /** Forgets the genres kept on disk and the images Chromium kept. */
+  clearCache(): Promise<null>;
   tmdb: {
     search(request: SearchRequest): Promise<Paged<SearchItem>>;
     details(request: DetailsRequest): Promise<MediaDetails>;
     list(request: ListRequest): Promise<MediaItem[]>;
+    regions(): Promise<string[]>;
   };
   genres: { get(language: string): Promise<Genre[]> };
   /** With the session of whoever signed in; `signed-out` otherwise. */
@@ -162,6 +165,14 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
 
     return request ? attempt(() => services.tmdb.list(request)) : invalid();
   });
+
+  ipc.handle(IPC.tmdbRegions, (event) =>
+    trusted(event) ? attempt(() => services.tmdb.regions()) : invalid(),
+  );
+
+  ipc.handle(IPC.clearCache, (event) =>
+    trusted(event) ? attempt(() => services.clearCache()) : invalid(),
+  );
 
   ipc.handle(IPC.accountStates, (event, value) => {
     const request = trusted(event) ? parseTitleRequest(value) : null;

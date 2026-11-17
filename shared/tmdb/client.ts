@@ -625,6 +625,25 @@ export function createTmdbClient(options: TmdbClientOptions) {
       });
     },
 
+    /**
+     * The countries TMDB knows where to watch titles in (from JustWatch), as
+     * codes such as `BR`, sorted, each once.
+     */
+    async regions(): Promise<string[]> {
+      const body = await request<{ results?: unknown }>(
+        '/watch/providers/regions',
+        {},
+      );
+      const codes = objects(body.results)
+        .map((region) => region.iso_3166_1)
+        .filter(
+          (code): code is string =>
+            typeof code === 'string' && /^[A-Z]{2}$/.test(code),
+        );
+
+      return [...new Set(codes)].sort();
+    },
+
     /** Movie and tv genres in one list, without repeated ids. */
     async genres(language: string): Promise<Genre[]> {
       const [movie, tv] = await Promise.all([

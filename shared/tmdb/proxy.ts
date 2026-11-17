@@ -96,6 +96,7 @@ export function toFailure(error: unknown): TmdbFailure {
  *   GET ?resource=search&type=movie&query=matrix&page=1&language=en
  *   GET ?resource=search&type=multi&query=keanu&page=1&language=en
  *   GET ?resource=genres&language=en
+ *   GET ?resource=regions
  *   GET ?resource=details&type=movie&id=603&language=en&region=US
  *   GET ?resource=list&list=trending&language=en
  */
@@ -147,6 +148,14 @@ export function createTmdbProxy(options: TmdbProxyOptions) {
               )
             : failure({ code: 'invalid-request' });
         }
+
+        // The countries change as rarely as the genres.
+        case 'regions':
+          return respond(
+            200,
+            { ok: true, data: await client.regions() },
+            GENRES_CACHE,
+          );
 
         case 'details': {
           const details = parseDetailsRequest({

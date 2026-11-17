@@ -351,7 +351,18 @@ export interface MediaAppApi {
     details(request: DetailsRequest): Promise<Result<MediaDetails>>;
     /** The first page of a list, each title tagged with its type. */
     list(request: ListRequest): Promise<Result<MediaItem[]>>;
+    /**
+     * The countries TMDB knows where to watch titles in, as codes such as
+     * `BR`, sorted.
+     */
+    regions(): Promise<Result<string[]>>;
   };
+  /**
+   * Forgets what the app keeps to be faster: the names of the genres and
+   * the images, asked again when needed. Nothing to forget on the web,
+   * where the browser keeps them.
+   */
+  clearCache(): Promise<Result<null>>;
   /**
    * The lists and the ratings of the TMDB account of whoever signed in.
    * Each call answers `signed-out` when nobody is.
@@ -421,6 +432,8 @@ export const IPC = {
   tmdbGenres: 'tmdb:genres',
   tmdbDetails: 'tmdb:details',
   tmdbList: 'tmdb:list',
+  tmdbRegions: 'tmdb:regions',
+  clearCache: 'app:clear-cache',
   accountStates: 'account:states',
   accountMark: 'account:mark',
   accountRate: 'account:rate',

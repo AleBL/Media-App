@@ -179,6 +179,14 @@ app.whenReady().then(async () => {
     setNativeTheme: (theme) => {
       nativeTheme.themeSource = theme;
     },
+    // What the app keeps to be faster: the genres on disk, and the images
+    // in the HTTP cache of Chromium. Both are asked again when needed.
+    clearCache: async () => {
+      await genres.clear();
+      await session.defaultSession.clearCache();
+
+      return null;
+    },
     tmdb,
     genres,
     // The lists and the ratings of the account, with the session that the

@@ -64,6 +64,7 @@ describe('ipc handlers', () => {
     services = {
       isTrustedSender: (url) => url === APP_URL,
       setNativeTheme: vi.fn(),
+      clearCache: vi.fn(async () => null),
       tmdb: {
         search: vi.fn(async () => ({
           page: 1,
@@ -73,6 +74,7 @@ describe('ipc handlers', () => {
         })),
         details: vi.fn(async () => MATRIX),
         list: vi.fn(async () => [{ id: 603, media_type: 'movie' as const }]),
+        regions: vi.fn(async () => ['BR', 'US']),
       },
       genres: { get: vi.fn(async () => [{ id: 28, name: 'Action' }]) },
       account: {
@@ -337,6 +339,43 @@ describe('ipc handlers', () => {
       }
       expect(services.account.mark).not.toHaveBeenCalled();
       expect(services.account.rate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('settings', () => {
+    it('answers the countries TMDB knows where to watch in', async () => {
+      await expect(call(IPC.tmdbRegions, fromApp)).resolves.toEqual({
+        ok: true,
+        data: ['BR', 'US'],
+      });
+    });
+
+    it('clears the cache', async () => {
+      await expect(call(IPC.clearCache, fromApp)).resolves.toEqual({
+        ok: true,
+        data: null,
+      });
+      expect(services.clearCache).toHaveBeenCalledOnce();
+    });
+
+    it('says when the cache could not be cleared', async () => {
+      vi.mocked(services.clearCache).mockRejectedValue(new Error('EBUSY'));
+
+      await expect(call(IPC.clearCache, fromApp)).resolves.toMatchObject({
+        ok: false,
+        error: { code: 'server' },
+      });
+    });
+
+    it('does neither for a sender that is not the app', async () => {
+      for (const channel of [IPC.tmdbRegions, IPC.clearCache]) {
+        await expect(call(channel, fromElsewhere)).resolves.toEqual({
+          ok: false,
+          error: { code: 'invalid-request' },
+        });
+      }
+      expect(services.clearCache).not.toHaveBeenCalled();
+      expect(services.tmdb.regions).not.toHaveBeenCalled();
     });
   });
 

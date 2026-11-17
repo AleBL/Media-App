@@ -5,6 +5,8 @@
   import { colorScheme } from '@/components/NavBar/theme';
   import OwnKeyInput from '@/components/Settings/OwnKeyInput.vue';
   import AppButton from '@/components/ui/AppButton.vue';
+  import AppCombobox from '@/components/ui/AppCombobox.vue';
+  import AppSegmented from '@/components/ui/AppSegmented.vue';
   import { getApi, isDesktop } from '@/services/api';
   import { safeCall } from '@/stores/account';
   import { useCredentialsStore } from '@/stores/credentials';
@@ -36,11 +38,19 @@
     set: (code: string) => chooseLanguage(locale, code),
   });
 
-  const THEMES = [
-    { value: 'auto', label: 'theme.system' },
-    { value: 'light', label: 'theme.light' },
-    { value: 'dark', label: 'theme.dark' },
-  ] as const;
+  const languages = computed(() =>
+    availableLocales.map((code) => ({
+      value: code,
+      label: languageName(code),
+      lang: code,
+    })),
+  );
+
+  const themes = computed(() => [
+    { value: 'auto', label: t('theme.system'), icon: 'pi pi-desktop' },
+    { value: 'light', label: t('theme.light'), icon: 'pi pi-sun' },
+    { value: 'dark', label: t('theme.dark'), icon: 'pi pi-moon' },
+  ]);
 
   // The countries TMDB knows where to watch in, by name; the one chosen
   // before stays, even when TMDB could not be asked.
@@ -52,6 +62,22 @@
       .sort((a, b) => a.name.localeCompare(b.name, locale.value)),
   );
   const automatic = computed(() => countryName(userRegion(locale.value)));
+
+  // The automatic country is no country (''); the field takes a word.
+  const AUTOMATIC = 'auto';
+  const region = computed({
+    get: () => settings.region || AUTOMATIC,
+    set: (code: string) => {
+      settings.region = code === AUTOMATIC ? '' : code;
+    },
+  });
+  const countryOptions = computed(() => [
+    {
+      value: AUTOMATIC,
+      label: t('settings.regionAuto', { country: automatic.value }),
+    },
+    ...countries.value.map(({ code, name }) => ({ value: code, label: name })),
+  ]);
 
   onMounted(async () => {
     const answer = await safeCall(() => getApi().tmdb.regions());
@@ -80,11 +106,6 @@
       genres.byLanguage = {};
     }
   }
-
-  const SELECT =
-    'w-full rounded-md border border-surface-300 bg-surface-0 px-3 py-2 text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 sm:w-auto dark:border-surface-600 dark:bg-surface-900 dark:[color-scheme:dark] dark:focus-visible:ring-primary-400';
-  const RADIO =
-    'h-4 w-4 accent-primary-500 dark:accent-primary-400 dark:[color-scheme:dark]';
 </script>
 
 <template>
@@ -96,44 +117,24 @@
 
   <div class="mx-auto flex max-w-xl flex-col gap-8 px-4 pb-8">
     <section>
-      <h2 class="mb-2 text-xl">
-        <label for="settings-language">{{ t('settings.languageTitle') }}</label>
-      </h2>
-      <select id="settings-language" v-model="language" :class="SELECT">
-        <option
-          v-for="code in availableLocales"
-          :key="code"
-          :value="code"
-          :lang="code"
-        >
-          {{ languageName(code) }}
-        </option>
-      </select>
+      <h2 class="mb-2 text-xl">{{ t('settings.languageTitle') }}</h2>
+      <!-- Each language by its own name. -->
+      <AppSegmented
+        v-model="language"
+        :options="languages"
+        :label="t('settings.languageTitle')"
+        name="settings-language"
+      />
     </section>
 
     <section>
-      <fieldset>
-        <legend class="mb-2 text-xl">{{ t('theme.text') }}</legend>
-        <div class="flex flex-wrap gap-x-5 gap-y-2">
-          <div
-            v-for="theme in THEMES"
-            :key="theme.value"
-            class="flex items-center"
-          >
-            <input
-              :id="`settings-theme-${theme.value}`"
-              v-model="colorScheme"
-              type="radio"
-              name="settings-theme"
-              :value="theme.value"
-              :class="RADIO"
-            />
-            <label :for="`settings-theme-${theme.value}`" class="ml-2">
-              {{ t(theme.label) }}
-            </label>
-          </div>
-        </div>
-      </fieldset>
+      <h2 class="mb-2 text-xl">{{ t('theme.text') }}</h2>
+      <AppSegmented
+        v-model="colorScheme"
+        :options="themes"
+        :label="t('theme.text')"
+        name="settings-theme"
+      />
     </section>
 
     <section>
@@ -144,18 +145,15 @@
       <label for="settings-region" class="mb-1 block text-sm font-medium">
         {{ t('settings.regionLabel') }}
       </label>
-      <select id="settings-region" v-model="settings.region" :class="SELECT">
-        <option value="">
-          {{ t('settings.regionAuto', { country: automatic }) }}
-        </option>
-        <option
-          v-for="country in countries"
-          :key="country.code"
-          :value="country.code"
-        >
-          {{ country.name }}
-        </option>
-      </select>
+      <!-- Typing filters the countries, by their name in the language of
+           the app. -->
+      <AppCombobox
+        id="settings-region"
+        v-model="region"
+        :options="countryOptions"
+        :empty="t('settings.noCountry')"
+        :open-label="t('settings.allCountries')"
+      />
       <p
         v-if="regionsFailed"
         role="alert"

@@ -56,7 +56,7 @@ describe('SearchBar', () => {
     await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
     api.tmdb.search.mockClear();
 
-    await wrapper.get('#mediaTypeTVShow').setValue(true);
+    await wrapper.get('input[value="tv"]').setValue(true);
     await nextTick();
 
     expect(store.mediaType).toBe('tv');
@@ -80,7 +80,7 @@ describe('SearchBar', () => {
       'All',
     ]);
 
-    await wrapper.get('#mediaTypeAll').setValue(true);
+    await wrapper.get('input[value="multi"]').setValue(true);
     await nextTick();
 
     expect(store.mediaType).toBe('multi');

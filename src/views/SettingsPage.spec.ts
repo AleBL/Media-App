@@ -66,21 +66,32 @@ describe('SettingsPage', () => {
     expect(wrapper.find('a').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('Clear cache');
     // the rest is the same
-    expect(wrapper.find('#settings-language').exists()).toBe(true);
+    expect(wrapper.find('[role="radiogroup"]').exists()).toBe(true);
     expect(wrapper.find('#settings-region').exists()).toBe(true);
   });
 
-  it('changes the language, kept for the next launch', async () => {
+  const radio = (name: string, value: string) =>
+    wrapper.get(`input[name="${name}"][value="${value}"]`);
+  const isChecked = (name: string, value: string) =>
+    (radio(name, value).element as HTMLInputElement).checked;
+  const countryField = () =>
+    wrapper.get('#settings-region').element as HTMLInputElement;
+  // The list of a combobox opens in a layer of its own.
+  const countryOptions = () =>
+    Array.from(document.body.querySelectorAll<HTMLElement>('[role="option"]'));
+
+  it('changes the language, by its own name, kept for the next launch', async () => {
     await mountPage();
 
-    const select = wrapper.get('#settings-language');
-    expect(select.findAll('option').map((option) => option.text())).toEqual([
+    const group = wrapper.get('[role="radiogroup"][aria-label="Language"]');
+    expect(group.findAll('label').map((label) => label.text())).toEqual([
       'English',
       'Español',
       'Português (Brasil)',
     ]);
+    expect(isChecked('settings-language', 'en')).toBe(true);
 
-    await select.setValue('pt-BR');
+    await radio('settings-language', 'pt-BR').setValue(true);
 
     expect(i18n.global.locale.value).toBe('pt-BR');
     expect(localStorage.getItem('locale')).toBe('pt-BR');
@@ -90,37 +101,44 @@ describe('SettingsPage', () => {
   it('follows the system, or keeps the theme light or dark', async () => {
     await mountPage();
 
-    expect(
-      (wrapper.get('#settings-theme-auto').element as HTMLInputElement).checked,
-    ).toBe(true);
+    expect(isChecked('settings-theme', 'auto')).toBe(true);
 
-    await wrapper.get('#settings-theme-dark').setValue(true);
+    await radio('settings-theme', 'dark').setValue(true);
     await flushPromises();
 
     expect(localStorage.getItem('vueuse-color-scheme')).toBe('dark');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
 
-    await wrapper.get('#settings-theme-auto').setValue(true);
+    await radio('settings-theme', 'auto').setValue(true);
   });
 
   it('chooses the country of where to watch, among those TMDB knows', async () => {
     await mountPage();
 
-    const select = wrapper.get('#settings-region');
-    const options = select.findAll('option');
-    expect(options[0].text()).toBe('Automatic (United States)');
-    expect(options.slice(1).map((option) => option.text())).toEqual([
+    expect(countryField().value).toBe('Automatic (United States)');
+
+    await wrapper
+      .get('button[aria-label="Show all the countries"]')
+      .trigger('click');
+    await flushPromises();
+
+    expect(
+      countryOptions().map((option) => option.textContent?.trim()),
+    ).toEqual([
+      'Automatic (United States)',
       'Brazil',
       'Germany',
       'Portugal',
       'United States',
     ]);
 
-    await select.setValue('PT');
+    countryOptions()[3].click();
+    await flushPromises();
 
     expect(useSettingsStore().region).toBe('PT');
     expect(useSettingsStore().regionFor('en')).toBe('PT');
     expect(localStorage.getItem('region')).toBe('PT');
+    expect(countryField().value).toBe('Portugal');
   });
 
   it('keeps the country chosen when TMDB cannot list them', async () => {
@@ -135,9 +153,7 @@ describe('SettingsPage', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain(
       'The list of countries could not be loaded.',
     );
-    expect(
-      (wrapper.get('#settings-region').element as HTMLSelectElement).value,
-    ).toBe('PT');
+    expect(countryField().value).toBe('Portugal');
   });
 
   it('clears the cache, and says so', async () => {

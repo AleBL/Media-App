@@ -5,6 +5,7 @@
   import AppButton from '@/components/ui/AppButton.vue';
   import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
   import AppPaginator from '@/components/ui/AppPaginator.vue';
+  import AppSegmented from '@/components/ui/AppSegmented.vue';
   import AppState from '@/components/ui/AppState.vue';
   import PosterCardSkeleton from '@/components/Home/PosterCardSkeleton.vue';
   import SearchItemCard from '@/components/Search/SearchItemCard.vue';
@@ -55,6 +56,16 @@
     { value: MEDIA_TYPES.TV_SHOW, label: 'lists.tvShows' },
   ] as const;
 
+  const kinds = computed(() =>
+    TYPES.map((type) => ({ value: type.value, label: t(type.label) })),
+  );
+  // Movies or tv shows: another kind starts again from its first page.
+  const kind = computed({
+    get: () => view.value.type,
+    set: (value: string) =>
+      void lists.load(props.list, 1, value as (typeof TYPES)[number]['value']),
+  });
+
   // Asked again on every visit: the lists change on the page of a title,
   // and on the TMDB website. What was shown stays until the answer comes.
   watch([() => props.list, locale], () => lists.load(props.list), {
@@ -83,25 +94,13 @@
       <h1 class="mb-3 text-2xl">{{ t(heading) }}</h1>
     </div>
 
-    <div
-      role="radiogroup"
-      :aria-label="t('lists.kind')"
-      class="mb-2 flex flex-wrap justify-center gap-3"
-    >
-      <div v-for="kind in TYPES" :key="kind.value" class="flex items-center">
-        <input
-          :id="`${list}-${kind.value}`"
-          type="radio"
-          :name="`${list}-type`"
-          class="h-4 w-4 accent-primary-500 dark:accent-primary-400 dark:[color-scheme:dark]"
-          :value="kind.value"
-          :checked="view.type === kind.value"
-          @change="lists.load(list, 1, kind.value)"
-        />
-        <label :for="`${list}-${kind.value}`" class="ml-2">{{
-          t(kind.label)
-        }}</label>
-      </div>
+    <div class="mb-2 flex justify-center">
+      <AppSegmented
+        v-model="kind"
+        :options="kinds"
+        :label="t('lists.kind')"
+        :name="`${list}-type`"
+      />
     </div>
 
     <AppState

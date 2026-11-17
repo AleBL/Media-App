@@ -58,7 +58,7 @@ test.describe('search', () => {
     await searchBox(page).fill('breaking');
     await expect(cards(page).first()).toContainText('Movie 1');
 
-    await page.getByText('TV Show', { exact: true }).click();
+    await page.getByRole('radio', { name: 'TV Show' }).check();
 
     await expect(cards(page).first()).toContainText('Show 1 [en] (2008)');
     await expect(cards(page).first()).toContainText('Drama');

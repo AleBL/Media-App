@@ -70,6 +70,8 @@
     "regionLabel": "País",
     "regionAuto": "Automático ({country})",
     "regionsFailed": "Não foi possível carregar a lista de países. Tente de novo mais tarde.",
+    "noCountry": "Nenhum país tem esse nome.",
+    "allCountries": "Mostrar todos os países",
     "cacheTitle": "Cache",
     "cacheHint": "O app guarda os nomes dos gêneros e as imagens para ser mais rápido. Limpar faz ele pedir tudo de novo ao TMDB.",
     "clearCache": "Limpar cache",
@@ -104,6 +106,7 @@
     "all": "Tudo",
     "person": "Pessoa",
     "knownFor": "Conhecido(a) por",
+    "kind": "O que procurar",
     "notFoundHint": "Tente outras palavras, ou procure em tudo de uma vez.",
     "tryAgain": "Tentar de novo"
   },

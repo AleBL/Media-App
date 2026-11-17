@@ -40,6 +40,19 @@
   --color-surface-950: rgb(3 6 23);
 }
 
+/* The column of a page, and the titles in it, the same on every page. */
+@utility page {
+  @apply mx-auto w-full max-w-6xl px-4;
+}
+
+@utility page-title {
+  @apply text-2xl font-semibold tracking-tight text-surface-900 dark:text-surface-0;
+}
+
+@utility section-title {
+  @apply text-xl font-semibold text-surface-900 dark:text-surface-0;
+}
+
 @layer base {
   /* The page as it was with Bootstrap, which set these. Dark like #app
      (index.html), for what shows past it, as the last margin of a page. */

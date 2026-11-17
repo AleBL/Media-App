@@ -1,15 +1,26 @@
 {
   "compilerOptions": {
-    "composite": true,
+    "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
+    "lib": ["ESNext", "DOM"],
+    "types": ["node"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
     "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true,
-    "baseUrl": "src/",
-    "paths": {
-      "@/*": ["*"],
-      "~/*": ["*"]
-    }
+    "allowJs": true
   },
-  "include": ["vite.config.ts", "package.json", "electron"]
+  "include": [
+    "vite.config.mts",
+    "vitest.config.mts",
+    "playwright.config.ts",
+    "e2e",
+    "api",
+    "electron",
+    "config",
+    "shared"
+  ]
 }

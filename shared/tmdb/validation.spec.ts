@@ -1,0 +1,267 @@
+// @vitest-environment node
+import { describe, expect, it } from 'vitest';
+import {
+  parseAccountListRequest,
+  parseApiKey,
+  parseDetailsRequest,
+  parseLanguage,
+  parseListRequest,
+  parseMarkRequest,
+  parseRateRequest,
+  parseRegion,
+  parseSearchRequest,
+  parseTitleRequest,
+  parseWatchedListRequest,
+  parseWatchedRequest,
+} from './validation';
+
+describe('requests about the watched titles', () => {
+  const mark = {
+    type: 'movie',
+    id: 603,
+    value: true,
+    date: '2026-11-16',
+    language: 'pt-BR',
+  };
+
+  it('accepts them and drops fields they do not know', () => {
+    expect(parseWatchedRequest({ ...mark, listId: 7 })).toEqual(mark);
+    expect(parseWatchedRequest({ ...mark, value: false })).toEqual({
+      ...mark,
+      value: false,
+    });
+    expect(parseWatchedListRequest({ page: 3, language: 'es', x: 1 })).toEqual({
+      page: 3,
+      language: 'es',
+    });
+  });
+
+  it.each([
+    ['a value that is not true or false', { ...mark, value: 'true' }],
+    ['a day in another shape', { ...mark, date: '16/11/2026' }],
+    ['a day that does not exist', { ...mark, date: '2026-02-30' }],
+    ['no day', { ...mark, date: undefined }],
+    ['a language that is not a locale', { ...mark, language: '../x' }],
+    ['a person', { ...mark, type: 'person' }],
+  ])('refuses a mark with %s', (_case, request) => {
+    expect(parseWatchedRequest(request)).toBeNull();
+  });
+
+  it.each([
+    ['page zero', { page: 0, language: 'en' }],
+    ['a page past the last one', { page: 501, language: 'en' }],
+    ['no language', { page: 1 }],
+    ['nothing', null],
+  ])('refuses a page with %s', (_case, request) => {
+    expect(parseWatchedListRequest(request)).toBeNull();
+  });
+});
+
+describe('requests about the lists of the account', () => {
+  const title = { type: 'movie', id: 603 };
+  const mark = { ...title, list: 'favorite', value: false };
+  const page = { list: 'watchlist', type: 'tv', page: 1, language: 'pt-BR' };
+
+  it('accepts them and drops fields they do not know', () => {
+    expect(parseTitleRequest({ ...title, sessionId: 'x' })).toEqual(title);
+    expect(parseMarkRequest({ ...mark, accountId: 1 })).toEqual(mark);
+    expect(parseAccountListRequest({ ...page, sort: 'x' })).toEqual(page);
+    expect(parseAccountListRequest({ ...page, list: 'rated' })).toEqual({
+      ...page,
+      list: 'rated',
+    });
+  });
+
+  it.each([
+    ['nothing', undefined],
+    ['a person', { ...title, type: 'person' }],
+    ['an id that is not one', { ...title, id: '603/account_states' }],
+    ['id zero', { ...title, id: 0 }],
+  ])('refuses a title of %s', (_case, request) => {
+    expect(parseTitleRequest(request)).toBeNull();
+    expect(
+      parseMarkRequest(
+        request && { ...request, list: 'favorite', value: true },
+      ),
+    ).toBeNull();
+  });
+
+  it.each([
+    ['the rated titles, which a rating changes', { ...mark, list: 'rated' }],
+    ['a value that is not true or false', { ...mark, value: 'true' }],
+    ['no value', { ...title, list: 'watchlist' }],
+  ])('refuses a change with %s', (_case, request) => {
+    expect(parseMarkRequest(request)).toBeNull();
+  });
+
+  it.each([
+    ['a list the app does not use', { ...page, list: 'lists' }],
+    ['a type of everything', { ...page, type: 'multi' }],
+    ['page zero', { ...page, page: 0 }],
+    ['a page past the last one', { ...page, page: 501 }],
+    ['a language that is not a locale', { ...page, language: '../x' }],
+  ])('refuses a page of a list with %s', (_case, request) => {
+    expect(parseAccountListRequest(request)).toBeNull();
+  });
+});
+
+describe('requests about the ratings of the account', () => {
+  const title = { type: 'tv', id: 1396 };
+
+  it.each([0.5, 1, 7.5, 10])('accepts a rating of %s', (value) => {
+    expect(parseRateRequest({ ...title, value, sessionId: 'x' })).toEqual({
+      ...title,
+      value,
+    });
+  });
+
+  it('accepts taking the rating away', () => {
+    expect(parseRateRequest({ ...title, value: null })).toEqual({
+      ...title,
+      value: null,
+    });
+  });
+
+  it.each([
+    ['zero', 0],
+    ['below zero', -1],
+    ['above 10', 10.5],
+    ['between two steps', 7.25],
+    ['that is not a number', '8'],
+    ['that is not a number at all', Number.NaN],
+    ['missing', undefined],
+  ])('refuses a rating %s', (_case, value) => {
+    expect(parseRateRequest({ ...title, value })).toBeNull();
+  });
+
+  it('refuses a rating of something that is not a title', () => {
+    expect(parseRateRequest({ type: 'person', id: 1, value: 8 })).toBeNull();
+    expect(parseRateRequest(null)).toBeNull();
+  });
+});
+
+describe('parseLanguage', () => {
+  it.each(['en', 'es', 'pt-BR'])('accepts %s', (language) => {
+    expect(parseLanguage(language)).toBe(language);
+  });
+
+  it.each(['', 'english', 'pt_BR', 'EN', '../../etc', 5, null, undefined])(
+    'rejects %s',
+    (language) => {
+      expect(parseLanguage(language)).toBeNull();
+    },
+  );
+});
+
+describe('parseSearchRequest', () => {
+  const valid = { type: 'movie', query: 'matrix', page: 1, language: 'en' };
+
+  it('accepts a search and trims the query', () => {
+    expect(parseSearchRequest({ ...valid, query: '  tom & jerry ' })).toEqual({
+      ...valid,
+      query: 'tom & jerry',
+    });
+  });
+
+  it('drops fields it does not know', () => {
+    expect(parseSearchRequest({ ...valid, apiKey: 'x', extra: true })).toEqual(
+      valid,
+    );
+  });
+
+  it.each(['tv', 'multi'])('accepts a search of type %s', (type) => {
+    expect(parseSearchRequest({ ...valid, type })).toEqual({ ...valid, type });
+  });
+
+  it.each([
+    ['a missing request', undefined],
+    ['a string', 'matrix'],
+    ['an unknown media type', { ...valid, type: 'person' }],
+    ['an empty query', { ...valid, query: '   ' }],
+    ['a query that is not text', { ...valid, query: ['matrix'] }],
+    ['a huge query', { ...valid, query: 'x'.repeat(201) }],
+    ['page zero', { ...valid, page: 0 }],
+    ['a page past the last one', { ...valid, page: 501 }],
+    ['a fractional page', { ...valid, page: 1.5 }],
+    ['a page sent as text', { ...valid, page: '1' }],
+    ['a language that is not a locale', { ...valid, language: '../x' }],
+  ])('rejects %s', (_case, request) => {
+    expect(parseSearchRequest(request)).toBeNull();
+  });
+});
+
+describe('parseRegion', () => {
+  it.each(['BR', 'US', 'GB'])('accepts %s', (region) => {
+    expect(parseRegion(region)).toBe(region);
+  });
+
+  it.each(['', 'br', 'BRA', '419', 'pt-BR', '__proto__', 5, null])(
+    'rejects %s',
+    (region) => {
+      expect(parseRegion(region)).toBeNull();
+    },
+  );
+});
+
+describe('parseListRequest', () => {
+  it.each(['trending', 'popular-movies', 'popular-tv'])(
+    'accepts the list %s',
+    (list) => {
+      expect(parseListRequest({ list, language: 'es', extra: 1 })).toEqual({
+        list,
+        language: 'es',
+      });
+    },
+  );
+
+  it.each([
+    ['a missing request', undefined],
+    ['a list the app does not show', { list: 'top_rated', language: 'en' }],
+    ['a path', { list: '/trending/all/week', language: 'en' }],
+    ['a name of the prototype', { list: 'constructor', language: 'en' }],
+    ['a language that is not a locale', { list: 'trending', language: 'x' }],
+  ])('rejects %s', (_case, request) => {
+    expect(parseListRequest(request)).toBeNull();
+  });
+});
+
+describe('parseDetailsRequest', () => {
+  const valid = { type: 'tv', id: 1396, language: 'pt-BR', region: 'BR' };
+
+  it('accepts the page of a title and drops fields it does not know', () => {
+    expect(parseDetailsRequest({ ...valid, path: '/account' })).toEqual(valid);
+  });
+
+  it.each([
+    ['a missing request', undefined],
+    ['an unknown media type', { ...valid, type: 'person' }],
+    ['an id sent as text', { ...valid, id: '1396' }],
+    ['id zero', { ...valid, id: 0 }],
+    ['a fractional id', { ...valid, id: 1.5 }],
+    ['an id that is not finite', { ...valid, id: Infinity }],
+    ['a huge id', { ...valid, id: 2 ** 40 }],
+    ['a language that is not a locale', { ...valid, language: 'x' }],
+    ['no region', { ...valid, region: undefined }],
+    ['a region that is not a country', { ...valid, region: 'Brazil' }],
+  ])('rejects %s', (_case, request) => {
+    expect(parseDetailsRequest(request)).toBeNull();
+  });
+});
+
+describe('parseApiKey', () => {
+  it('accepts a v3 key and a v4 token, without the spaces around them', () => {
+    expect(parseApiKey(' 0123456789abcdef0123456789abcdef \n')).toBe(
+      '0123456789abcdef0123456789abcdef',
+    );
+    expect(parseApiKey('eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJ4In0.c2ln-YXR_')).toBe(
+      'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJ4In0.c2ln-YXR_',
+    );
+  });
+
+  it.each(['', 'short', 'has spaces inside the key', 'x'.repeat(1025), 42])(
+    'rejects %s',
+    (key) => {
+      expect(parseApiKey(key)).toBeNull();
+    },
+  );
+});

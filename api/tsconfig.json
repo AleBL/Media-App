@@ -1,0 +1,21 @@
+{
+  // Vercel compiles each function of this folder, and the files of shared/
+  // it imports, with the tsconfig.json nearest to it: this one. The project
+  // has no "type": "module", so NodeNext makes that CommonJS, the format in
+  // which Node finds the files the functions import without an extension.
+  // With the ESNext of ../tsconfig.json the functions were ES modules, and
+  // they failed on Vercel before answering (ERR_MODULE_NOT_FOUND).
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "esModuleInterop": true
+  },
+  "include": ["."]
+}

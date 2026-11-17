@@ -9,6 +9,8 @@ lerna-debug.log*
 
 release
 node_modules
+test-results
+playwright-report
 dist
 dist-ssr
 dist-electron
@@ -28,3 +30,9 @@ dist-electron
 *.sln
 *.sw?
 .editorconfig
+
+# Other package managers (this project uses npm)
+yarn.lock
+.yarn/
+.yarnrc.yml
+pnpm-lock.yaml

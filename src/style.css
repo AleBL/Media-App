@@ -1,12 +1,59 @@
-@import 'bootstrap/dist/css/bootstrap.min.css';
+@import 'tailwindcss' source(none);
 @import 'primeicons/primeicons.css';
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+
+/* Where the classes are: the page and the code of the renderer. */
+@source '../index.html';
+@source './';
+
+/* The dark theme follows the `dark` class that useDark() puts on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* The font of the system, as before. The default of Tailwind 4.3 starts
+     with -apple-system and ends up in Arial on Linux. */
+  --font-sans:
+    system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    'Segoe UI Symbol', 'Noto Color Emoji';
+
+  --color-primary-50: rgb(236 253 245);
+  --color-primary-100: rgb(209 250 229);
+  --color-primary-200: rgb(167 243 208);
+  --color-primary-300: rgb(110 231 183);
+  --color-primary-400: rgb(52 211 153);
+  --color-primary-500: rgb(16 185 129);
+  --color-primary-600: rgb(5 150 105);
+  --color-primary-700: rgb(4 120 87);
+  --color-primary-800: rgb(6 95 70);
+  --color-primary-900: rgb(4 78 56);
+  --color-primary-950: rgb(2 44 34);
+  --color-surface-0: rgb(255 255 255);
+  --color-surface-50: rgb(248 250 252);
+  --color-surface-100: rgb(241 245 249);
+  --color-surface-200: rgb(226 232 240);
+  --color-surface-300: rgb(203 213 225);
+  --color-surface-400: rgb(148 163 184);
+  --color-surface-500: rgb(100 116 139);
+  --color-surface-600: rgb(71 85 105);
+  --color-surface-700: rgb(45 55 72);
+  --color-surface-800: rgb(30 41 59);
+  --color-surface-900: rgb(15 23 42);
+  --color-surface-950: rgb(3 6 23);
+}
 
 @layer base {
+  /* The page as it was with Bootstrap, which set these. */
+  body {
+    @apply bg-white text-[#212529];
+  }
+
+  /* Tailwind 4 gives buttons the default cursor; the app keeps the hand. */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+
   code {
-    @apply mx-2 rounded bg-gray-200 px-1 py-0.5 dark:bg-gray-700;
+    @apply mx-2 rounded-sm bg-gray-200 px-1 py-0.5 dark:bg-gray-700;
   }
 
   a {
@@ -14,33 +61,9 @@
   }
 }
 
-:root {
-  --primary-50: 236 253 245;
-  --primary-100: 209 250 229;
-  --primary-200: 167 243 208;
-  --primary-300: 110 231 183;
-  --primary-400: 52 211 153;
-  --primary-500: 16 185 129;
-  --primary-600: 5 150 105;
-  --primary-700: 4 120 87;
-  --primary-800: 6 95 70;
-  --primary-900: 4 78 56;
-  --primary-950: 2 44 34;
-  --surface-0: 255 255 255;
-  --surface-50: 248 250 252;
-  --surface-100: 241 245 249;
-  --surface-200: 226 232 240;
-  --surface-300: 203 213 225;
-  --surface-400: 148 163 184;
-  --surface-500: 100 116 139;
-  --surface-600: 71 85 105;
-  --surface-700: 45 55 72;
-  --surface-800: 30 41 59;
-  --surface-900: 15 23 42;
-  --surface-950: 3 6 23;
-}
-
-.card {
-  background: var(--card-bg);
-  border: var(--card-border);
+@layer components {
+  /* A text field of the app. */
+  .field {
+    @apply m-0 appearance-none rounded-md border-0 bg-surface-0 px-4 py-1.5 font-sans leading-6 text-surface-900 shadow-xs outline-hidden ring-1 ring-surface-300 ring-inset placeholder:text-surface-400 focus:ring-2 focus:ring-primary-500 disabled:pointer-events-none disabled:cursor-default disabled:opacity-60 disabled:select-none sm:text-sm/5 dark:bg-surface-900 dark:text-surface-0 dark:ring-surface-700 dark:placeholder:text-surface-500 dark:focus:ring-primary-400;
+  }
 }

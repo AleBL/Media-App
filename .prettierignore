@@ -15,11 +15,6 @@ dist
 public
 pnpm-lock.yaml
 auto-imports.d.ts
-src/presets
-src/util/tmdb.js
-src/util/languages.js
-src/util/fetchGenres.js
-src/util/generatedGenres.ts
 
 # Editor directories and files
 .vscode/*

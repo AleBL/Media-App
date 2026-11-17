@@ -1,7 +1,23 @@
-import { computed } from 'vue';
+import { computed, watch, type ComputedRef } from 'vue';
 
 const isDark = useDark();
 const toggleDark = useToggle(isDark);
+
+// useDark keeps 'auto', 'dark' or 'light' under this key. The native theme
+// follows it, so the window chrome matches the app and 'auto' keeps tracking
+// the operating system. The settings page sets it; the menu flips between
+// light and dark.
+export const colorScheme = useStorage('vueuse-color-scheme', 'auto');
+
+watch(
+  colorScheme,
+  (scheme) => {
+    window.api?.setNativeTheme(
+      scheme === 'dark' || scheme === 'light' ? scheme : 'system',
+    );
+  },
+  { immediate: true },
+);
 
 export class ThemeItem {
   private translate: Function;
@@ -10,7 +26,11 @@ export class ThemeItem {
     this.translate = translate;
   }
 
-  public getThemes(): {} {
+  public getThemes(): {
+    label: ComputedRef<string>;
+    icon: ComputedRef<string>;
+    command: () => void;
+  } {
     const themeLabel = computed(() => {
       return (
         this.translate('theme.text') +

@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: staging
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dev-minor-and-patch:
+        dependency-type: development
+        update-types: [minor, patch]
+    # Majors that cannot be taken yet. Every other major gets a pull request.
+    ignore:
+      # Version 8 is no longer MIT and needs a license key (see the README).
+      - dependency-name: primeicons
+        update-types: ['version-update:semver-major']
+      # typescript-eslint 8 supports TypeScript below 6.1 only.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: staging
+    schedule:
+      interval: weekly

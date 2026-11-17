@@ -1,5 +1,13 @@
-import { theMovieDb } from '@/util/tmdb';
 import { defaultLocale } from '@/plugins/i18n';
+
+/** A language the menu offers. */
+export interface LanguageOption {
+  /** The locale, such as `pt-BR`. */
+  label: string;
+  /** The flag shown next to it. */
+  imageURL: string;
+  command: () => void;
+}
 
 export class LanguageItem {
   private availableLocales: string[];
@@ -15,7 +23,7 @@ export class LanguageItem {
     this.icons = Object.entries(
       import.meta.glob<{ default: string }>('@/assets/locales/*.svg', {
         eager: true,
-      })
+      }),
     ).reduce((acc, [key, value]) => {
       const matchedKey = key.match(regex)?.join();
       return matchedKey !== undefined
@@ -28,7 +36,7 @@ export class LanguageItem {
     return this.icons[lang];
   }
 
-  private getLocales(): {} {
+  private getLocales(): LanguageOption[] {
     return this.availableLocales.map((lang) => {
       return {
         label: lang,
@@ -41,14 +49,12 @@ export class LanguageItem {
   public toggleLocale(lang: string) {
     // @ts-expect-error Value will always exist
     this.locale.value = lang;
-    theMovieDb.common.language = lang;
     defaultLocale.value = lang;
   }
 
-  public getLanguages(): {} {
+  public getLanguages(): { icon: string; items: LanguageOption[] } {
     return {
       icon: 'pi pi-language',
-      showBand: true,
       items: this.getLocales(),
     };
   }

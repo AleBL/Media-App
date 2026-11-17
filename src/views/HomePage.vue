@@ -1,7 +1,38 @@
 <script setup lang="ts">
-  import TokenInput from '@/components/Home/TokenInput.vue';
+  import { computed, watch } from 'vue';
+  import { storeToRefs } from 'pinia';
+  import type { MediaList } from '@shared/api';
+  import AppButton from '@/components/ui/AppButton.vue';
+  import PosterCard from '@/components/Home/PosterCard.vue';
+  import { isDesktop } from '@/services/api';
+  import { useCredentialsStore } from '@/stores/credentials';
+  import { HOME_LISTS, useHomeStore } from '@/stores/home';
+  import { accessProblem } from '@/util/access';
 
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const home = useHomeStore();
+  const { lists } = storeToRefs(home);
+  const credentials = useCredentialsStore();
+  const desktop = isDesktop();
+
+  const TITLES: Record<MediaList, string> = {
+    trending: 'homePage.trending',
+    'popular-movies': 'homePage.popularMovies',
+    'popular-tv': 'homePage.popularTv',
+  };
+
+  // TMDB translates the titles: the lists come again in the new language.
+  watch(locale, () => home.load(), { immediate: true });
+
+  // Without access to TMDB every list fails the same way: one message for
+  // all of them, instead of one in each.
+  const problem = computed(() => {
+    const failed = HOME_LISTS.map((list) => lists.value[list].error).find(
+      (error) => error !== null,
+    );
+
+    return accessProblem(failed?.code, desktop, credentials.hasKey);
+  });
 </script>
 
 <template>
@@ -11,16 +42,86 @@
     </h1>
   </div>
 
-  <div class="grid justify-center pb-4">
-    <ol class="list-decimal">
-      <li><a href="https://www.themoviedb.org/settings/api" target="_blank">{{ t('common.clickHere') }}</a> {{ t('homePage.stepOne') }}</li>
-      <li>{{ t('homePage.stepTwo') }}</li>
-      <li>{{ t('homePage.stepThree') }}</li>
-      <li>{{ t('homePage.stepFour') }}</li>
-    </ol>
+  <div class="mx-auto max-w-xl px-4 pb-4 text-center">
+    <p class="mb-4">{{ t('homePage.intro') }}</p>
+    <RouterLink
+      :to="{ name: 'search' }"
+      class="inline-flex items-center gap-2 rounded-md bg-primary-500 px-4 py-2 font-semibold text-white no-underline hover:bg-primary-600"
+    >
+      <span class="pi pi-search" aria-hidden="true" />
+      {{ t('homePage.startSearching') }}
+    </RouterLink>
   </div>
 
-  <div class="flex justify-center items-center gap-3">
-    <TokenInput />
+  <div class="mx-auto max-w-6xl px-4 pb-10">
+    <div
+      v-if="problem"
+      role="alert"
+      class="p-5 text-center text-red-600 dark:text-red-400"
+    >
+      <p>
+        {{
+          t(
+            problem === 'webUnavailable'
+              ? 'homePage.listsUnavailable'
+              : `access.${problem}`,
+          )
+        }}
+      </p>
+      <RouterLink v-if="desktop" :to="{ name: 'settings' }">
+        {{ t('access.openSettings') }}
+      </RouterLink>
+    </div>
+
+    <template v-else>
+      <section
+        v-for="list in HOME_LISTS"
+        :key="list"
+        class="mt-8"
+        :aria-labelledby="`list-${list}`"
+      >
+        <h2 :id="`list-${list}`" class="text-xl font-semibold">
+          {{ t(TITLES[list]) }}
+        </h2>
+
+        <div
+          v-if="lists[list].error"
+          role="alert"
+          class="mt-3 flex flex-wrap items-center gap-3 text-red-600 dark:text-red-400"
+        >
+          <p>{{ t('homePage.listError') }}</p>
+          <AppButton
+            :label="t('homePage.tryAgain')"
+            icon="pi pi-refresh"
+            severity="secondary"
+            @click="home.loadList(list)"
+          />
+        </div>
+
+        <p
+          v-else-if="!lists[list].items.length && lists[list].loading"
+          role="status"
+          class="mt-3 text-surface-500 dark:text-surface-400"
+        >
+          {{ t('homePage.loading') }}
+        </p>
+
+        <!-- Scrolls sideways; the cards snap into place. -->
+        <ul
+          v-else
+          class="mt-4 flex snap-x list-none gap-4 overflow-x-auto p-0 pb-3"
+          :class="{ 'opacity-50': lists[list].loading }"
+          :aria-busy="lists[list].loading"
+        >
+          <li
+            v-for="item in lists[list].items"
+            :key="`${item.media_type}-${item.id}`"
+            class="shrink-0 snap-start"
+          >
+            <PosterCard :item="item" />
+          </li>
+        </ul>
+      </section>
+    </template>
   </div>
 </template>

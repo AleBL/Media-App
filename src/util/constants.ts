@@ -1,79 +1,65 @@
-import { GENRES } from './generatedGenres';
+import type { SearchType } from '@shared/api';
 
-export const MEDIA_TYPES: { [key: string]: number } = {
-  MOVIE: 1,
-  TV_SHOW: 2,
-};
+/** What the search can look for. */
+export const MEDIA_TYPES = {
+  MOVIE: 'movie',
+  TV_SHOW: 'tv',
+  ALL: 'multi',
+} as const satisfies Record<string, SearchType>;
 
-export const DEPENDENCIES: { [key: string]: { VERSION: string, LINK: string, LOGO: string } } = {
+// Installed versions, injected at build time (config/dependency-versions.mjs)
+const versions = __DEPENDENCY_VERSIONS__;
+// The running app reports which Electron and Node it is on through the
+// preload script; the build-time values are the fallback for unit tests.
+const runtime =
+  typeof window === 'undefined' ? undefined : window.api?.versions;
+
+export const DEPENDENCIES: {
+  [key: string]: { VERSION: string; LINK: string; LOGO: string };
+} = {
   ELECTRON: {
-    VERSION: '30.0.7',
+    VERSION: runtime?.electron ?? versions.electron,
     LINK: 'https://www.electronjs.org/',
-    LOGO: 'electron.svg'
+    LOGO: 'electron.svg',
   },
   NODE: {
-    VERSION: '20.9.0',
+    VERSION: runtime?.node ?? versions.node,
     LINK: 'https://nodejs.org/',
-    LOGO: 'node.svg'
+    LOGO: 'node.svg',
   },
   VUE: {
-    VERSION: '3.4.27',
+    VERSION: versions.vue,
     LINK: 'https://vuejs.org/',
-    LOGO: 'vue.svg'
+    LOGO: 'vue.svg',
   },
   VUEUSE: {
-    VERSION: '3.4.27',
+    VERSION: versions.vueuse,
     LINK: 'https://vueuse.org/',
-    LOGO: 'vueuse.svg'
+    LOGO: 'vueuse.svg',
   },
   VITE: {
-    VERSION: '5.2.11',
+    VERSION: versions.vite,
     LINK: 'https://vitejs.dev/',
-    LOGO: 'vite.svg'
+    LOGO: 'vite.svg',
   },
   PRETTIER: {
-    VERSION: '5.2.11',
+    VERSION: versions.prettier,
     LINK: 'https://prettier.io/',
-    LOGO: 'prettier.png'
+    LOGO: 'prettier.png',
   },
   PINIA: {
-    VERSION: '2.1.7',
+    VERSION: versions.pinia,
     LINK: 'https://pinia.vuejs.org/',
-    LOGO: 'pinia.svg'
+    LOGO: 'pinia.svg',
   },
   TAILWINDCSS: {
-    VERSION: '3.4.3',
+    VERSION: versions.tailwindcss,
     LINK: 'https://tailwindcss.com/',
-    LOGO: 'tailwindcss.png'
+    LOGO: 'tailwindcss.png',
   },
   ESLINT: {
-    VERSION: '8.57.0',
+    VERSION: versions.eslint,
     LINK: 'https://eslint.org/',
-    LOGO: 'eslint.png'
-  },
-  PRIMEVUE: {
-    VERSION: '3.52.0',
-    LINK: 'https://primevue.org/',
-    LOGO: 'prime.svg'
+    LOGO: 'eslint.png',
   },
 };
-
-export function getGenreNames(ids: number[], language: string) {
-  if (!ids || !Array.isArray(ids) || ids.length === 0) {
-    return '';
-  }
-
-  const regex = new RegExp('-.*');
-  return ids
-    .map((id) => {
-      const genre = GENRES[language.replace(regex, '')].find(
-        (genre) => genre.id === id
-      );
-      return genre ? genre.name : null;
-    })
-    .filter((name) => name !== null)
-    .join(', ');
-}
-
-GENRES.getGenreNames = getGenreNames;
-export { GENRES };

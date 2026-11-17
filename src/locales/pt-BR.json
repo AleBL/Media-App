@@ -1,12 +1,10 @@
 {
-  "common": {
-    "clickHere": "Clique aqui"
-  },
-
   "pageTitles": {
     "home": "Página Inicial",
     "about": "Sobre",
     "search": "Procurar",
+    "settings": "Configurações",
+    "account": "Conta",
     "movie": "Filme",
     "tvShow": "Série"
   },
@@ -14,18 +12,170 @@
   "theme": {
     "text": "Tema",
     "light": "Claro",
-    "dark": "Escuro"
+    "dark": "Escuro",
+    "system": "Igual ao sistema"
+  },
+
+  "menu": {
+    "label": "Menu principal",
+    "toggle": "Menu"
+  },
+
+  "language": {
+    "label": "Idioma"
+  },
+
+  "pagination": {
+    "label": "Páginas de resultados",
+    "first": "Primeira página",
+    "previous": "Página anterior",
+    "next": "Próxima página",
+    "last": "Última página",
+    "page": "Página {page}"
   },
 
   "homePage": {
-    "descriptionInput": "Para poder usar o aplicativo é necessário seguir os passos abaixo:",
-    "stepOne": "para acessar o site do TMDB.",
-    "stepTwo": "Crie a sua chave da api, caso ainda não tenha uma.",
-    "stepThree": "Insira ela no campo abaixo e salve.",
-    "stepFour": "Caso queira excluir a chave é só apertar em deletar."
+    "intro": "Encontre filmes e séries, com pôsteres, gêneros e notas do TMDB.",
+    "startSearching": "Começar a procurar",
+    "trending": "Em alta na semana",
+    "popularMovies": "Filmes populares",
+    "popularTv": "Séries populares",
+    "loading": "Carregando...",
+    "listError": "Não foi possível carregar esta lista.",
+    "tryAgain": "Tentar de novo",
+    "listsUnavailable": "As listas estão indisponíveis no momento. Tente de novo mais tarde."
+  },
+
+  "settings": {
+    "ownKeyTitle": "Sua própria chave do TMDB",
+    "ownKeyOptional": "O app já tem acesso ao TMDB, então isto é opcional. Uma chave sua é usada no lugar da do app, o que mantém a busca funcionando se o acesso do app um dia parar.",
+    "ownKeyRequired": "Esta cópia do app foi gerada sem acesso ao TMDB. Salve uma chave sua para poder procurar.",
+    "getKey": "Obter uma chave no site do TMDB",
+    "keyLabel": "Chave do TMDB",
+    "keySaved": "Há uma chave salva",
+    "saveKey": "Salvar chave",
+    "removeKey": "Remover chave",
+    "invalidKey": "Isso não parece uma chave do TMDB.",
+    "keyNotPersisted": "A chave não pôde ser gravada em disco, então vale só até o app ser fechado.",
+    "keyNotEncrypted": "Este sistema não tem chaveiro, então a chave fica salva sem criptografia.",
+    "showKey": "Mostrar a chave",
+    "languageTitle": "Idioma",
+    "regionTitle": "Onde assistir",
+    "regionHint": "O país cujos serviços de streaming, aluguel e compra a página de cada título mostra.",
+    "regionLabel": "País",
+    "regionAuto": "Automático ({country})",
+    "regionsFailed": "Não foi possível carregar a lista de países. Tente de novo mais tarde.",
+    "cacheTitle": "Cache",
+    "cacheHint": "O app guarda os nomes dos gêneros e as imagens para ser mais rápido. Limpar faz ele pedir tudo de novo ao TMDB.",
+    "clearCache": "Limpar cache",
+    "cacheCleared": "Cache limpo.",
+    "cacheFailed": "Não foi possível limpar o cache. Tente de novo."
+  },
+
+  "about": {
+    "dataTitle": "De onde vêm os dados",
+    "dataSource": "Filmes, séries, pessoas, imagens e contas vêm do TMDB, The Movie Database."
   },
 
   "search": {
-    "notFound": "Nenhum registro foi encontrado"
+    "notFound": "Nenhum registro foi encontrado",
+    "loading": "Buscando...",
+    "error": "A busca falhou. Verifique sua conexão e tente novamente.",
+    "errorWebUnavailable": "A busca está indisponível no momento. Tente de novo mais tarde.",
+    "all": "Tudo",
+    "person": "Pessoa",
+    "knownFor": "Conhecido(a) por"
+  },
+
+  "access": {
+    "noAccess": "Esta cópia do app não tem acesso ao TMDB. Salve uma chave sua nas configurações.",
+    "appRefused": "O TMDB recusou o acesso do app. Atualize o app ou use uma chave sua.",
+    "ownKeyRefused": "O TMDB recusou a sua chave. Confira ou remova a chave nas configurações.",
+    "openSettings": "Abrir as configurações"
+  },
+
+  "details": {
+    "back": "Voltar",
+    "loading": "Carregando...",
+    "notFound": "Este título não foi encontrado no TMDB.",
+    "error": "Não foi possível carregar o título. Verifique sua conexão e tente novamente.",
+    "errorWebUnavailable": "Esta página está indisponível no momento. Tente de novo mais tarde.",
+    "tryAgain": "Tentar de novo",
+    "released": "Lançado em {date}",
+    "firstAired": "Estreou em {date}",
+    "hoursMinutes": "{hours} h {minutes} min",
+    "minutes": "{minutes} min",
+    "perEpisode": "{runtime} por episódio",
+    "seasons": "{n} temporada | {n} temporadas",
+    "episodes": "{n} episódio | {n} episódios",
+    "votes": "{count} voto | {count} votos",
+    "trailer": "Ver o trailer",
+    "imdb": "Ver no IMDb",
+    "whereToWatch": "Onde assistir: {region}",
+    "nowhereToWatch": "O JustWatch não conhece serviço, loja ou canal que ofereça este título em {region}.",
+    "stream": "Streaming",
+    "free": "Grátis",
+    "rent": "Alugar",
+    "buy": "Comprar",
+    "justWatch": "Onde assistir: dados do JustWatch.",
+    "allOptions": "Ver os links no TMDB",
+    "cast": "Elenco"
+  },
+
+  "lists": {
+    "watchlist": "Minha lista",
+    "favorites": "Favoritos",
+    "watchlistButton": "Minha lista",
+    "favoriteButton": "Favorito",
+    "watchlistOf": "Minha lista: {title}",
+    "favoriteOf": "Favorito: {title}",
+    "signInToSave": "Entre para guardar este título na sua lista ou nos favoritos, ou para dar uma nota",
+    "statesFailed": "Não foi possível ver se este título está nas suas listas. Tente de novo mais tarde.",
+    "saveFailed": "A alteração não foi salva. Tente de novo.",
+    "kind": "Filmes ou séries",
+    "movies": "Filmes",
+    "tvShows": "Séries",
+    "error": "Não foi possível carregar a sua lista. Verifique sua conexão e tente de novo.",
+    "tryAgain": "Tentar de novo",
+    "loading": "Carregando...",
+    "emptyWatchlist": "Nada aqui ainda. Adicione filmes e séries à sua lista nas páginas deles.",
+    "emptyFavorites": "Nenhum favorito aqui ainda. Marque filmes e séries como favoritos nas páginas deles.",
+    "rated": "Avaliados",
+    "emptyRated": "Nada avaliado ainda. Dê notas a filmes e séries nas páginas deles.",
+    "yourRating": "Sua nota",
+    "yourRatingIs": "Sua nota: {rating}",
+    "notRated": "Sem nota",
+    "rateFailed": "A nota não foi salva. Tente de novo.",
+    "watched": "Assistidos",
+    "watchedButton": "Assistido",
+    "watchedOn": "Assistido em {date}",
+    "emptyWatched": "Nada assistido ainda. Marque filmes e séries como assistidos nas páginas deles.",
+    "signInAgain": "Para marcar o que você assistiu, saia e entre de novo com o TMDB: o app agora guarda isso numa lista da sua conta."
+  },
+
+  "account": {
+    "signIn": "Entrar",
+    "intro": "Entrar com a sua conta do TMDB é opcional: a busca funciona sem isso.",
+    "howItWorks": "A aprovação acontece no site do TMDB, no seu navegador. O app nunca vê a sua senha.",
+    "signInWithTmdb": "Entrar com TMDB",
+    "waiting": "Aprove o acesso na página do TMDB que abriu no seu navegador. Esta página se atualiza sozinha.",
+    "alreadyApproved": "Já autorizei no navegador",
+    "cancel": "Cancelar",
+    "notConfirmedYet": "O TMDB ainda não confirmou a aprovação. Aprove o acesso no navegador e tente de novo.",
+    "pageDidNotOpen": "Se a página não abriu, copie este endereço no seu navegador:",
+    "signedInAs": "Conectado como {name}",
+    "signOut": "Sair",
+    "tryAgain": "Tentar de novo",
+    "offline": "Não foi possível falar com o TMDB, então a conta não foi conferida. Você continua conectado, e o app confere de novo sozinho.",
+    "notRemembered": "Este sistema não tem chaveiro, então você fica conectado só até o app ser fechado. Para continuar conectado depois disso, o login fica salvo sem criptografia, num arquivo que só o seu usuário lê.",
+    "rememberAnyway": "Manter conectado",
+    "savedUnencrypted": "Este sistema não tem chaveiro, então o login fica salvo sem criptografia.",
+    "notSaved": "O login não pôde ser gravado em disco, então vale só até o app ser fechado.",
+    "error": {
+      "denied": "O acesso não foi aprovado no site do TMDB.",
+      "timeout": "A aprovação demorou demais. Comece de novo quando quiser.",
+      "network": "Não foi possível falar com o TMDB. Verifique sua conexão e tente de novo.",
+      "unavailable": "O login está indisponível no momento. Tente de novo mais tarde."
+    }
   }
 }

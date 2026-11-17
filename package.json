@@ -1,6 +1,6 @@
 {
   "name": "media-app",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Search movies and TV shows on TMDB and keep your watchlist, favorites, ratings and watched titles",
   "homepage": "https://github.com/AleBL/Media-App",
   "desktopName": "media-app.desktop",

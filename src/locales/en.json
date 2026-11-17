@@ -77,6 +77,14 @@
     "dataSource": "Movies, TV shows, people, images and accounts come from TMDB, The Movie Database."
   },
 
+  "updates": {
+    "ready": "Version {version} is ready.",
+    "restart": "Restart and update",
+    "available": "Version {version} is available.",
+    "download": "Download",
+    "dismiss": "Dismiss"
+  },
+
   "search": {
     "notFound": "No records found",
     "loading": "Searching...",

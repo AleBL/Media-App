@@ -4,6 +4,7 @@ import {
   IPC_EVENTS,
   type MediaAppApi,
   type SessionState,
+  type UpdateState,
 } from '../../shared/api';
 
 // Everything the renderer can ask of the main process. Keep it small and
@@ -57,6 +58,20 @@ const api: MediaAppApi = {
 
       return () => {
         ipcRenderer.removeListener(IPC_EVENTS.authChanged, handler);
+      };
+    },
+  },
+  updates: {
+    state: () => ipcRenderer.invoke(IPC.updatesState),
+    install: () => ipcRenderer.invoke(IPC.updatesInstall),
+    onChange: (listener) => {
+      const handler = (_event: IpcRendererEvent, state: UpdateState) =>
+        listener(state);
+
+      ipcRenderer.on(IPC_EVENTS.updatesChanged, handler);
+
+      return () => {
+        ipcRenderer.removeListener(IPC_EVENTS.updatesChanged, handler);
       };
     },
   },

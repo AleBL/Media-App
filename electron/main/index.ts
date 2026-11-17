@@ -8,6 +8,8 @@ import {
   session,
   shell,
 } from 'electron';
+import { autoUpdater } from 'electron-updater';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { IPC_EVENTS, type SessionState } from '../../shared/api';
 import { startLoopback } from './auth/loopback';
@@ -23,6 +25,7 @@ import {
 } from '../../shared/tmdb/watched';
 import { createCredentialStore } from './tmdb/credentials';
 import { createGenreCache } from './tmdb/genres';
+import { canReplaceItself, createUpdates, NO_UPDATES } from './updates';
 
 // The built directory structure
 //
@@ -89,6 +92,14 @@ function openInBrowser(url: string) {
   }
 }
 
+function sendToWindows(channel: string, payload: unknown) {
+  for (const { webContents } of BrowserWindow.getAllWindows()) {
+    if (!webContents.isDestroyed()) {
+      webContents.send(channel, payload);
+    }
+  }
+}
+
 function focusWindow() {
   if (win) {
     if (win.isMinimized()) win.restore();
@@ -150,11 +161,7 @@ app.whenReady().then(async () => {
     openExternal: (url) => shell.openExternal(url),
     store: createSessionStore(userData, safeStorage),
     onChange: (state) => {
-      for (const { webContents } of BrowserWindow.getAllWindows()) {
-        if (!webContents.isDestroyed()) {
-          webContents.send(IPC_EVENTS.authChanged, state);
-        }
-      }
+      sendToWindows(IPC_EVENTS.authChanged, state);
 
       // Approved in the browser: bring the user back to the app.
       if (previousStatus === 'pending' && state.status === 'authenticated') {
@@ -169,6 +176,22 @@ app.whenReady().then(async () => {
 
   // Before the window opens, so it already knows who is signed in.
   await auth.restore();
+
+  // New versions come from GitHub Releases; development and tests skip them.
+  const updates = app.isPackaged
+    ? createUpdates({
+        updater: autoUpdater,
+        canInstall: canReplaceItself({
+          platform: process.platform,
+          execPath: process.execPath,
+          env: { APPIMAGE: process.env.APPIMAGE },
+          exists: existsSync,
+        }),
+        onChange: (state) => sendToWindows(IPC_EVENTS.updatesChanged, state),
+      })
+    : NO_UPDATES;
+
+  app.on('will-quit', () => updates.dispose());
 
   registerIpc(ipcMain, {
     isTrustedSender: (url) => isAppUrl(url, appLocation),
@@ -226,9 +249,11 @@ app.whenReady().then(async () => {
     },
     credentials,
     auth,
+    updates,
   });
 
   createWindow();
+  updates.start();
 });
 
 app.on('window-all-closed', () => {

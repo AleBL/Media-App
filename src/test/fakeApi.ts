@@ -191,6 +191,13 @@ export function installFakeApi() {
       // way the main process does.
       onChange: vi.fn<MediaAppApi['auth']['onChange']>(() => () => {}),
     },
+    updates: {
+      state: vi.fn<MediaAppApi['updates']['state']>(async () => ({
+        status: 'idle',
+      })),
+      install: vi.fn<MediaAppApi['updates']['install']>(async () => {}),
+      onChange: vi.fn<MediaAppApi['updates']['onChange']>(() => () => {}),
+    },
   } satisfies MediaAppApi;
 
   window.api = api;

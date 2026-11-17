@@ -155,7 +155,7 @@ The icon is drawn in `build/icon.svg`. After changing it, `npm run icons` render
 
 #### Releases
 
-A tag such as `v0.2.0` runs `.github/workflows/release.yml`: it checks that the tag matches the version in `package.json` and that the repository has the `TMDB_READ_TOKEN` secret (Settings, Secrets and variables, Actions), runs the tests, packages the app on Linux, Windows and macOS (Apple silicon and Intel), and drafts a GitHub release with the packages. A pull request that changes the packaging runs the same packaging and lists the files the release would get, without the secret and without a release.
+A tag such as `v0.2.0` runs `.github/workflows/release.yml`: it checks that the tag matches the version in `package.json` and that the repository has the `TMDB_READ_TOKEN` secret (Settings, Secrets and variables, Actions), runs the tests, packages the app on Linux, Windows (an installer and a `.zip` to run without installing) and macOS (Apple silicon and Intel), and publishes a GitHub release with the packages. A pull request that changes the packaging runs the same packaging and lists the files the release would get, without the secret and without a release.
 
 ```bash
 npm version 0.2.0 --no-git-tag-version # on staging, then merge staging into master
@@ -163,7 +163,15 @@ git tag v0.2.0 origin/master
 git push origin v0.2.0
 ```
 
-Try the packages of the draft before publishing it. They are not signed: Windows warns before running the installer (More info, Run anyway), macOS blocks the app the first time (System Settings, Privacy & Security, Open Anyway), and the snap installs with `snap install --dangerous`.
+The release is public as soon as the workflow ends. The packages are not signed: Windows warns before running the installer (More info, Run anyway), macOS blocks the app the first time (System Settings, Privacy & Security, Open Anyway), and the snap installs with `snap install --dangerous`.
+
+#### Updates
+
+The packaged app looks for a newer release on GitHub when it starts and every four hours (`electron/main/updates.ts`, with `electron-updater`).
+
+- The Windows installer and the AppImage download it and show **Restart and update** at the top of the window; when that is ignored, it is installed as the app closes.
+- The Windows `.zip`, the `.deb` (updating it would ask for the administrator password) and macOS (an unsigned app cannot update itself) only show that the new version is available, with a link to its release.
+- The snap does not look: snaps update through the store. Neither do the web version, `npm run dev` and the tests.
 
 #### Lint and Prettier
 

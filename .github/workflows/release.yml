@@ -1,8 +1,8 @@
 name: Release
 
 on:
-  # A tag such as v0.2.0 packages the app for the three systems and drafts a
-  # GitHub release with it.
+  # A tag such as v0.2.0 packages the app for the three systems and publishes
+  # a GitHub release with it, which the installed apps update from.
   push:
     tags: ['v*']
   # A change to the packaging is tried on the three systems, without a
@@ -114,6 +114,7 @@ jobs:
             release/*/*.deb
             release/*/*.snap
             release/*/*.exe
+            release/*/*.zip
             release/*/*.dmg
             release/*/*.blockmap
             release/*/latest*.yml
@@ -122,7 +123,7 @@ jobs:
 
   # On a pull request it only lists what the release would get.
   release:
-    name: Draft the GitHub release
+    name: Publish the GitHub release
     needs: package
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -139,8 +140,7 @@ jobs:
       - name: List the packages
         run: find packages -type f | sort | tee files.txt
 
-      # A draft, published by hand once the packages were tried.
-      - name: Draft the release
+      - name: Publish the release
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -148,6 +148,5 @@ jobs:
           mapfile -t files < files.txt
           gh release create "$GITHUB_REF_NAME" "${files[@]}" \
             --repo "$GITHUB_REPOSITORY" \
-            --draft \
             --generate-notes \
             --title "Media App ${GITHUB_REF_NAME#v}"

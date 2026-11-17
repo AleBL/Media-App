@@ -7,38 +7,37 @@ import type {
 } from '../api';
 import { TmdbError, type Access, type TmdbClient } from './client';
 
-// The titles whoever signed in watched. TMDB has no such thing, so they go
-// in a private list of the account (v4), which the app makes the first time
-// a title is marked and finds again by its description, on any computer and
-// on the web. The day goes in the comment of each title.
+// TMDB has no "watched", so the titles go in a private v4 list of the user,
+// created on the first mark and found again by its description. The date
+// goes in each title's comment.
 
-/** What tells the list apart from the other lists of the user. */
 export const WATCHED_MARKER = 'media-app:watched';
 
-/** Its name, in the language of the app when it is made. */
-const NAMES: Record<string, string> = {
+const LIST_NAMES: Record<string, string> = {
   en: 'Watched',
   pt: 'Assistidos',
   es: 'Vistos',
 };
 
-/** How many pages of the lists of the user the app looks through. */
+/** How many pages of the user's lists are searched. */
 export const MAX_LIST_PAGES = 5;
 
-/** What signing in through v4 gave: the lists of the user need all of it. */
+/**
+ * TMDB keeps listing a deleted list for a while, so more than one found list
+ * can be gone.
+ */
+export const MAX_LIST_TRIES = 4;
+
+/** v4 sign-in: the lists need all of it. */
 export type UserAccess = Required<Access>;
 
-/**
- * Where the id of the list is kept between requests, so it is looked for
- * once: in memory on the desktop, in a cookie on the web.
- */
+/** Remembers the list id: in memory on the desktop, in a cookie on the web. */
 export interface ListCache {
   get(): number | undefined;
   set(id: number | undefined): void;
 }
 
-/** The access of the user, or why there is none. */
-export function userAccess(access: Access | null): UserAccess {
+export function requireUserAccess(access: Access | null): UserAccess {
   if (!access) {
     throw new TmdbError('signed-out');
   }
@@ -52,8 +51,8 @@ export function userAccess(access: Access | null): UserAccess {
   return { sessionId, accessToken, accountObjectId };
 }
 
-/** A list cache for a process that lives on: the desktop app. */
-export function memoryCache() {
+/** One cache per account, for the desktop app. */
+export function createMemoryListCache() {
   const ids = new Map<string, number>();
 
   return (access: UserAccess): ListCache => ({
@@ -65,18 +64,12 @@ export function memoryCache() {
   });
 }
 
-const EMPTY: Paged<MediaItem> = {
+const EMPTY_PAGE: Paged<MediaItem> = {
   page: 1,
   results: [],
   totalPages: 0,
   totalResults: 0,
 };
-
-/**
- * How many lists the app tries before it gives up: TMDB goes on listing a
- * list for a while after it is deleted, so more than one can be gone.
- */
-export const MAX_LIST_TRIES = 4;
 
 type ListClient = Pick<
   TmdbClient,
@@ -89,15 +82,20 @@ type ListClient = Pick<
   | 'listItems'
 >;
 
-/** What a list the app makes is called and says, in `language`. */
-const newList = (language: string) => ({
-  name: NAMES[language.slice(0, 2)] ?? NAMES.en,
+const listInfo = (language: string) => ({
+  name: LIST_NAMES[language.slice(0, 2)] ?? LIST_NAMES.en,
   description: `Media App (${WATCHED_MARKER})`,
 });
 
+interface WithListOptions<T> {
+  /** Returned when there is no list (and none is created). */
+  fallback: T;
+  /** Creates the list, named in this language, when there is none. */
+  createInLanguage?: string;
+}
+
 export function createWatched(tmdb: ListClient) {
-  /** The list, among those of the user; none of `gone`, lists no more. */
-  async function find(access: UserAccess, gone: Set<number>) {
+  async function findList(access: UserAccess, deletedIds: Set<number>) {
     for (let page = 1; page <= MAX_LIST_PAGES; page += 1) {
       const { lists, totalPages } = await tmdb.userLists(
         access.accessToken,
@@ -106,7 +104,7 @@ export function createWatched(tmdb: ListClient) {
       );
       const found = lists.find(
         (list) =>
-          !gone.has(list.id) && list.description.includes(WATCHED_MARKER),
+          !deletedIds.has(list.id) && list.description.includes(WATCHED_MARKER),
       );
 
       if (found) {
@@ -121,33 +119,29 @@ export function createWatched(tmdb: ListClient) {
     return undefined;
   }
 
-  /**
-   * The id of the list, and whether it was made now: made, in `language`,
-   * when given and there is none.
-   */
-  async function listOf(
+  async function getList(
     access: UserAccess,
     cache: ListCache,
-    gone: Set<number>,
-    language?: string,
-  ): Promise<{ id: number; made: boolean } | undefined> {
-    const kept = cache.get();
+    deletedIds: Set<number>,
+    createInLanguage?: string,
+  ): Promise<{ id: number; created: boolean } | undefined> {
+    const cachedId = cache.get();
 
-    if (kept !== undefined && !gone.has(kept)) {
-      return { id: kept, made: false };
+    if (cachedId !== undefined && !deletedIds.has(cachedId)) {
+      return { id: cachedId, created: false };
     }
 
-    const found = await find(access, gone);
+    const foundId = await findList(access, deletedIds);
     const list =
-      found !== undefined
-        ? { id: found, made: false }
-        : language
+      foundId !== undefined
+        ? { id: foundId, created: false }
+        : createInLanguage
           ? {
               id: await tmdb.createList(access.accessToken, {
-                ...newList(language),
-                language,
+                ...listInfo(createInLanguage),
+                language: createInLanguage,
               }),
-              made: true,
+              created: true,
             }
           : undefined;
 
@@ -159,59 +153,55 @@ export function createWatched(tmdb: ListClient) {
   }
 
   /**
-   * Runs `work` on the list. A list that is no more (deleted on the TMDB
-   * website, which still lists it for a while) is left out, and the next
-   * one tried. Without a list, `none`.
+   * Runs `action` on the list. A list deleted on the TMDB website (which
+   * TMDB still lists for a while) is skipped and the next one tried.
    */
   async function withList<T>(
     access: UserAccess,
     cache: ListCache,
-    work: (id: number) => Promise<T>,
-    none: T,
-    language?: string,
+    action: (listId: number) => Promise<T>,
+    { fallback, createInLanguage }: WithListOptions<T>,
   ): Promise<T> {
-    const gone = new Set<number>();
+    const deletedIds = new Set<number>();
 
     for (let tries = 1; ; tries += 1) {
-      const list = await listOf(access, cache, gone, language);
+      const list = await getList(access, cache, deletedIds, createInLanguage);
 
       if (!list) {
-        return none;
+        return fallback;
       }
 
       try {
-        const done = await work(list.id);
+        const result = await action(list.id);
 
-        // TMDB makes a list public: it is made private only now, with the
-        // first title in it. Changed right after it was made, the first
-        // title failed to go in (2026-11-16): the likely cause.
-        if (list.made && language) {
+        // TMDB creates lists as public. Made private only after the first
+        // title: changing it right after creation made that title fail
+        // (2026-11-16).
+        if (list.created && createInLanguage) {
           await tmdb
-            .updateList(access.accessToken, list.id, newList(language))
+            .updateList(access.accessToken, list.id, listInfo(createInLanguage))
             .catch(() => {});
         }
 
-        return done;
+        return result;
       } catch (error) {
-        const lost = error instanceof TmdbError && error.code === 'not-found';
+        const deleted =
+          error instanceof TmdbError && error.code === 'not-found';
 
-        if (!lost || list.made || tries >= MAX_LIST_TRIES) {
+        if (!deleted || list.created || tries >= MAX_LIST_TRIES) {
           throw error;
         }
 
-        gone.add(list.id);
+        deletedIds.add(list.id);
         cache.set(undefined);
       }
     }
   }
 
-  /**
-   * An access token TMDB no longer takes (the user took the access of the
-   * app away on the website) is one to sign in again for.
-   */
-  async function asUser<T>(work: () => Promise<T>): Promise<T> {
+  /** A 401 here means the user revoked the app's access on the website. */
+  async function mapRevokedToken<T>(task: () => Promise<T>): Promise<T> {
     try {
-      return await work();
+      return await task();
     } catch (error) {
       if (error instanceof TmdbError && error.status === 401) {
         throw new TmdbError('sign-in-again', 401);
@@ -222,54 +212,51 @@ export function createWatched(tmdb: ListClient) {
   }
 
   return {
-    /** Whether the title is in the list: never, while there is no list. */
     state: (access: UserAccess, cache: ListCache, title: TitleRequest) =>
-      asUser(() =>
+      mapRevokedToken(() =>
         withList(
           access,
           cache,
-          (id) => tmdb.listItemStatus(access.accessToken, id, title),
-          false,
+          (listId) => tmdb.listItemStatus(access.accessToken, listId, title),
+          { fallback: false },
         ),
       ),
 
-    /** Puts the title in the list, made then if need be, or takes it out. */
     mark: (
       access: UserAccess,
       cache: ListCache,
       { type, id, value, date, language }: WatchedRequest,
     ) =>
-      asUser(() =>
+      mapRevokedToken(() =>
         value
           ? withList(
               access,
               cache,
-              (list) =>
-                tmdb.addToList(access.accessToken, list, { type, id }, date),
-              undefined,
-              language,
+              (listId) =>
+                tmdb.addToList(access.accessToken, listId, { type, id }, date),
+              { fallback: undefined, createInLanguage: language },
             )
           : withList(
               access,
               cache,
-              (list) =>
-                tmdb.removeFromList(access.accessToken, list, { type, id }),
-              undefined,
+              (listId) =>
+                tmdb.removeFromList(access.accessToken, listId, { type, id }),
+              { fallback: undefined },
             ),
       ),
 
-    /** A page of the list: nothing, while there is no list. */
     list: (
       access: UserAccess,
       cache: ListCache,
       { page, language }: WatchedListRequest,
     ) =>
-      asUser(() =>
+      mapRevokedToken(() =>
         withList(
           access,
           cache,
-          (id) => tmdb.listItems(access.accessToken, id, page, language),
-          { ...EMPTY, page },
+          (listId) =>
+            tmdb.listItems(access.accessToken, listId, page, language),
+          { fallback: { ...EMPTY_PAGE, page } },
         ),
       ),
   };

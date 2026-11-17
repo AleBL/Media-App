@@ -10,8 +10,7 @@ import {
 
 const TIMEOUT_MS = 12_000;
 
-// The site keeps the TMDB credential on its server, so the app always has
-// access and there is no key of the user to save here.
+// The site keeps the credential on the server: there is no user key here.
 const SERVER_CREDENTIAL: CredentialStatus = {
   hasKey: false,
   persisted: false,
@@ -26,39 +25,32 @@ const LOGIN_FAILURES = ['denied', 'timeout', 'network', 'unavailable'];
 export type WebFetch = (
   url: string,
   init: {
-    /** GET when missing. */
     method?: string;
     headers: Record<string, string>;
     signal: AbortSignal;
   },
 ) => Promise<Pick<Response, 'status' | 'json'>>;
 
-/** A request to the site: why it has no answer, or the answer. */
-type Sent =
+type SiteResponse =
   { failed: 'timeout' | 'network' } | { status: number; body: unknown };
 
-/** What the api needs of the browser, besides requests. */
 export interface WebBrowser {
-  /** Leaves the app for another address. */
   navigate(url: string): void;
-  /**
-   * Calls `listener` once, when the browser brings the page back the way it
-   * was left (the back button) instead of loading it again.
-   */
+  /** Called once when the page comes back from the back/forward cache. */
   onRestored(listener: () => void): void;
 }
 
-const thisBrowser: WebBrowser = {
+const windowBrowser: WebBrowser = {
   navigate: (url) => window.location.assign(url),
   onRestored(listener) {
-    const restored = (event: PageTransitionEvent) => {
+    const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
-        window.removeEventListener('pageshow', restored);
+        window.removeEventListener('pageshow', onPageShow);
         listener();
       }
     };
 
-    window.addEventListener('pageshow', restored);
+    window.addEventListener('pageshow', onPageShow);
   },
 };
 
@@ -81,8 +73,7 @@ function isResult(value: unknown): value is Result<unknown> {
   );
 }
 
-// The site never says `pending`: on the web the wait for the approval
-// happens on the TMDB website, away from the app.
+// Never `pending` on the web: the approval happens on the TMDB website.
 function isSessionState(value: unknown): value is SessionState {
   if (typeof value !== 'object' || value === null) {
     return false;
@@ -108,18 +99,17 @@ function isSessionState(value: unknown): value is SessionState {
 }
 
 /**
- * The api of shared/api.ts for the app running as a web page, where there
- * is no preload script and no main process. Its requests go to functions of
- * the site (the files in /api), which answer in the same shape as the main
- * process of the desktop app does. The TMDB credential and the session of
- * whoever signed in stay with them.
+ * The api of shared/api.ts for the web version: requests go to the site's
+ * functions (/api), which hold the credential and the session.
  */
 export function createWebApi(
   fetch: WebFetch = (url, init) => window.fetch(url, init),
-  browser: WebBrowser = thisBrowser,
+  browser: WebBrowser = windowBrowser,
 ): MediaAppApi {
-  /** What the site answered, as JSON when it is JSON. */
-  async function send(url: string, method?: string): Promise<Sent> {
+  async function fetchJson(
+    url: string,
+    method?: string,
+  ): Promise<SiteResponse> {
     let response: Awaited<ReturnType<WebFetch>>;
 
     try {
@@ -137,74 +127,84 @@ export function createWebApi(
     try {
       return { status: response.status, body: await response.json() };
     } catch {
-      // not JSON: for the caller to handle
       return { status: response.status, body: undefined };
     }
   }
 
-  async function ask<T>(
+  async function callSite<T>(
     params: Record<string, string>,
     path = TMDB_PROXY_PATH,
     method?: string,
   ): Promise<Result<T>> {
-    const answer = await send(`${path}?${new URLSearchParams(params)}`, method);
+    const response = await fetchJson(
+      `${path}?${new URLSearchParams(params)}`,
+      method,
+    );
 
-    if ('failed' in answer) {
-      return { ok: false, error: { code: answer.failed } };
+    if ('failed' in response) {
+      return { ok: false, error: { code: response.failed } };
     }
 
-    if (isResult(answer.body)) {
-      return answer.body as Result<T>;
+    if (isResult(response.body)) {
+      return response.body as Result<T>;
     }
 
-    // Something else answered in place of the function, such as an error
-    // page of the host.
-    return { ok: false, error: { code: 'server', status: answer.status } };
+    // Something else answered, such as an error page of the host.
+    return { ok: false, error: { code: 'server', status: response.status } };
   }
 
-  // What the site last said about the session.
   let session = NO_SESSION;
 
-  async function askSession(path: string, method?: string) {
-    const answer = await send(path, method);
+  async function callSession(path: string, method?: string) {
+    const response = await fetchJson(path, method);
 
-    if ('failed' in answer) {
+    if ('failed' in response) {
       return { status: 'error', reason: 'network' } satisfies SessionState;
     }
 
-    return isSessionState(answer.body)
-      ? answer.body
+    return isSessionState(response.body)
+      ? response.body
       : ({ status: 'error', reason: 'unavailable' } satisfies SessionState);
   }
 
   async function getSession() {
-    session = await askSession(AUTH_PATHS.session);
+    session = await callSession(AUTH_PATHS.session);
 
     return session;
   }
 
   return {
     platform: 'web',
-    // The browser follows the theme of the system by itself.
+    // The browser follows the system theme by itself.
     setNativeTheme: () => {},
-    // The browser keeps the images, and the site the rest.
     clearCache: async () => ({ ok: true, data: null }),
     tmdb: {
       search: ({ type, query, page, language }) =>
-        ask({ resource: 'search', type, query, page: String(page), language }),
-      genres: (language) => ask({ resource: 'genres', language }),
+        callSite({
+          resource: 'search',
+          type,
+          query,
+          page: String(page),
+          language,
+        }),
+      genres: (language) => callSite({ resource: 'genres', language }),
       details: ({ type, id, language, region }) =>
-        ask({ resource: 'details', type, id: String(id), language, region }),
-      list: ({ list, language }) => ask({ resource: 'list', list, language }),
-      regions: () => ask({ resource: 'regions' }),
+        callSite({
+          resource: 'details',
+          type,
+          id: String(id),
+          language,
+          region,
+        }),
+      list: ({ list, language }) =>
+        callSite({ resource: 'list', list, language }),
+      regions: () => callSite({ resource: 'regions' }),
     },
-    // With the session in the cookie of the site, which the browser sends
-    // along (shared/tmdb/web-account.ts).
     account: {
       states: ({ type, id }) =>
-        ask({ resource: 'states', type, id: String(id) }, ACCOUNT_PATH),
+        callSite({ resource: 'states', type, id: String(id) }, ACCOUNT_PATH),
       mark: ({ list, type, id, value }) =>
-        ask(
+        callSite(
           {
             resource: 'mark',
             list,
@@ -216,7 +216,7 @@ export function createWebApi(
           'POST',
         ),
       rate: ({ type, id, value }) =>
-        ask(
+        callSite(
           value === null
             ? { resource: 'unrate', type, id: String(id) }
             : { resource: 'rate', type, id: String(id), value: String(value) },
@@ -224,16 +224,19 @@ export function createWebApi(
           'POST',
         ),
       list: ({ list, type, page, language }) =>
-        ask(
+        callSite(
           { resource: 'list', list, type, page: String(page), language },
           ACCOUNT_PATH,
         ),
     },
     watched: {
       state: ({ type, id }) =>
-        ask({ resource: 'watched-state', type, id: String(id) }, ACCOUNT_PATH),
+        callSite(
+          { resource: 'watched-state', type, id: String(id) },
+          ACCOUNT_PATH,
+        ),
       mark: ({ type, id, value, date, language }) =>
-        ask(
+        callSite(
           {
             resource: 'watched-mark',
             type,
@@ -246,7 +249,7 @@ export function createWebApi(
           'POST',
         ),
       list: ({ page, language }) =>
-        ask(
+        callSite(
           { resource: 'watched-list', page: String(page), language },
           ACCOUNT_PATH,
         ),
@@ -256,15 +259,11 @@ export function createWebApi(
       save: async () => SERVER_CREDENTIAL,
       clear: async () => SERVER_CREDENTIAL,
     },
-    // A web page has no safe place for a TMDB session, so the site keeps
-    // it, in a cookie that scripts cannot read (shared/tmdb/web-auth.ts).
-    // The page asks who is signed in, like the window of the desktop app.
     auth: {
       getSession,
 
-      // The whole page goes to the TMDB website and comes back loaded
-      // again, already signed in or with the reason why not. So this only
-      // answers when the browser brings the page back as it was left.
+      // The page goes to TMDB and comes back reloaded, so this only resolves
+      // when the browser restores the page from the back/forward cache.
       login() {
         browser.navigate(AUTH_PATHS.login);
 
@@ -273,9 +272,8 @@ export function createWebApi(
         });
       },
 
-      // There is no waiting here to confirm or to give up.
       confirmManual: getSession,
-      // The cookie of the site already keeps the session for 180 days.
+      // The site's cookie already keeps the session for 180 days.
       remember: getSession,
       async cancelLogin() {
         if (session.status !== 'authenticated') {
@@ -285,20 +283,19 @@ export function createWebApi(
         return session;
       },
 
-      // Only the site can end the session: when it does not answer, whoever
-      // was signed in still is.
+      // Only the site can end the session: if it does not answer, the user
+      // stays signed in.
       async logout() {
-        const answer = await askSession(AUTH_PATHS.logout, 'POST');
+        const result = await callSession(AUTH_PATHS.logout, 'POST');
 
-        if (answer.status === 'anonymous') {
-          session = answer;
+        if (result.status === 'anonymous') {
+          session = result;
         }
 
         return session;
       },
 
-      // Nothing changes while the page is open: the login happens away
-      // from it.
+      // Nothing changes while the page is open.
       onChange: () => () => {},
     },
   };

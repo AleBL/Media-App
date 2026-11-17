@@ -66,7 +66,7 @@ describe('session store', () => {
 
       await expect(
         createSessionStore(directory, fakeEncryption()).load(),
-      ).resolves.toEqual({ session: SESSION, kept: 'encrypted' });
+      ).resolves.toEqual({ session: SESSION, persistence: 'encrypted' });
     });
 
     it('keeps the access of the user of the v4 login too, encrypted', async () => {
@@ -79,7 +79,10 @@ describe('session store', () => {
       );
       await expect(
         createSessionStore(directory, fakeEncryption()).load(),
-      ).resolves.toEqual({ session: { ...SESSION, ...V4 }, kept: 'encrypted' });
+      ).resolves.toEqual({
+        session: { ...SESSION, ...V4 },
+        persistence: 'encrypted',
+      });
     });
 
     it('encrypts a session saved when the system had no keyring', async () => {
@@ -90,7 +93,7 @@ describe('session store', () => {
 
       await expect(
         createSessionStore(directory, fakeEncryption()).load(),
-      ).resolves.toEqual({ session: SESSION, kept: 'encrypted' });
+      ).resolves.toEqual({ session: SESSION, persistence: 'encrypted' });
       await missing(plainFile);
     });
   });
@@ -123,7 +126,7 @@ describe('session store', () => {
       }
       await expect(
         createSessionStore(directory, fakeEncryption(options)).load(),
-      ).resolves.toEqual({ session: SESSION, kept: 'unencrypted' });
+      ).resolves.toEqual({ session: SESSION, persistence: 'unencrypted' });
     });
   });
 
@@ -185,7 +188,7 @@ describe('session store', () => {
         sessionId: SESSION.sessionId,
         account: { id: 7, username: 'ada', avatarPath: '/a.png' },
       },
-      kept: 'unencrypted',
+      persistence: 'unencrypted',
     });
   });
 
@@ -204,6 +207,6 @@ describe('session store', () => {
         directory,
         fakeEncryption({ available: false }),
       ).load(),
-    ).resolves.toEqual({ session: SESSION, kept: 'unencrypted' });
+    ).resolves.toEqual({ session: SESSION, persistence: 'unencrypted' });
   });
 });

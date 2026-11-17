@@ -29,10 +29,8 @@ export const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 /** TMDB rejects pages above this one. */
 export const TMDB_MAX_PAGES = 500;
 
-/** How many of the cast the page of a title shows. */
 export const CAST_SIZE = 12;
 
-/** How many of the titles someone is known for a search shows. */
 export const KNOWN_FOR_SIZE = 3;
 
 const YOUTUBE_KEY = /^[\w-]{6,32}$/;
@@ -40,9 +38,8 @@ const IMDB_ID = /^tt\d{5,10}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TMDB_WEBSITE = 'https://www.themoviedb.org/';
 
-/** Where TMDB has each list, and the type of what it lists. */
 const LISTS: Record<MediaList, { path: string; type?: MediaType }> = {
-  // Each title of it says what it is; people are in it too.
+  // Each item says its own type.
   trending: { path: '/trending/all/week' },
   'popular-movies': { path: '/movie/popular', type: 'movie' },
   'popular-tv': { path: '/tv/popular', type: 'tv' },
@@ -66,29 +63,35 @@ type FetchResponse = Pick<Response, 'ok' | 'status' | 'headers' | 'json'>;
 export type FetchLike = (
   url: string,
   init: {
-    /** GET when missing. */
     method?: string;
     headers: Record<string, string>;
-    /** JSON, sent with the requests that change something at TMDB. */
     body?: string;
     signal: AbortSignal;
   },
 ) => Promise<FetchResponse>;
 
 export interface TmdbClientOptions {
-  /** The credential to send to TMDB, or null when there is none. */
   getCredential: () => string | null;
   fetch: FetchLike;
   baseUrl?: string;
   timeoutMs?: number;
-  /** Extra attempts after TMDB answers 429 (too many requests). */
+  /** Extra attempts after a 429 (too many requests). */
   retries?: number;
   sleep?: (ms: number) => Promise<void>;
 }
 
+interface RequestOptions {
+  params?: Record<string, string | number>;
+  method?: 'POST' | 'PUT' | 'DELETE';
+  body?: Record<string, unknown>;
+  v4?: boolean;
+  /** The user's v4 access token, used instead of the app credential. */
+  userToken?: string;
+}
+
 type SearchBody = {
   page?: number;
-  results?: Fields[];
+  results?: JsonObject[];
   total_pages?: number;
   total_results?: number;
 };
@@ -102,8 +105,6 @@ type AccountBody = {
   avatar?: { tmdb?: { avatar_path?: unknown } };
 };
 
-// The page of a movie or tv show, with what append_to_response added. Read
-// field by field: nothing in it is taken on trust.
 type DetailsBody = {
   id?: unknown;
   adult?: unknown;
@@ -131,31 +132,19 @@ type DetailsBody = {
   'watch/providers'?: { results?: unknown } | null;
 };
 
-type Fields = Record<string, unknown>;
+type JsonObject = Record<string, unknown>;
 
 /**
- * What signing in gives. With the access token of the app (v4) the user
- * signs in through TMDB v4, which also gives their own access token, the
- * one their lists take; with a key (v3), only the session.
+ * What signing in gives. The v4 login (with the app's read access token)
+ * also gives the user's access token, which their lists need.
  */
 export interface Access {
-  /** TMDB's v3 session_id: the watchlist, the favorites and the ratings. */
+  /** v3 session_id: watchlist, favorites and ratings. */
   sessionId: string;
-  /** The v4 access token of the user: a password of the account too. */
   accessToken?: string;
-  /** The id of the account in v4, such as "5f0c...": not the v3 number. */
+  /** The v4 account id, such as "5f0c...", not the v3 number. */
   accountObjectId?: string;
 }
-
-/** A v4 request token is a JWT, in three parts; a v3 one is plain hex. */
-export const isV4RequestToken = (token: string) =>
-  token.split('.').length === 3;
-
-/** What a request that changes something at TMDB sends. */
-type Send = {
-  method: 'POST' | 'PUT' | 'DELETE';
-  body?: Record<string, unknown>;
-};
 
 /** A list the user made at TMDB (v4). */
 export interface UserList {
@@ -164,14 +153,11 @@ export interface UserList {
   description: string;
 }
 
-/** A day, as the comment of a watched title keeps it. */
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
-
-// A v4 "API Read Access Token" is a JWT and goes in the Authorization
-// header; a v3 "API Key" goes in the query string.
-function isAccessToken(credential: string) {
-  return credential.split('.').length === 3;
-}
+/**
+ * v4 tokens (the app's read access token, request tokens) are JWTs; v3 keys
+ * and request tokens are plain hex.
+ */
+export const isJwt = (token: string) => token.split('.').length === 3;
 
 function codeForStatus(status: number): TmdbErrorCode {
   if (status === 401 || status === 403) return 'unauthorized';
@@ -185,7 +171,7 @@ function isTimeout(error: unknown) {
   return error instanceof Error && error.name === 'TimeoutError';
 }
 
-/** How long to wait before retrying, from the Retry-After header. */
+/** From the Retry-After header, between 1 and 5 seconds. */
 function retryDelayMs(header: string | null) {
   const seconds = Number(header);
 
@@ -194,8 +180,7 @@ function retryDelayMs(header: string | null) {
   );
 }
 
-/** What TMDB says about a request it refused. */
-async function refusal(response: FetchResponse) {
+async function readError(response: FetchResponse) {
   try {
     const body = (await response.json()) as {
       status_code?: unknown;
@@ -215,14 +200,13 @@ async function refusal(response: FetchResponse) {
   }
 }
 
-function unreadable(): never {
+function invalidResponse(): never {
   throw new TmdbError('server', 200, 'Unreadable answer');
 }
 
-// Only the fields the app uses cross to the renderer.
 function toAccount(body: AccountBody): Account {
   if (typeof body.id !== 'number' || typeof body.username !== 'string') {
-    return unreadable();
+    return invalidResponse();
   }
 
   const account: Account = { id: body.id, username: body.username };
@@ -239,7 +223,7 @@ function toAccount(body: AccountBody): Account {
   return account;
 }
 
-// Only the fields the app uses cross to the renderer.
+// Only the fields the app uses reach the renderer.
 function toMediaItem(item: MediaItem, type: MediaType): MediaItem {
   return {
     id: item.id,
@@ -254,42 +238,38 @@ function toMediaItem(item: MediaItem, type: MediaType): MediaItem {
   };
 }
 
-const text = (value: unknown) =>
+const nonEmptyText = (value: unknown) =>
   typeof value === 'string' && value.trim() ? value : undefined;
 
-const positive = (value: unknown) =>
+const positiveNumber = (value: unknown) =>
   typeof value === 'number' && Number.isFinite(value) && value > 0
     ? value
     : undefined;
 
-/** A rating TMDB takes, such as 8.5; nothing else is one. */
 const toRating = (value: unknown) =>
   typeof value === 'number' && RATINGS.includes(value) ? value : undefined;
 
-const objects = (value: unknown): Fields[] =>
+const objectArray = (value: unknown): JsonObject[] =>
   Array.isArray(value)
     ? value.filter(
-        (entry): entry is Fields => typeof entry === 'object' && entry !== null,
+        (entry): entry is JsonObject =>
+          typeof entry === 'object' && entry !== null,
       )
     : [];
 
-/**
- * A movie or tv show of a list or a search, tagged with its type. Nothing
- * when it is something else, has no id, or is an adult title.
- */
-function toTitles(item: Fields, type: unknown): MediaItem[] {
+/** The item as a movie or tv show, or nothing (for flatMap). */
+function toTitles(item: JsonObject, type: unknown): MediaItem[] {
   return (type === 'movie' || type === 'tv') &&
     typeof item.id === 'number' &&
     item.adult !== true
-    ? [toMediaItem(item as MediaItem & Fields, type)]
+    ? [toMediaItem(item as MediaItem & JsonObject, type)]
     : [];
 }
 
-/** A page of results, with the totals TMDB allows to page through. */
 function toPaged<T>(
   body: SearchBody,
   page: number,
-  read: (item: Fields) => T[],
+  read: (item: JsonObject) => T[],
 ): Paged<T> {
   return {
     page: body.page ?? page,
@@ -302,9 +282,9 @@ function toPaged<T>(
   };
 }
 
-/** Someone a search of everything found, with what they are known for. */
-function toPeople(item: Fields): PersonItem[] {
-  const name = text(item.name);
+/** The item as a person, or nothing (for flatMap). */
+function toPeople(item: JsonObject): PersonItem[] {
+  const name = nonEmptyText(item.name);
 
   if (typeof item.id !== 'number' || !name || item.adult === true) {
     return [];
@@ -315,8 +295,8 @@ function toPeople(item: Fields): PersonItem[] {
       id: item.id,
       media_type: 'person',
       name,
-      profile_path: text(item.profile_path),
-      known_for: objects(item.known_for)
+      profile_path: nonEmptyText(item.profile_path),
+      known_for: objectArray(item.known_for)
         .flatMap((title) => toTitles(title, title.media_type))
         .slice(0, KNOWN_FOR_SIZE),
     },
@@ -324,18 +304,17 @@ function toPeople(item: Fields): PersonItem[] {
 }
 
 /**
- * The trailer to offer: a YouTube video, in the language of the app before
- * English and before any other, a trailer before a teaser, an official one
- * before the rest.
+ * A YouTube trailer: the app language first, then English, a trailer before
+ * a teaser, an official one before the rest.
  */
 function pickTrailer(videos: unknown, language: string) {
-  const own = language.slice(0, 2);
-  const score = (video: Fields) => [
-    video.iso_639_1 === own ? 0 : video.iso_639_1 === 'en' ? 1 : 2,
+  const baseLanguage = language.slice(0, 2);
+  const score = (video: JsonObject) => [
+    video.iso_639_1 === baseLanguage ? 0 : video.iso_639_1 === 'en' ? 1 : 2,
     video.type === 'Trailer' ? 0 : 1,
     video.official === true ? 0 : 1,
   ];
-  const [best] = objects(videos)
+  const [best] = objectArray(videos)
     .filter(
       (video) =>
         video.site === 'YouTube' &&
@@ -351,36 +330,38 @@ function pickTrailer(videos: unknown, language: string) {
     });
 
   return best
-    ? { key: best.key as string, name: text(best.name) ?? '' }
+    ? { key: best.key as string, name: nonEmptyText(best.name) ?? '' }
     : undefined;
 }
 
 function toCast(cast: unknown): CastMember[] {
-  return objects(cast)
-    .filter((person) => typeof person.id === 'number' && text(person.name))
+  return objectArray(cast)
+    .filter(
+      (person) => typeof person.id === 'number' && nonEmptyText(person.name),
+    )
     .slice(0, CAST_SIZE)
     .map((person) => ({
       id: person.id as number,
       name: person.name as string,
-      character: text(person.character),
-      profilePath: text(person.profile_path),
+      character: nonEmptyText(person.character),
+      profilePath: nonEmptyText(person.profile_path),
     }));
 }
 
-/** The services of one or more lists, in the order JustWatch ranks them. */
+/** The providers of the given lists, without repeats, in JustWatch order. */
 function toProviders(...lists: unknown[]): WatchProvider[] {
   const seen = new Set<number>();
-  const rank = (provider: Fields) =>
+  const rank = (provider: JsonObject) =>
     typeof provider.display_priority === 'number'
       ? provider.display_priority
       : Number.MAX_SAFE_INTEGER;
 
   return lists
-    .flatMap(objects)
+    .flatMap(objectArray)
     .filter(
       (provider) =>
         typeof provider.provider_id === 'number' &&
-        text(provider.provider_name),
+        nonEmptyText(provider.provider_name),
     )
     .sort((a, b) => rank(a) - rank(b))
     .filter((provider) => {
@@ -391,11 +372,11 @@ function toProviders(...lists: unknown[]): WatchProvider[] {
     .map((provider) => ({
       id: provider.provider_id as number,
       name: provider.provider_name as string,
-      logoPath: text(provider.logo_path),
+      logoPath: nonEmptyText(provider.logo_path),
     }));
 }
 
-/** Where to watch in `region`: TMDB sends every country at once. */
+/** TMDB sends every country at once: this picks `region`. */
 function toWatch(results: unknown, region: string): WatchOptions | undefined {
   const entry =
     typeof results === 'object' &&
@@ -408,7 +389,7 @@ function toWatch(results: unknown, region: string): WatchOptions | undefined {
     return undefined;
   }
 
-  const { link, flatrate, free, ads, rent, buy } = entry as Fields;
+  const { link, flatrate, free, ads, rent, buy } = entry as JsonObject;
   const options: WatchOptions = {
     link:
       typeof link === 'string' && link.startsWith(TMDB_WEBSITE)
@@ -419,59 +400,61 @@ function toWatch(results: unknown, region: string): WatchOptions | undefined {
     rent: toProviders(rent),
     buy: toProviders(buy),
   };
-  const any =
+  const providerCount =
     options.stream.length +
     options.free.length +
     options.rent.length +
     options.buy.length;
 
-  return any > 0 ? options : undefined;
+  return providerCount > 0 ? options : undefined;
 }
 
 function toDetails(body: DetailsBody, request: DetailsRequest): MediaDetails {
   const { type, language, region } = request;
   const movie = type === 'movie';
-  const title = text(movie ? body.title : body.name);
+  const title = nonEmptyText(movie ? body.title : body.name);
 
   if (typeof body.id !== 'number' || !title) {
-    return unreadable();
+    return invalidResponse();
   }
 
-  // Searches leave adult titles out, so their pages are not shown either.
+  // Searches leave adult titles out, so their pages are hidden too.
   if (body.adult === true) {
     throw new TmdbError('not-found', 404);
   }
 
-  const original = text(movie ? body.original_title : body.original_name);
-  const date = text(movie ? body.release_date : body.first_air_date);
+  const original = nonEmptyText(
+    movie ? body.original_title : body.original_name,
+  );
+  const date = nonEmptyText(movie ? body.release_date : body.first_air_date);
   const episodeRuntime = Array.isArray(body.episode_run_time)
     ? body.episode_run_time[0]
     : undefined;
-  const voteCount = positive(body.vote_count);
+  const voteCount = positiveNumber(body.vote_count);
 
   return {
     type,
     id: body.id,
     title,
     originalTitle: original !== title ? original : undefined,
-    tagline: text(body.tagline),
-    overview: text(body.overview),
+    tagline: nonEmptyText(body.tagline),
+    overview: nonEmptyText(body.overview),
     date: date && DATE.test(date) ? date : undefined,
     runtime: movie
-      ? positive(body.runtime)
-      : (positive(episodeRuntime) ??
-        positive(body.last_episode_to_air?.runtime)),
-    seasons: movie ? undefined : positive(body.number_of_seasons),
-    episodes: movie ? undefined : positive(body.number_of_episodes),
-    genres: objects(body.genres).flatMap((genre) =>
-      typeof genre.id === 'number' && text(genre.name)
+      ? positiveNumber(body.runtime)
+      : (positiveNumber(episodeRuntime) ??
+        positiveNumber(body.last_episode_to_air?.runtime)),
+    seasons: movie ? undefined : positiveNumber(body.number_of_seasons),
+    episodes: movie ? undefined : positiveNumber(body.number_of_episodes),
+    genres: objectArray(body.genres).flatMap((genre) =>
+      typeof genre.id === 'number' && nonEmptyText(genre.name)
         ? [{ id: genre.id, name: genre.name as string }]
         : [],
     ),
-    posterPath: text(body.poster_path),
-    voteAverage: voteCount ? positive(body.vote_average) : undefined,
+    posterPath: nonEmptyText(body.poster_path),
+    voteAverage: voteCount ? positiveNumber(body.vote_average) : undefined,
     voteCount,
-    // Only movies have it in the page itself.
+    // Movies have it in the page itself, tv shows only in external_ids.
     imdbId: [body.imdb_id, body.external_ids?.imdb_id].find(
       (id): id is string => typeof id === 'string' && IMDB_ID.test(id),
     ),
@@ -483,7 +466,6 @@ function toDetails(body: DetailsBody, request: DetailsRequest): MediaDetails {
 
 export function createTmdbClient(options: TmdbClientOptions) {
   const baseUrl = (options.baseUrl || TMDB_BASE_URL).replace(/\/+$/, '');
-  // The same address, with v4 in place of v3.
   const v4BaseUrl = baseUrl.replace(/\/3$/, '/4');
   const timeoutMs = options.timeoutMs ?? 8000;
   const retries = options.retries ?? 2;
@@ -491,32 +473,20 @@ export function createTmdbClient(options: TmdbClientOptions) {
     options.sleep ??
     ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
 
-  /**
-   * A request to TMDB with the credential of the app, or, with `user`, with
-   * the access token of the user, which v4 takes for what is theirs.
-   */
   async function request<T>(
     path: string,
-    params: Record<string, string | number>,
-    send?: Send,
-    version: 3 | 4 = 3,
-    user?: string,
+    { params = {}, method, body, v4 = false, userToken }: RequestOptions = {},
   ): Promise<T> {
-    const credential = user ?? options.getCredential();
+    const credential = userToken ?? options.getCredential();
 
     if (!credential) {
       throw new TmdbError('missing-credential');
     }
 
-    const url = new URL(`${version === 4 ? v4BaseUrl : baseUrl}${path}`);
+    const url = new URL(`${v4 ? v4BaseUrl : baseUrl}${path}`);
     const headers: Record<string, string> = { Accept: 'application/json' };
-    const content = !send
-      ? {}
-      : send.body
-        ? { method: send.method, body: JSON.stringify(send.body) }
-        : { method: send.method };
 
-    if (send?.body) {
+    if (body) {
       headers['Content-Type'] = 'application/json';
     }
 
@@ -524,7 +494,8 @@ export function createTmdbClient(options: TmdbClientOptions) {
       url.searchParams.set(name, String(value));
     }
 
-    if (isAccessToken(credential)) {
+    // A read access token goes in the header, a v3 key in the query string.
+    if (isJwt(credential)) {
       headers.Authorization = `Bearer ${credential}`;
     } else {
       url.searchParams.set('api_key', credential);
@@ -535,13 +506,13 @@ export function createTmdbClient(options: TmdbClientOptions) {
 
       try {
         response = await options.fetch(url.toString(), {
-          ...content,
+          ...(method ? { method } : {}),
+          ...(body ? { body: JSON.stringify(body) } : {}),
           headers,
           signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (error) {
-        // The url may hold the key or a session, so it never goes into an
-        // error message.
+        // Never the url in the message: it may hold the key or a session.
         throw new TmdbError(isTimeout(error) ? 'timeout' : 'network');
       }
 
@@ -551,7 +522,7 @@ export function createTmdbClient(options: TmdbClientOptions) {
       }
 
       if (!response.ok) {
-        const { message, tmdbStatus } = await refusal(response);
+        const { message, tmdbStatus } = await readError(response);
 
         throw new TmdbError(
           codeForStatus(response.status),
@@ -570,29 +541,27 @@ export function createTmdbClient(options: TmdbClientOptions) {
   }
 
   /**
-   * Ends at TMDB the session, the access token of the user, or both. Both
-   * are asked even when one fails, which is then what this throws.
+   * Revokes the session and/or the user's access token at TMDB. Both are
+   * tried even if one fails; the first failure is thrown.
    */
-  async function end({
+  async function deleteSession({
     sessionId,
     accessToken,
   }: Partial<Access>): Promise<void> {
-    const ended = await Promise.allSettled([
+    const results = await Promise.allSettled([
       sessionId &&
-        request(
-          '/authentication/session',
-          {},
-          { method: 'DELETE', body: { session_id: sessionId } },
-        ),
+        request('/authentication/session', {
+          method: 'DELETE',
+          body: { session_id: sessionId },
+        }),
       accessToken &&
-        request(
-          '/auth/access_token',
-          {},
-          { method: 'DELETE', body: { access_token: accessToken } },
-          4,
-        ),
+        request('/auth/access_token', {
+          method: 'DELETE',
+          body: { access_token: accessToken },
+          v4: true,
+        }),
     ]);
-    const failed = ended.find(
+    const failed = results.find(
       (result): result is PromiseRejectedResult => result.status === 'rejected',
     );
 
@@ -602,16 +571,14 @@ export function createTmdbClient(options: TmdbClientOptions) {
   }
 
   return {
-    /**
-     * A page of movies, of tv shows, or of everything (`multi`), where each
-     * result says what it is and people are found too.
-     */
     async search(search: SearchRequest): Promise<Paged<SearchItem>> {
       const body = await request<SearchBody>(`/search/${search.type}`, {
-        query: search.query,
-        page: search.page,
-        language: search.language,
-        include_adult: 'false',
+        params: {
+          query: search.query,
+          page: search.page,
+          language: search.language,
+          include_adult: 'false',
+        },
       });
 
       return toPaged(body, search.page, (item): SearchItem[] => {
@@ -625,16 +592,12 @@ export function createTmdbClient(options: TmdbClientOptions) {
       });
     },
 
-    /**
-     * The countries TMDB knows where to watch titles in (from JustWatch), as
-     * codes such as `BR`, sorted, each once.
-     */
+    /** Country codes with watch providers, such as `BR`, sorted. */
     async regions(): Promise<string[]> {
       const body = await request<{ results?: unknown }>(
         '/watch/providers/regions',
-        {},
       );
-      const codes = objects(body.results)
+      const codes = objectArray(body.results)
         .map((region) => region.iso_3166_1)
         .filter(
           (code): code is string =>
@@ -647,8 +610,8 @@ export function createTmdbClient(options: TmdbClientOptions) {
     /** Movie and tv genres in one list, without repeated ids. */
     async genres(language: string): Promise<Genre[]> {
       const [movie, tv] = await Promise.all([
-        request<GenreBody>('/genre/movie/list', { language }),
-        request<GenreBody>('/genre/tv/list', { language }),
+        request<GenreBody>('/genre/movie/list', { params: { language } }),
+        request<GenreBody>('/genre/tv/list', { params: { language } }),
       ]);
       const byId = new Map<number, Genre>();
 
@@ -666,42 +629,38 @@ export function createTmdbClient(options: TmdbClientOptions) {
       return [...byId.values()];
     },
 
-    /**
-     * The first page of a list of the home page: movies and tv shows only,
-     * without adult titles, each tagged with its type.
-     */
+    /** The first page of a home page list, movies and tv shows only. */
     async list({ list, language }: ListRequest): Promise<MediaItem[]> {
       const { path, type } = LISTS[list];
-      const body = await request<{ results?: Fields[] }>(path, { language });
+      const body = await request<{ results?: JsonObject[] }>(path, {
+        params: { language },
+      });
 
       return (body.results ?? []).flatMap((item) =>
         toTitles(item, type ?? item.media_type),
       );
     },
 
-    /**
-     * The page of a movie or tv show, with its cast, trailer, IMDb id and
-     * where to watch it in the region asked for, in one request.
-     */
+    /** The page of a title, with cast, trailer and where to watch. */
     async details(details: DetailsRequest): Promise<MediaDetails> {
-      const own = details.language.slice(0, 2);
-      // TMDB only sends the videos in the language asked for, unless told
-      // which others to add. A language with a country (pt-BR) does not
-      // match one without it (pt), so both go in, then English and the
-      // videos that have no language.
+      const baseLanguage = details.language.slice(0, 2);
+      // TMDB only sends videos in the requested language unless told which
+      // others to add, and pt-BR does not match pt.
       const videoLanguages = new Set([
         details.language,
-        own,
-        `${own}-${details.region}`,
+        baseLanguage,
+        `${baseLanguage}-${details.region}`,
         'en',
         'null',
       ]);
       const body = await request<DetailsBody>(
         `/${details.type}/${details.id}`,
         {
-          language: details.language,
-          append_to_response: 'credits,videos,watch/providers,external_ids',
-          include_video_language: [...videoLanguages].join(','),
+          params: {
+            language: details.language,
+            append_to_response: 'credits,videos,watch/providers,external_ids',
+            include_video_language: [...videoLanguages].join(','),
+          },
         },
       );
 
@@ -709,100 +668,89 @@ export function createTmdbClient(options: TmdbClientOptions) {
     },
 
     /**
-     * First step of signing in: a token for the user to approve on the TMDB
-     * website. With the access token of the app it is a v4 one, which keeps
-     * `redirectTo` itself and lasts 15 minutes; with a key, a v3 one, which
-     * lasts 60 and takes `redirectTo` in the address of the approval page
-     * (login.ts).
+     * A request token for the user to approve. With the app's read access
+     * token it is v4 (keeps `redirectTo`, lasts 15 minutes); with a v3 key
+     * it lasts 60 and the redirect goes in the approval url (login.ts).
      */
     async createRequestToken(redirectTo?: string): Promise<string> {
-      const body = isAccessToken(options.getCredential() ?? '')
-        ? await request<Fields>(
-            '/auth/request_token',
-            {},
-            {
-              method: 'POST',
-              body: redirectTo ? { redirect_to: redirectTo } : {},
-            },
-            4,
-          )
-        : await request<Fields>('/authentication/token/new', {});
+      const body = isJwt(options.getCredential() ?? '')
+        ? await request<JsonObject>('/auth/request_token', {
+            method: 'POST',
+            body: redirectTo ? { redirect_to: redirectTo } : {},
+            v4: true,
+          })
+        : await request<JsonObject>('/authentication/token/new');
 
-      return text(body.request_token) ?? unreadable();
+      return nonEmptyText(body.request_token) ?? invalidResponse();
     },
 
     /**
-     * Trades an approved request token for what signing in gives, once. A
-     * v4 token becomes the access token of the user, then a v3 session made
-     * from it. TMDB refuses a token that was not approved (or was already
-     * traded) with `status_code` 17 in v3 and 41 in v4.
+     * Trades an approved request token, once. A v4 token becomes the user's
+     * access token, then a v3 session made from it. An unapproved or spent
+     * token fails with `status_code` 17 (v3) or 41 (v4).
      */
     async createSession(requestToken: string): Promise<Access> {
-      if (!isV4RequestToken(requestToken)) {
-        const body = await request<Fields>(
-          '/authentication/session/new',
-          {},
-          { method: 'POST', body: { request_token: requestToken } },
-        );
+      if (!isJwt(requestToken)) {
+        const body = await request<JsonObject>('/authentication/session/new', {
+          method: 'POST',
+          body: { request_token: requestToken },
+        });
 
-        return { sessionId: text(body.session_id) ?? unreadable() };
+        return {
+          sessionId: nonEmptyText(body.session_id) ?? invalidResponse(),
+        };
       }
 
-      const user = await request<Fields>(
-        '/auth/access_token',
-        {},
-        { method: 'POST', body: { request_token: requestToken } },
-        4,
-      );
-      const accessToken = text(user.access_token);
-      const accountObjectId = text(user.account_id);
+      const user = await request<JsonObject>('/auth/access_token', {
+        method: 'POST',
+        body: { request_token: requestToken },
+        v4: true,
+      });
+      const accessToken = nonEmptyText(user.access_token);
+      const accountObjectId = nonEmptyText(user.account_id);
 
       if (!accessToken || !accountObjectId) {
-        return unreadable();
+        return invalidResponse();
       }
 
       try {
-        const body = await request<Fields>(
+        const body = await request<JsonObject>(
           '/authentication/session/convert/4',
-          {},
           { method: 'POST', body: { access_token: accessToken } },
         );
 
         return {
-          sessionId: text(body.session_id) ?? unreadable(),
+          sessionId: nonEmptyText(body.session_id) ?? invalidResponse(),
           accessToken,
           accountObjectId,
         };
       } catch (error) {
-        // Of no use without the session: TMDB is told to forget it too.
-        await end({ accessToken }).catch(() => {});
+        // Useless without the session, so it is revoked.
+        await deleteSession({ accessToken }).catch(() => {});
 
         throw error;
       }
     },
 
-    /**
-     * Whether a title is in the watchlist and in the favorites of a session,
-     * and the rating it gave: TMDB says `rated: false` for none.
-     */
     async accountStates(
       sessionId: string,
       { type, id }: TitleRequest,
     ): Promise<TitleStates> {
-      const body = await request<Fields>(`/${type}/${id}/account_states`, {
-        session_id: sessionId,
+      const body = await request<JsonObject>(`/${type}/${id}/account_states`, {
+        params: { session_id: sessionId },
       });
 
       if (
         typeof body.watchlist !== 'boolean' ||
         typeof body.favorite !== 'boolean'
       ) {
-        return unreadable();
+        return invalidResponse();
       }
 
+      // TMDB says `rated: false` when there is no rating.
       const rated =
         typeof body.rated === 'object' && body.rated !== null
-          ? toRating((body.rated as Fields).value)
+          ? toRating((body.rated as JsonObject).value)
           : undefined;
 
       return {
@@ -812,44 +760,32 @@ export function createTmdbClient(options: TmdbClientOptions) {
       };
     },
 
-    /**
-     * Gives a title a rating, or takes it away (`null`). By default TMDB
-     * also takes a title it rates out of the watchlist.
-     */
+    /** `null` removes the rating. TMDB also takes a rated title out of the watchlist. */
     async rate(
       sessionId: string,
       { type, id, value }: RateRequest,
     ): Promise<void> {
-      await request(
-        `/${type}/${id}/rating`,
-        { session_id: sessionId },
-        value === null
+      await request(`/${type}/${id}/rating`, {
+        params: { session_id: sessionId },
+        ...(value === null
           ? { method: 'DELETE' }
-          : { method: 'POST', body: { value } },
-      );
+          : { method: 'POST', body: { value } }),
+      });
     },
 
-    /** Puts a title in a list of the account, or takes it out. */
     async mark(
       sessionId: string,
       accountId: number,
       { list, type, id, value }: MarkRequest,
     ): Promise<void> {
-      await request(
-        `/account/${accountId}/${list}`,
-        { session_id: sessionId },
-        {
-          method: 'POST',
-          body: { media_type: type, media_id: id, [list]: value },
-        },
-      );
+      await request(`/account/${accountId}/${list}`, {
+        params: { session_id: sessionId },
+        method: 'POST',
+        body: { media_type: type, media_id: id, [list]: value },
+      });
     },
 
-    /**
-     * A page of a list of the account, the titles added (or rated) last
-     * first; in the rated titles, each with its rating. Adult titles are
-     * left out, as everywhere else in the app.
-     */
+    /** Last added (or rated) first; rated titles carry their rating. */
     async accountList(
       sessionId: string,
       accountId: number,
@@ -858,10 +794,12 @@ export function createTmdbClient(options: TmdbClientOptions) {
       const body = await request<SearchBody>(
         `/account/${accountId}/${list}/${type === 'movie' ? 'movies' : 'tv'}`,
         {
-          session_id: sessionId,
-          page,
-          language,
-          sort_by: 'created_at.desc',
+          params: {
+            session_id: sessionId,
+            page,
+            language,
+            sort_by: 'created_at.desc',
+          },
         },
       );
 
@@ -874,20 +812,17 @@ export function createTmdbClient(options: TmdbClientOptions) {
       );
     },
 
-    /** The account a session belongs to. 401 when the session is over. */
+    /** Fails with 401 when the session is over. */
     async account(sessionId: string): Promise<Account> {
       return toAccount(
-        await request<AccountBody>('/account', { session_id: sessionId }),
+        await request<AccountBody>('/account', {
+          params: { session_id: sessionId },
+        }),
       );
     },
 
-    /** Ends at TMDB what signing in gave: it stops working everywhere. */
-    deleteSession: end,
+    deleteSession,
 
-    // The lists a user makes, in v4, with their access token: TMDB only
-    // shows a private one to its owner.
-
-    /** A page of the lists the user made. */
     async userLists(
       accessToken: string,
       accountObjectId: string,
@@ -895,14 +830,11 @@ export function createTmdbClient(options: TmdbClientOptions) {
     ): Promise<{ lists: UserList[]; totalPages: number }> {
       const body = await request<SearchBody>(
         `/account/${encodeURIComponent(accountObjectId)}/lists`,
-        { page },
-        undefined,
-        4,
-        accessToken,
+        { params: { page }, v4: true, userToken: accessToken },
       );
 
       return {
-        lists: objects(body.results).flatMap((list) =>
+        lists: objectArray(body.results).flatMap((list) =>
           typeof list.id === 'number'
             ? [
                 {
@@ -920,10 +852,7 @@ export function createTmdbClient(options: TmdbClientOptions) {
       };
     },
 
-    /**
-     * Makes a list of the user. TMDB makes it public whatever `public` says
-     * (seen on 2026-11-16): `updateList` makes it private.
-     */
+    /** TMDB ignores `public: false` here (2026-11-16): see `updateList`. */
     async createList(
       accessToken: string,
       {
@@ -933,72 +862,59 @@ export function createTmdbClient(options: TmdbClientOptions) {
       }: Omit<UserList, 'id'> & { language: string },
     ): Promise<number> {
       const [lang, country] = language.split('-');
-      const body = await request<Fields>(
-        '/list',
-        {},
-        {
-          method: 'POST',
-          body: {
-            name,
-            description,
-            iso_639_1: lang,
-            ...(country ? { iso_3166_1: country } : {}),
-            public: false,
-          },
+      const body = await request<JsonObject>('/list', {
+        method: 'POST',
+        body: {
+          name,
+          description,
+          iso_639_1: lang,
+          ...(country ? { iso_3166_1: country } : {}),
+          public: false,
         },
-        4,
-        accessToken,
-      );
-      return typeof body.id === 'number' ? body.id : unreadable();
+        v4: true,
+        userToken: accessToken,
+      });
+
+      return typeof body.id === 'number' ? body.id : invalidResponse();
     },
 
-    /**
-     * Makes a list of the user private, its titles in the order they were
-     * added, the last first. With the whole list, as TMDB shows an update.
-     */
+    /** Makes the list private, last added first. TMDB wants the full body. */
     async updateList(
       accessToken: string,
       listId: number,
       { name, description }: Omit<UserList, 'id'>,
     ): Promise<void> {
-      await request(
-        `/list/${listId}`,
-        {},
-        {
-          method: 'PUT',
-          body: {
-            name,
-            description,
-            public: false,
-            sort_by: 'original_order.desc',
-          },
+      await request(`/list/${listId}`, {
+        method: 'PUT',
+        body: {
+          name,
+          description,
+          public: false,
+          sort_by: 'original_order.desc',
         },
-        4,
-        accessToken,
-      );
+        v4: true,
+        userToken: accessToken,
+      });
     },
 
-    /** Whether a title is in a list of the user. */
     async listItemStatus(
       accessToken: string,
       listId: number,
       { type, id }: TitleRequest,
     ): Promise<boolean> {
       try {
-        const body = await request<Fields>(
-          `/list/${listId}/item_status`,
-          { media_id: id, media_type: type },
-          undefined,
-          4,
-          accessToken,
-        );
+        const body = await request<JsonObject>(`/list/${listId}/item_status`, {
+          params: { media_id: id, media_type: type },
+          v4: true,
+          userToken: accessToken,
+        });
 
         return (
           body.success === true &&
           (body.media_id === undefined || Number(body.media_id) === id)
         );
       } catch (error) {
-        // Not in the list (or no list at all).
+        // 404: not in the list, or no list at all.
         if (error instanceof TmdbError && error.code === 'not-found') {
           return false;
         }
@@ -1007,10 +923,7 @@ export function createTmdbClient(options: TmdbClientOptions) {
       }
     },
 
-    /**
-     * Puts a title in a list of the user, with `comment`. The comment is a
-     * second request: if it fails, the title stays in the list without it.
-     */
+    /** The comment is a second request: if it fails, the title stays without it. */
     async addToList(
       accessToken: string,
       listId: number,
@@ -1018,45 +931,34 @@ export function createTmdbClient(options: TmdbClientOptions) {
       comment: string,
     ): Promise<void> {
       const item = { media_type: type, media_id: id };
+      const user = { v4: true, userToken: accessToken };
 
-      await request(
-        `/list/${listId}/items`,
-        {},
-        { method: 'POST', body: { items: [item] } },
-        4,
-        accessToken,
-      );
-      await request(
-        `/list/${listId}/items`,
-        {},
-        { method: 'PUT', body: { items: [{ ...item, comment }] } },
-        4,
-        accessToken,
-      ).catch(() => {});
+      await request(`/list/${listId}/items`, {
+        method: 'POST',
+        body: { items: [item] },
+        ...user,
+      });
+      await request(`/list/${listId}/items`, {
+        method: 'PUT',
+        body: { items: [{ ...item, comment }] },
+        ...user,
+      }).catch(() => {});
     },
 
-    /** Takes a title out of a list of the user. */
     async removeFromList(
       accessToken: string,
       listId: number,
       { type, id }: TitleRequest,
     ): Promise<void> {
-      await request(
-        `/list/${listId}/items`,
-        {},
-        {
-          method: 'DELETE',
-          body: { items: [{ media_type: type, media_id: id }] },
-        },
-        4,
-        accessToken,
-      );
+      await request(`/list/${listId}/items`, {
+        method: 'DELETE',
+        body: { items: [{ media_type: type, media_id: id }] },
+        v4: true,
+        userToken: accessToken,
+      });
     },
 
-    /**
-     * A page of a list of the user, movies and tv shows together, in the
-     * order of the list. A comment that is a day is when it was watched.
-     */
+    /** In list order; a comment that is a date becomes `watchedAt`. */
     async listItems(
       accessToken: string,
       listId: number,
@@ -1065,21 +967,18 @@ export function createTmdbClient(options: TmdbClientOptions) {
     ): Promise<Paged<MediaItem>> {
       const body = await request<SearchBody & { comments?: unknown }>(
         `/list/${listId}`,
-        { page, language },
-        undefined,
-        4,
-        accessToken,
+        { params: { page, language }, v4: true, userToken: accessToken },
       );
-      const comments: Fields =
+      const comments: JsonObject =
         typeof body.comments === 'object' && body.comments !== null
-          ? (body.comments as Fields)
+          ? (body.comments as JsonObject)
           : {};
 
       return toPaged(body, page, (item) =>
         toTitles(item, item.media_type).map((title) => {
           const comment = comments[`${title.media_type}:${title.id}`];
 
-          return typeof comment === 'string' && DAY.test(comment)
+          return typeof comment === 'string' && DATE.test(comment)
             ? { ...title, watchedAt: comment }
             : title;
         }),

@@ -1,6 +1,6 @@
 import type { TmdbErrorCode } from '../api';
 import { createTmdbClient } from './client';
-import { isSessionOver } from './login';
+import { isSessionExpired } from './login';
 import { HTTP_STATUS, toFailure } from './proxy';
 import {
   parseAccountListRequest,
@@ -10,30 +10,28 @@ import {
   parseWatchedListRequest,
   parseWatchedRequest,
 } from './validation';
-import { createWatched, userAccess } from './watched';
+import { createWatched, requireUserAccess } from './watched';
 import {
-  accessOf,
-  dropAccess,
-  visit,
+  clearAccess,
+  httpContext,
+  readAccess,
   watchedListCache,
   type WebAuthOptions,
 } from './web-auth';
 
 export type WebAccountOptions = Omit<WebAuthOptions, 'website'>;
 
-/** The resources that change something at TMDB: POST only. */
-const CHANGES = new Set(['mark', 'rate', 'unrate', 'watched-mark']);
+/** Resources that change something at TMDB: POST only. */
+const CHANGE_RESOURCES = new Set(['mark', 'rate', 'unrate', 'watched-mark']);
 
-/** `true` and `false` as an address says them; anything else is neither. */
 function toBoolean(value: string | null) {
   return value === 'true' ? true : value === 'false' ? false : null;
 }
 
 /**
- * The lists and the ratings of the TMDB account of whoever signed in on the
- * web version, with the session that the site keeps in a cookie
- * (web-auth.ts): the page never sees it. Nothing here is the same for two
- * visitors, so no cache keeps any of it.
+ * The account lists, ratings and watched titles for the web version, with
+ * the session the site keeps in a cookie (web-auth.ts). Parameters are
+ * validated like the desktop IPC.
  *
  *   GET  ?resource=states&type=movie&id=603
  *   GET  ?resource=list&list=watchlist&type=movie&page=1&language=en
@@ -43,12 +41,6 @@ function toBoolean(value: string | null) {
  *   GET  ?resource=watched-state&type=movie&id=603
  *   POST ?resource=watched-mark&type=movie&id=603&value=true&date=2026-11-16&language=en
  *   GET  ?resource=watched-list&page=1&language=en
- *
- * The watched titles take the access token of the user (watched.ts), kept
- * in a cookie as well.
- *
- * Every parameter is checked the same way the desktop app checks what its
- * window sends.
  */
 export function createWebAccount(options: WebAccountOptions) {
   const credential = options.credential?.trim() || null;
@@ -56,35 +48,33 @@ export function createWebAccount(options: WebAccountOptions) {
     getCredential: () => credential,
     fetch: options.fetch ?? ((url, init) => fetch(url, init)),
     baseUrl: options.baseUrl,
-    // A function has a few seconds to answer, and a change asks twice.
+    // A function has a few seconds, and a change makes two requests.
     timeoutMs: 4000,
     retries: 0,
   });
   const watched = createWatched(tmdb);
 
   return async function handle(request: Request): Promise<Response> {
-    const at = visit(request);
+    const http = httpContext(request);
     const params = new URL(request.url).searchParams;
     const resource = params.get('resource');
-    const changing = CHANGES.has(resource ?? '');
-    const fail = (code: TmdbErrorCode) =>
-      at.answer({ ok: false, error: { code } }, HTTP_STATUS[code]);
+    const isChange = CHANGE_RESOURCES.has(resource ?? '');
+    const failWith = (code: TmdbErrorCode) =>
+      http.json({ ok: false, error: { code } }, HTTP_STATUS[code]);
 
-    // Reading never changes anything, and a change is never a link.
-    if (request.method !== (changing ? 'POST' : 'GET')) {
-      return at.refuse(405, changing ? 'POST' : 'GET');
+    if (request.method !== (isChange ? 'POST' : 'GET')) {
+      return http.reject(405, isChange ? 'POST' : 'GET');
     }
 
-    // Browsers say where a POST comes from. SameSite already keeps the
-    // cookie out of the ones other sites start; this does not depend on it.
-    if (changing && request.headers.get('origin') !== at.origin) {
-      return at.refuse(403);
+    // Only the app itself may change anything, whatever SameSite does.
+    if (isChange && request.headers.get('origin') !== http.origin) {
+      return http.reject(403);
     }
 
-    const sessionId = at.cookie('session');
+    const sessionId = http.getCookie('session');
 
     if (!sessionId) {
-      return fail('signed-out');
+      return failWith('signed-out');
     }
 
     const title = {
@@ -95,143 +85,139 @@ export function createWebAccount(options: WebAccountOptions) {
     try {
       switch (resource) {
         case 'states': {
-          const asked = parseTitleRequest(title);
+          const parsed = parseTitleRequest(title);
 
-          return asked
-            ? at.answer({
+          return parsed
+            ? http.json({
                 ok: true,
-                data: await tmdb.accountStates(sessionId, asked),
+                data: await tmdb.accountStates(sessionId, parsed),
               })
-            : fail('invalid-request');
+            : failWith('invalid-request');
         }
 
         case 'mark': {
-          const asked = parseMarkRequest({
+          const parsed = parseMarkRequest({
             ...title,
             list: params.get('list'),
             value: toBoolean(params.get('value')),
           });
 
-          if (!asked) {
-            return fail('invalid-request');
+          if (!parsed) {
+            return failWith('invalid-request');
           }
 
-          // The lists are under the id of the account, which the cookie
-          // does not keep: the session says whose it is.
+          // The lists need the account id, which the cookie does not keep.
           const account = await tmdb.account(sessionId);
 
-          await tmdb.mark(sessionId, account.id, asked);
+          await tmdb.mark(sessionId, account.id, parsed);
 
-          return at.answer({ ok: true, data: null });
+          return http.json({ ok: true, data: null });
         }
 
-        // A rating is under the title, not the account: the session is all
-        // TMDB needs.
         case 'rate':
         case 'unrate': {
-          const asked = parseRateRequest({
+          const parsed = parseRateRequest({
             ...title,
             value: resource === 'rate' ? Number(params.get('value')) : null,
           });
 
-          if (!asked) {
-            return fail('invalid-request');
+          if (!parsed) {
+            return failWith('invalid-request');
           }
 
-          await tmdb.rate(sessionId, asked);
+          await tmdb.rate(sessionId, parsed);
 
-          return at.answer({ ok: true, data: null });
+          return http.json({ ok: true, data: null });
         }
 
         case 'list': {
-          const asked = parseAccountListRequest({
+          const parsed = parseAccountListRequest({
             list: params.get('list'),
             type: params.get('type'),
             page: Number(params.get('page')),
             language: params.get('language'),
           });
 
-          if (!asked) {
-            return fail('invalid-request');
+          if (!parsed) {
+            return failWith('invalid-request');
           }
 
           const account = await tmdb.account(sessionId);
 
-          return at.answer({
+          return http.json({
             ok: true,
-            data: await tmdb.accountList(sessionId, account.id, asked),
+            data: await tmdb.accountList(sessionId, account.id, parsed),
           });
         }
 
         case 'watched-state': {
-          const asked = parseTitleRequest(title);
+          const parsed = parseTitleRequest(title);
 
-          return asked
-            ? at.answer({
+          return parsed
+            ? http.json({
                 ok: true,
                 data: await watched.state(
-                  userAccess(accessOf(at)),
-                  watchedListCache(at),
-                  asked,
+                  requireUserAccess(readAccess(http)),
+                  watchedListCache(http),
+                  parsed,
                 ),
               })
-            : fail('invalid-request');
+            : failWith('invalid-request');
         }
 
         case 'watched-mark': {
-          const asked = parseWatchedRequest({
+          const parsed = parseWatchedRequest({
             ...title,
             value: toBoolean(params.get('value')),
             date: params.get('date'),
             language: params.get('language'),
           });
 
-          if (!asked) {
-            return fail('invalid-request');
+          if (!parsed) {
+            return failWith('invalid-request');
           }
 
           await watched.mark(
-            userAccess(accessOf(at)),
-            watchedListCache(at),
-            asked,
+            requireUserAccess(readAccess(http)),
+            watchedListCache(http),
+            parsed,
           );
 
-          return at.answer({ ok: true, data: null });
+          return http.json({ ok: true, data: null });
         }
 
         case 'watched-list': {
-          const asked = parseWatchedListRequest({
+          const parsed = parseWatchedListRequest({
             page: Number(params.get('page')),
             language: params.get('language'),
           });
 
-          return asked
-            ? at.answer({
+          return parsed
+            ? http.json({
                 ok: true,
                 data: await watched.list(
-                  userAccess(accessOf(at)),
-                  watchedListCache(at),
-                  asked,
+                  requireUserAccess(readAccess(http)),
+                  watchedListCache(http),
+                  parsed,
                 ),
               })
-            : fail('invalid-request');
+            : failWith('invalid-request');
         }
 
         default:
-          return fail('invalid-request');
+          return failWith('invalid-request');
       }
     } catch (error) {
-      // Ended on the TMDB website, or in another browser: this one forgets
-      // it too, the way /api/auth/session does.
-      if (isSessionOver(error)) {
-        dropAccess(at);
+      // Ended on the TMDB website or in another browser: forget it here too.
+      if (isSessionExpired(error)) {
+        clearAccess(http);
 
-        return fail('signed-out');
+        return failWith('signed-out');
       }
 
       const failure = toFailure(error);
 
-      return at.answer(
+      return http.json(
         { ok: false, error: failure },
         HTTP_STATUS[failure.code],
       );

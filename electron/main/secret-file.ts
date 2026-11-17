@@ -12,25 +12,25 @@ export interface Encryption {
   getSelectedStorageBackend?(): string;
 }
 
-/** How a value is kept on disk. */
-export interface Kept {
-  /** It is saved for the next launch, not only kept in memory. */
+export interface Persistence {
+  /** Saved on disk, not only in memory. */
   persisted: boolean;
-  /** What is saved is encrypted by the keyring of the system. */
+  /** Encrypted by the system keyring. */
   encrypted: boolean;
 }
 
-export const NOT_KEPT: Kept = { persisted: false, encrypted: false };
+export const NOT_PERSISTED: Persistence = {
+  persisted: false,
+  encrypted: false,
+};
 
 /**
- * A value of the user kept in `directory` between launches, in one of two
- * files: `names.encrypted`, encrypted by the operating system when it can
- * do that, or `names.plain`, as plain text, on a system without a keyring
- * (some Linux setups). Both can only be read by the user.
+ * A secret of the user saved in `directory`: encrypted by the OS when it can,
+ * otherwise as plain text (some Linux setups have no keyring). Both files are
+ * readable by the user only.
  *
- * On Linux, Electron may answer that it can encrypt while using a password
- * that is the same on every machine (the `basic_text` backend). That hides
- * the value but does not protect it, so it counts as unencrypted.
+ * Electron's Linux `basic_text` backend encrypts with a password that is the
+ * same on every machine, so it counts as unencrypted.
  */
 export function createSecretFile(
   directory: string,
@@ -51,8 +51,8 @@ export function createSecretFile(
   const isProtected = () =>
     encryption.getSelectedStorageBackend?.() !== 'basic_text';
 
-  /** Saves `value`, encrypted when the system can. Never throws. */
-  async function write(value: string): Promise<Kept> {
+  /** Never throws. */
+  async function write(value: string): Promise<Persistence> {
     try {
       await mkdir(directory, { recursive: true });
 
@@ -72,7 +72,7 @@ export function createSecretFile(
 
       return { persisted: true, encrypted: false };
     } catch {
-      return NOT_KEPT;
+      return NOT_PERSISTED;
     }
   }
 
@@ -98,30 +98,29 @@ export function createSecretFile(
   }
 
   return {
-    /** Whether a value saved now would be encrypted by a keyring. */
+    /** Whether a value written now would be encrypted by a keyring. */
     async protects() {
       return (await canEncrypt()) && isProtected();
     },
 
     write,
 
-    /** The value saved by an earlier launch, if there is one. */
-    async read(): Promise<(Kept & { value: string }) | null> {
-      const sealed = (await canEncrypt()) ? await readEncrypted() : null;
+    async read(): Promise<(Persistence & { value: string }) | null> {
+      const decrypted = (await canEncrypt()) ? await readEncrypted() : null;
 
-      if (sealed) {
+      if (decrypted) {
         return {
-          value: sealed.value,
-          // The operating system rotated its key: seal the value again.
-          ...(sealed.stale
-            ? await write(sealed.value)
+          value: decrypted.value,
+          // The OS rotated its key: encrypt again.
+          ...(decrypted.stale
+            ? await write(decrypted.value)
             : { persisted: true, encrypted: isProtected() }),
         };
       }
 
       const plain = await readPlain();
 
-      // Encrypts it now if the system gained a keyring since it was saved.
+      // Rewriting encrypts it if a keyring appeared since it was saved.
       return plain ? { value: plain, ...(await write(plain)) } : null;
     },
 

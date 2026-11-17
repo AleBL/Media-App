@@ -17,9 +17,9 @@ import { registerIpc } from './ipc';
 import { isAppUrl, isSafeExternalUrl, type AppLocation } from './security';
 import { createTmdbClient } from '../../shared/tmdb/client';
 import {
+  createMemoryListCache,
   createWatched,
-  memoryCache,
-  userAccess,
+  requireUserAccess,
 } from '../../shared/tmdb/watched';
 import { createCredentialStore } from './tmdb/credentials';
 import { createGenreCache } from './tmdb/genres';
@@ -65,9 +65,7 @@ function createWindow() {
     minHeight: 720,
     webPreferences: {
       preload,
-      // The renderer is plain web code: no Node, no Electron and its own
-      // JavaScript world. It reaches the main process only through the API
-      // that the preload script exposes (shared/api.ts).
+      // The renderer only reaches the main process through the preload API.
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -95,15 +93,14 @@ function focusWindow() {
   }
 }
 
-// Applies to every web contents, including any created later.
 app.on('web-contents-created', (_event, contents) => {
-  // Nothing opens a second app window: links go to the system browser.
+  // No second window: links open in the system browser.
   contents.setWindowOpenHandler(({ url }) => {
     openInBrowser(url);
     return { action: 'deny' };
   });
 
-  // The window only ever shows the app itself.
+  // The window only shows the app itself.
   contents.on('will-navigate', (event, url) => {
     if (!isAppUrl(url, appLocation)) {
       event.preventDefault();
@@ -115,14 +112,13 @@ app.on('web-contents-created', (_event, contents) => {
 });
 
 app.whenReady().then(async () => {
-  // The app uses no camera, microphone, location, notifications and so on.
+  // The app needs no camera, microphone, location or notifications.
   session.defaultSession.setPermissionRequestHandler(
     (_contents, _permission, callback) => callback(false),
   );
 
   const userData = app.getPath('userData');
-  // The app's own TMDB credential is put here by the build (vite.config.mts)
-  // and never reaches the renderer. A key saved by the user replaces it.
+  // Injected by the build (vite.config.mts); never reaches the renderer.
   const credentials = createCredentialStore(
     userData,
     safeStorage,
@@ -132,9 +128,9 @@ app.whenReady().then(async () => {
 
   const tmdb = createTmdbClient({
     getCredential: credentials.get,
-    // Chromium's network stack: follows the system proxy and certificates.
+    // Chromium's network stack: uses the system proxy and certificates.
     fetch: (url, init) => net.fetch(url, init),
-    // Tests point the app at a local server. A packaged app only talks to TMDB.
+    // Tests use a local server; a packaged app only talks to TMDB.
     baseUrl: app.isPackaged ? undefined : process.env.TMDB_BASE_URL,
   });
   const genres = createGenreCache({
@@ -142,11 +138,9 @@ app.whenReady().then(async () => {
     fetchGenres: tmdb.genres,
   });
   const watched = createWatched(tmdb);
-  const listCache = memoryCache();
+  const listCache = createMemoryListCache();
 
-  // The TMDB session of whoever signs in stays in this process, and on disk
-  // for the next launch. Windows are only told who it is (shared/api.ts).
-  let previous: SessionState['status'] = 'anonymous';
+  let previousStatus: SessionState['status'] = 'anonymous';
   const auth = createAuthService({
     tmdb,
     startLoopback,
@@ -159,19 +153,18 @@ app.whenReady().then(async () => {
         }
       }
 
-      // The user approved in the browser: bring them back.
-      if (previous === 'pending' && state.status === 'authenticated') {
+      // Approved in the browser: bring the user back to the app.
+      if (previousStatus === 'pending' && state.status === 'authenticated') {
         focusWindow();
       }
 
-      previous = state.status;
+      previousStatus = state.status;
     },
   });
 
   app.on('will-quit', () => auth.dispose());
 
-  // Starts signed in when the last launch was: the window opens already
-  // knowing who it is, while TMDB is asked whether the session still works.
+  // Before the window opens, so it already knows who is signed in.
   await auth.restore();
 
   registerIpc(ipcMain, {
@@ -179,8 +172,7 @@ app.whenReady().then(async () => {
     setNativeTheme: (theme) => {
       nativeTheme.themeSource = theme;
     },
-    // What the app keeps to be faster: the genres on disk, and the images
-    // in the HTTP cache of Chromium. Both are asked again when needed.
+    // Genres on disk and images in Chromium's HTTP cache.
     clearCache: async () => {
       await genres.clear();
       await session.defaultSession.clearCache();
@@ -189,42 +181,42 @@ app.whenReady().then(async () => {
     },
     tmdb,
     genres,
-    // The lists and the ratings of the account, with the session that the
-    // auth service keeps.
     account: {
       states: (title) =>
-        auth.withSession((id) => tmdb.accountStates(id, title)),
+        auth.withSession((sessionId) => tmdb.accountStates(sessionId, title)),
       mark: (request) =>
         auth
-          .withSession((id, account) => tmdb.mark(id, account.id, request))
+          .withSession((sessionId, account) =>
+            tmdb.mark(sessionId, account.id, request),
+          )
           .then(() => null),
       rate: (request) =>
-        auth.withSession((id) => tmdb.rate(id, request)).then(() => null),
+        auth
+          .withSession((sessionId) => tmdb.rate(sessionId, request))
+          .then(() => null),
       list: (request) =>
-        auth.withSession((id, account) =>
-          tmdb.accountList(id, account.id, request),
+        auth.withSession((sessionId, account) =>
+          tmdb.accountList(sessionId, account.id, request),
         ),
     },
-    // The watched titles, in a list of the user that takes their access
-    // token: the id of the list is looked for once per account.
     watched: {
       state: (title) =>
         auth.withAccess((access) => {
-          const user = userAccess(access);
+          const user = requireUserAccess(access);
 
           return watched.state(user, listCache(user), title);
         }),
       mark: (request) =>
         auth
           .withAccess((access) => {
-            const user = userAccess(access);
+            const user = requireUserAccess(access);
 
             return watched.mark(user, listCache(user), request);
           })
           .then(() => null),
       list: (request) =>
         auth.withAccess((access) => {
-          const user = userAccess(access);
+          const user = requireUserAccess(access);
 
           return watched.list(user, listCache(user), request);
         }),

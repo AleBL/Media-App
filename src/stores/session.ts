@@ -4,29 +4,26 @@ import type { SessionState } from '@shared/api';
 import { getApi } from '@/services/api';
 
 /**
- * Who is signed in to TMDB, if anyone. The session itself stays with
- * whoever holds the credential of the app (the main process of the desktop
- * app, or the site of the web version): here there is only what the app
- * shows of it.
+ * Who is signed in to TMDB. The session itself stays with the main process
+ * (desktop) or the site (web).
  */
 export const useSessionStore = defineStore('session', () => {
   const state = ref<SessionState>({ status: 'anonymous' });
-  // The user said the approval was done, and TMDB did not agree.
+  // The user said they approved, and TMDB did not agree.
   const notConfirmed = ref(false);
-  // An answer about the session is on its way.
   const busy = ref(false);
   let stopListening: (() => void) | undefined;
-  let known!: () => void;
-  // Settles once the first answer about the session came, or failed to.
+  let markLoaded!: () => void;
+  // Resolves after the first answer about the session, or its failure.
   const loaded = new Promise<void>((resolve) => {
-    known = resolve;
+    markLoaded = resolve;
   });
 
   const account = computed(() =>
     state.value.status === 'authenticated' ? state.value.account : null,
   );
 
-  function apply(next: SessionState) {
+  function setState(next: SessionState) {
     state.value = next;
 
     if (next.status !== 'pending') {
@@ -34,11 +31,11 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
-  async function ask(request: () => Promise<SessionState>) {
+  async function whileBusy(request: () => Promise<SessionState>) {
     busy.value = true;
 
     try {
-      apply(await request());
+      setState(await request());
     } finally {
       busy.value = false;
     }
@@ -47,38 +44,36 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   /**
-   * Reads the session and keeps following it: a login ends when the user
-   * approves it in the browser, not when something is clicked here.
+   * Reads the session and keeps listening: a login ends when the user
+   * approves in the browser, not on a click here.
    */
   async function load() {
     try {
-      stopListening ??= getApi().auth.onChange(apply);
-      apply(await getApi().auth.getSession());
+      stopListening ??= getApi().auth.onChange(setState);
+      setState(await getApi().auth.getSession());
     } finally {
-      known();
+      markLoaded();
     }
   }
 
-  /** Waits until the app knows whether anyone is signed in. */
   const whenLoaded = () => loaded;
 
-  /** Opens the approval page of TMDB, with the result page in `language`. */
-  const login = (language: string) => ask(() => getApi().auth.login(language));
+  const login = (language: string) =>
+    whileBusy(() => getApi().auth.login(language));
 
-  /** For when the browser did not come back by itself after the approval. */
+  /** For when the browser did not return by itself after the approval. */
   async function confirm() {
-    const next = await ask(() => getApi().auth.confirmManual());
+    const next = await whileBusy(() => getApi().auth.confirmManual());
 
     notConfirmed.value = next.status === 'pending';
   }
 
-  /** Gives up a login that is waiting, or dismisses one that failed. */
-  const cancel = () => ask(() => getApi().auth.cancelLogin());
+  const cancel = () => whileBusy(() => getApi().auth.cancelLogin());
 
-  const logout = () => ask(() => getApi().auth.logout());
+  const logout = () => whileBusy(() => getApi().auth.logout());
 
-  /** Keeps the session unencrypted, on a system without a keyring. */
-  const remember = () => ask(() => getApi().auth.remember());
+  /** Saves the session unencrypted, on a system without a keyring. */
+  const remember = () => whileBusy(() => getApi().auth.remember());
 
   return {
     state,

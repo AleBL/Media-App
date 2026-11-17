@@ -115,9 +115,9 @@ function toFailure(error: unknown): TmdbFailure {
   };
 }
 
-async function attempt<T>(work: () => Promise<T>): Promise<Result<T>> {
+async function toResult<T>(task: () => Promise<T>): Promise<Result<T>> {
   try {
-    return { ok: true, data: await work() };
+    return { ok: true, data: await task() };
   } catch (error) {
     return { ok: false, error: toFailure(error) };
   }
@@ -128,102 +128,124 @@ async function attempt<T>(work: () => Promise<T>): Promise<Result<T>> {
  * checks who is asking and validates what was sent before acting on it.
  */
 export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
-  const trusted = (event: IpcEvent) =>
+  const isTrusted = (event: IpcEvent) =>
     event.senderFrame !== null &&
     services.isTrustedSender(event.senderFrame.url);
-  const invalid = (): Result<never> => ({
+  const invalidRequest = (): Result<never> => ({
     ok: false,
     error: { code: 'invalid-request' },
   });
 
   ipc.on(IPC.setNativeTheme, (event, theme) => {
-    if (trusted(event) && isNativeTheme(theme)) {
+    if (isTrusted(event) && isNativeTheme(theme)) {
       services.setNativeTheme(theme);
     }
   });
 
   ipc.handle(IPC.tmdbSearch, (event, value) => {
-    const request = trusted(event) ? parseSearchRequest(value) : null;
+    const request = isTrusted(event) ? parseSearchRequest(value) : null;
 
-    return request ? attempt(() => services.tmdb.search(request)) : invalid();
+    return request
+      ? toResult(() => services.tmdb.search(request))
+      : invalidRequest();
   });
 
   ipc.handle(IPC.tmdbGenres, (event, value) => {
-    const language = trusted(event) ? parseLanguage(value) : null;
+    const language = isTrusted(event) ? parseLanguage(value) : null;
 
-    return language ? attempt(() => services.genres.get(language)) : invalid();
+    return language
+      ? toResult(() => services.genres.get(language))
+      : invalidRequest();
   });
 
   ipc.handle(IPC.tmdbDetails, (event, value) => {
-    const request = trusted(event) ? parseDetailsRequest(value) : null;
+    const request = isTrusted(event) ? parseDetailsRequest(value) : null;
 
-    return request ? attempt(() => services.tmdb.details(request)) : invalid();
+    return request
+      ? toResult(() => services.tmdb.details(request))
+      : invalidRequest();
   });
 
   ipc.handle(IPC.tmdbList, (event, value) => {
-    const request = trusted(event) ? parseListRequest(value) : null;
+    const request = isTrusted(event) ? parseListRequest(value) : null;
 
-    return request ? attempt(() => services.tmdb.list(request)) : invalid();
+    return request
+      ? toResult(() => services.tmdb.list(request))
+      : invalidRequest();
   });
 
   ipc.handle(IPC.tmdbRegions, (event) =>
-    trusted(event) ? attempt(() => services.tmdb.regions()) : invalid(),
+    isTrusted(event)
+      ? toResult(() => services.tmdb.regions())
+      : invalidRequest(),
   );
 
   ipc.handle(IPC.clearCache, (event) =>
-    trusted(event) ? attempt(() => services.clearCache()) : invalid(),
+    isTrusted(event) ? toResult(() => services.clearCache()) : invalidRequest(),
   );
 
   ipc.handle(IPC.accountStates, (event, value) => {
-    const request = trusted(event) ? parseTitleRequest(value) : null;
+    const request = isTrusted(event) ? parseTitleRequest(value) : null;
 
     return request
-      ? attempt(() => services.account.states(request))
-      : invalid();
+      ? toResult(() => services.account.states(request))
+      : invalidRequest();
   });
 
   ipc.handle(IPC.accountMark, (event, value) => {
-    const request = trusted(event) ? parseMarkRequest(value) : null;
+    const request = isTrusted(event) ? parseMarkRequest(value) : null;
 
-    return request ? attempt(() => services.account.mark(request)) : invalid();
+    return request
+      ? toResult(() => services.account.mark(request))
+      : invalidRequest();
   });
 
   ipc.handle(IPC.accountRate, (event, value) => {
-    const request = trusted(event) ? parseRateRequest(value) : null;
+    const request = isTrusted(event) ? parseRateRequest(value) : null;
 
-    return request ? attempt(() => services.account.rate(request)) : invalid();
+    return request
+      ? toResult(() => services.account.rate(request))
+      : invalidRequest();
   });
 
   ipc.handle(IPC.accountList, (event, value) => {
-    const request = trusted(event) ? parseAccountListRequest(value) : null;
+    const request = isTrusted(event) ? parseAccountListRequest(value) : null;
 
-    return request ? attempt(() => services.account.list(request)) : invalid();
+    return request
+      ? toResult(() => services.account.list(request))
+      : invalidRequest();
   });
 
   ipc.handle(IPC.watchedState, (event, value) => {
-    const request = trusted(event) ? parseTitleRequest(value) : null;
+    const request = isTrusted(event) ? parseTitleRequest(value) : null;
 
-    return request ? attempt(() => services.watched.state(request)) : invalid();
+    return request
+      ? toResult(() => services.watched.state(request))
+      : invalidRequest();
   });
 
   ipc.handle(IPC.watchedMark, (event, value) => {
-    const request = trusted(event) ? parseWatchedRequest(value) : null;
+    const request = isTrusted(event) ? parseWatchedRequest(value) : null;
 
-    return request ? attempt(() => services.watched.mark(request)) : invalid();
+    return request
+      ? toResult(() => services.watched.mark(request))
+      : invalidRequest();
   });
 
   ipc.handle(IPC.watchedList, (event, value) => {
-    const request = trusted(event) ? parseWatchedListRequest(value) : null;
+    const request = isTrusted(event) ? parseWatchedListRequest(value) : null;
 
-    return request ? attempt(() => services.watched.list(request)) : invalid();
+    return request
+      ? toResult(() => services.watched.list(request))
+      : invalidRequest();
   });
 
   ipc.handle(IPC.credentialStatus, (event) =>
-    trusted(event) ? services.credentials.status() : NO_CREDENTIAL,
+    isTrusted(event) ? services.credentials.status() : NO_CREDENTIAL,
   );
 
   ipc.handle(IPC.credentialSave, (event, value) => {
-    if (!trusted(event)) {
+    if (!isTrusted(event)) {
       return NO_CREDENTIAL;
     }
 
@@ -236,34 +258,34 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
   });
 
   ipc.handle(IPC.credentialClear, (event) =>
-    trusted(event) ? services.credentials.clear() : NO_CREDENTIAL,
+    isTrusted(event) ? services.credentials.clear() : NO_CREDENTIAL,
   );
 
   ipc.handle(IPC.authSession, (event) =>
-    trusted(event) ? services.auth.getSession() : NO_SESSION,
+    isTrusted(event) ? services.auth.getSession() : NO_SESSION,
   );
 
   // The language only picks the text of the page that the browser shows at
   // the end, so an unknown one is no reason to refuse the login.
   ipc.handle(IPC.authLogin, (event, value) =>
-    trusted(event)
+    isTrusted(event)
       ? services.auth.login(parseLanguage(value) ?? 'en')
       : NO_SESSION,
   );
 
   ipc.handle(IPC.authConfirm, (event) =>
-    trusted(event) ? services.auth.confirmManual() : NO_SESSION,
+    isTrusted(event) ? services.auth.confirmManual() : NO_SESSION,
   );
 
   ipc.handle(IPC.authCancel, (event) =>
-    trusted(event) ? services.auth.cancelLogin() : NO_SESSION,
+    isTrusted(event) ? services.auth.cancelLogin() : NO_SESSION,
   );
 
   ipc.handle(IPC.authLogout, (event) =>
-    trusted(event) ? services.auth.logout() : NO_SESSION,
+    isTrusted(event) ? services.auth.logout() : NO_SESSION,
   );
 
   ipc.handle(IPC.authRemember, (event) =>
-    trusted(event) ? services.auth.remember() : NO_SESSION,
+    isTrusted(event) ? services.auth.remember() : NO_SESSION,
   );
 }

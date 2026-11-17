@@ -9,19 +9,17 @@ import {
 } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import { getApi } from '@/services/api';
-import { settle } from '@/stores/account';
+import { safeCall } from '@/stores/account';
 import { useSessionStore } from '@/stores/session';
+import { titleKey } from '@/util/media';
 
-const key = ({ type, id }: TitleRequest) => `${type}-${id}`;
-
-/** The day of the user, as the list keeps it: YYYY-MM-DD. */
+/** The user's local day, YYYY-MM-DD. */
 export function today(now = new Date()) {
   const pad = (value: number) => String(value).padStart(2, '0');
 
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-/** What the page of the watched titles shows: one page of them. */
 export interface WatchedView {
   page: number;
   results: MediaItem[];
@@ -32,7 +30,7 @@ export interface WatchedView {
   error: TmdbFailure | null;
 }
 
-const fresh = (): WatchedView => ({
+const emptyView = (): WatchedView => ({
   page: 1,
   results: [],
   totalResults: 0,
@@ -42,25 +40,21 @@ const fresh = (): WatchedView => ({
 });
 
 /**
- * The titles whoever signed in watched, kept by TMDB in a list of theirs
- * (shared/tmdb/watched.ts). A mark shows at once and is undone if TMDB does
- * not take it.
+ * The watched titles (shared/tmdb/watched.ts). A mark shows at once and is
+ * undone if TMDB refuses it.
  */
 export const useWatchedStore = defineStore('watched', () => {
   const session = useSessionStore();
-  // By title, such as "movie-603": what TMDB said, or what the user changed.
+  // By title key: what TMDB said or the user changed.
   const states = ref<Record<string, boolean>>({});
   const saving = ref<Record<string, boolean>>({});
-  /**
-   * Signed in without the access token of the user (before the v4 login):
-   * signing in again gives it.
-   */
+  /** Signed in without the v4 access token: signing in again gives it. */
   const needsSignIn = ref(false);
-  const view = ref(fresh());
-  // Incremented whenever someone else signs in, or nobody is.
-  let signIns = 0;
-  // Incremented on every request of a page, so an older answer is dropped.
-  let latest = 0;
+  const view = ref(emptyView());
+  // Changes on every sign-in or sign-out, so late answers are ignored.
+  let sessionVersion = 0;
+  // Ignores answers of an older page request.
+  let latestRequest = 0;
 
   watch(
     () => session.account?.id,
@@ -68,58 +62,60 @@ export const useWatchedStore = defineStore('watched', () => {
       states.value = {};
       saving.value = {};
       needsSignIn.value = false;
-      view.value = fresh();
-      signIns += 1;
-      latest += 1;
+      view.value = emptyView();
+      sessionVersion += 1;
+      latestRequest += 1;
     },
   );
 
-  function check<T>(answer: Result<T>) {
-    if (!answer.ok && answer.error.code === 'signed-out') {
+  function handleFailure<T>(result: Result<T>) {
+    if (!result.ok && result.error.code === 'signed-out') {
       void session.load();
     }
 
-    if (!answer.ok && answer.error.code === 'sign-in-again') {
+    if (!result.ok && result.error.code === 'sign-in-again') {
       needsSignIn.value = true;
     }
 
-    return answer;
+    return result;
   }
 
-  /** Whether the title was watched: undefined until TMDB said. */
+  /** Undefined until TMDB answered. */
   const stateOf = (title: TitleRequest): boolean | undefined =>
-    states.value[key(title)];
+    states.value[titleKey(title)];
 
-  const isSaving = (title: TitleRequest) => !!saving.value[key(title)];
+  const isSaving = (title: TitleRequest) => !!saving.value[titleKey(title)];
 
   async function load(title: TitleRequest) {
-    const answer = check(await settle(() => getApi().watched.state(title)));
+    const result = handleFailure(
+      await safeCall(() => getApi().watched.state(title)),
+    );
 
-    if (answer.ok) {
-      states.value[key(title)] = answer.data;
+    if (result.ok) {
+      states.value[titleKey(title)] = result.data;
     }
 
-    return answer;
+    return result;
   }
 
-  /** Marks the title watched, today, or takes the mark away. */
+  /** Marks the title watched today, or removes the mark. */
   async function toggle(
     title: TitleRequest,
   ): Promise<Result<null> | undefined> {
     const current = stateOf(title);
-    const at = key(title);
+    const key = titleKey(title);
 
-    if (current === undefined || saving.value[at]) {
+    if (current === undefined || saving.value[key]) {
       return undefined;
     }
 
-    const started = signIns;
+    const version = sessionVersion;
 
-    states.value[at] = !current;
-    saving.value[at] = true;
+    states.value[key] = !current;
+    saving.value[key] = true;
 
-    const answer = check(
-      await settle(() =>
+    const result = handleFailure(
+      await safeCall(() =>
         getApi().watched.mark({
           ...title,
           value: !current,
@@ -129,59 +125,57 @@ export const useWatchedStore = defineStore('watched', () => {
       ),
     );
 
-    // Signed out, or someone else signed in, meanwhile: nothing to undo.
-    if (started !== signIns) {
-      return answer;
+    // Signed out or another user meanwhile: nothing to undo.
+    if (version !== sessionVersion) {
+      return result;
     }
 
-    delete saving.value[at];
+    delete saving.value[key];
 
-    if (!answer.ok) {
-      states.value[at] = current;
+    if (!result.ok) {
+      states.value[key] = current;
 
-      // The page only says it failed; this says how, for whoever looks
-      // (nothing in it is a secret: a code and what TMDB answered).
-      console.warn('The watched title could not be saved:', answer.error);
+      // The page only says it failed; the console says why (no secrets).
+      console.warn('The watched title could not be saved:', result.error);
     }
 
-    return answer;
+    return result;
   }
 
-  /** A page of the watched titles. */
   async function loadPage(page = view.value.page): Promise<void> {
-    const request = ++latest;
-    const shown = view.value;
+    const request = ++latestRequest;
+    const current = view.value;
 
-    shown.loading = true;
-    shown.error = null;
+    current.loading = true;
+    current.error = null;
 
-    const answer = check(
-      await settle(() =>
+    const result = handleFailure(
+      await safeCall(() =>
         getApi().watched.list({ page, language: i18n.global.locale.value }),
       ),
     );
 
-    if (request !== latest) {
+    if (request !== latestRequest) {
       return;
     }
 
-    if (!answer.ok) {
-      shown.loading = false;
-      shown.error = answer.error;
+    if (!result.ok) {
+      current.loading = false;
+      current.error = result.error;
 
       return;
     }
 
-    const { results, totalResults } = answer.data;
-    const last = Math.max(1, Math.ceil(totalResults / TMDB_PAGE_SIZE));
+    const { results, totalResults } = result.data;
+    const lastPage = Math.max(1, Math.ceil(totalResults / TMDB_PAGE_SIZE));
 
-    // The last titles of the last page were taken out: the one before it.
-    if (results.length === 0 && page > last) {
-      return loadPage(last);
+    // The last titles of the last page were removed: show the one before.
+    if (results.length === 0 && page > lastPage) {
+      return loadPage(lastPage);
     }
 
-    Object.assign(shown, {
-      page: answer.data.page,
+    Object.assign(current, {
+      page: result.data.page,
       results,
       totalResults,
       loading: false,

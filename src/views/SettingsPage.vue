@@ -6,7 +6,7 @@
   import AppButton from '@/components/ui/AppButton.vue';
   import { defaultLocale } from '@/plugins/i18n';
   import { getApi, isDesktop } from '@/services/api';
-  import { settle } from '@/stores/account';
+  import { safeCall } from '@/stores/account';
   import { useCredentialsStore } from '@/stores/credentials';
   import { useGenresStore } from '@/stores/genres';
   import { useSettingsStore } from '@/stores/settings';
@@ -69,7 +69,7 @@
   const automatic = computed(() => countryName(userRegion(locale.value)));
 
   onMounted(async () => {
-    const answer = await settle(() => getApi().tmdb.regions());
+    const answer = await safeCall(() => getApi().tmdb.regions());
 
     if (answer.ok) {
       regions.value = answer.data;
@@ -85,7 +85,7 @@
     clearing.value = true;
     cache.value = null;
 
-    const answer = await settle(() => getApi().clearCache());
+    const answer = await safeCall(() => getApi().clearCache());
 
     clearing.value = false;
     cache.value = answer.ok ? 'cleared' : 'failed';

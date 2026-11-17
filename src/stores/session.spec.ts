@@ -122,15 +122,15 @@ describe('session store', () => {
   });
 
   it('keeps the session when the user agrees to', async () => {
-    const kept = signedInOnDesktop('unencrypted');
+    const remembered = signedInOnDesktop('unencrypted');
     api.auth.getSession.mockResolvedValue(signedInOnDesktop('ask'));
-    api.auth.remember.mockResolvedValue(kept);
+    api.auth.remember.mockResolvedValue(remembered);
     await store.load();
 
     await store.remember();
 
     expect(api.auth.remember).toHaveBeenCalled();
-    expect(store.state).toEqual(kept);
+    expect(store.state).toEqual(remembered);
   });
 
   it('is not left busy by a request that failed', async () => {

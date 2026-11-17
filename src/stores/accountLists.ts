@@ -9,10 +9,10 @@ import {
 } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import { getApi } from '@/services/api';
-import { settle } from '@/stores/account';
+import { safeCall } from '@/stores/account';
 import { useSessionStore } from '@/stores/session';
 
-/** What the page of a list shows: one page of its movies or of its shows. */
+/** One page of the movies or of the tv shows of a list. */
 export interface ListView {
   type: MediaType;
   page: number;
@@ -24,7 +24,7 @@ export interface ListView {
   error: TmdbFailure | null;
 }
 
-const fresh = (): ListView => ({
+const emptyView = (): ListView => ({
   type: 'movie',
   page: 1,
   results: [],
@@ -34,56 +34,52 @@ const fresh = (): ListView => ({
   error: null,
 });
 
-const freshViews = (): Record<TitleList, ListView> => ({
-  watchlist: fresh(),
-  favorite: fresh(),
-  rated: fresh(),
+const emptyViews = (): Record<TitleList, ListView> => ({
+  watchlist: emptyView(),
+  favorite: emptyView(),
+  rated: emptyView(),
 });
 
 /**
- * The watchlist, the favorites and the rated titles of whoever signed in, a
- * page at a time. What was shown stays while the page is asked again, so
- * coming back to a list finds it where it was.
+ * Watchlist, favorites and rated titles, a page at a time. The page shown
+ * stays while it reloads, so coming back finds it where it was.
  */
 export const useAccountListsStore = defineStore('accountLists', () => {
   const session = useSessionStore();
-  const views = ref(freshViews());
-  // Incremented on every request, so an older answer can be dropped.
-  const latest: Record<TitleList, number> = {
+  const views = ref(emptyViews());
+  // Ignores answers of an older request of each list.
+  const latestRequest: Record<TitleList, number> = {
     watchlist: 0,
     favorite: 0,
     rated: 0,
   };
 
-  // Someone else signed in, or nobody is: nothing shown holds anymore.
   watch(
     () => session.account?.id,
     () => {
-      views.value = freshViews();
-      latest.watchlist += 1;
-      latest.favorite += 1;
-      latest.rated += 1;
+      views.value = emptyViews();
+      latestRequest.watchlist += 1;
+      latestRequest.favorite += 1;
+      latestRequest.rated += 1;
     },
   );
 
-  /** A page of the movies or of the tv shows of a list. */
   async function load(
     list: TitleList,
     page = views.value[list].page,
     type = views.value[list].type,
   ): Promise<void> {
-    const request = ++latest[list];
+    const request = ++latestRequest[list];
     const view = views.value[list];
 
-    // Nothing of the other type stays on screen.
     if (type !== view.type) {
-      Object.assign(view, { ...fresh(), type });
+      Object.assign(view, { ...emptyView(), type });
     }
 
     view.loading = true;
     view.error = null;
 
-    const answer = await settle(() =>
+    const result = await safeCall(() =>
       getApi().account.list({
         list,
         type,
@@ -92,31 +88,31 @@ export const useAccountListsStore = defineStore('accountLists', () => {
       }),
     );
 
-    if (request !== latest[list]) {
+    if (request !== latestRequest[list]) {
       return;
     }
 
-    if (!answer.ok) {
+    if (!result.ok) {
       view.loading = false;
-      view.error = answer.error;
+      view.error = result.error;
 
-      if (answer.error.code === 'signed-out') {
+      if (result.error.code === 'signed-out') {
         void session.load();
       }
 
       return;
     }
 
-    const { results, totalResults } = answer.data;
-    const last = Math.max(1, Math.ceil(totalResults / TMDB_PAGE_SIZE));
+    const { results, totalResults } = result.data;
+    const lastPage = Math.max(1, Math.ceil(totalResults / TMDB_PAGE_SIZE));
 
-    // The last titles of the last page were taken out: the one before it.
-    if (results.length === 0 && page > last) {
-      return load(list, last, type);
+    // The last titles of the last page were removed: show the one before.
+    if (results.length === 0 && page > lastPage) {
+      return load(list, lastPage, type);
     }
 
     Object.assign(view, {
-      page: answer.data.page,
+      page: result.data.page,
       results,
       totalResults,
       loading: false,

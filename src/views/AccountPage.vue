@@ -37,8 +37,10 @@
   const offline = computed(
     () => state.value.status === 'authenticated' && state.value.offline,
   );
-  const kept = computed(() =>
-    state.value.status === 'authenticated' ? state.value.kept : undefined,
+  const persistence = computed(() =>
+    state.value.status === 'authenticated'
+      ? state.value.persistence
+      : undefined,
   );
 
   function selectAll(event: FocusEvent) {
@@ -89,7 +91,7 @@
       >
         {{ t('account.offline') }}
       </p>
-      <div v-if="kept === 'ask'" class="mb-4">
+      <div v-if="persistence === 'ask'" class="mb-4">
         <p class="mb-2 text-sm text-surface-600 dark:text-surface-400">
           {{ t('account.notRemembered') }}
         </p>
@@ -102,11 +104,15 @@
         />
       </div>
       <p
-        v-else-if="kept === 'unencrypted' || kept === 'failed'"
+        v-else-if="persistence === 'unencrypted' || persistence === 'failed'"
         class="mb-4 text-sm text-surface-600 dark:text-surface-400"
       >
         {{
-          t(kept === 'failed' ? 'account.notSaved' : 'account.savedUnencrypted')
+          t(
+            persistence === 'failed'
+              ? 'account.notSaved'
+              : 'account.savedUnencrypted',
+          )
         }}
       </p>
       <AppButton

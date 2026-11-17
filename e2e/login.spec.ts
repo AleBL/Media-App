@@ -203,7 +203,7 @@ test.describe('signing in with TMDB', () => {
     expect(seen.state).toEqual({
       status: 'authenticated',
       account: ACCOUNT,
-      kept: expect.any(String),
+      persistence: expect.any(String),
       offline: false,
     });
     expect(seen.auth).toEqual([

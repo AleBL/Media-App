@@ -1,7 +1,7 @@
 import type {
   Account,
   LoginFailure,
-  SessionKeeping,
+  SessionPersistence,
   SessionState,
 } from '../../../shared/api';
 import {
@@ -11,22 +11,18 @@ import {
 } from '../../../shared/tmdb/client';
 import {
   authorizeUrl,
-  isSessionDenied,
-  isSessionOver,
-  isTemporary,
-  loginFailure,
+  isSessionExpired,
+  isTemporaryError,
+  isTokenNotApproved,
+  toLoginFailure,
 } from '../../../shared/tmdb/login';
 import { callbackPage } from './callback-page';
 import type { CallbackOutcome, Loopback, LoopbackOptions } from './loopback';
 import type { SessionStore } from './session-store';
 
-/** How long the user has to approve on the TMDB website. */
 export const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
 
-/**
- * How long the app waits before asking TMDB again about a saved session it
- * could not confirm, one after the other. The last one repeats.
- */
+/** Waits between checks of a saved session TMDB could not confirm. The last repeats. */
 export const RECHECK_DELAYS_MS = [
   15_000,
   30_000,
@@ -41,45 +37,38 @@ export interface AuthServiceOptions {
     'createRequestToken' | 'createSession' | 'account' | 'deleteSession'
   >;
   startLoopback: (options: LoopbackOptions) => Promise<Loopback>;
-  /** Opens a page in the browser of the system. */
+  /** Opens a page in the system browser. */
   openExternal: (url: string) => Promise<void>;
-  /** Where the session waits for the next launch. */
   store: Pick<SessionStore, 'load' | 'save' | 'clear'>;
-  /** Told about every change, to pass it on to the renderer. */
   onChange?: (state: SessionState) => void;
   timeoutMs?: number;
   recheckDelaysMs?: readonly number[];
   now?: () => number;
 }
 
-/** One login waiting for the user to approve it. */
-interface Attempt {
-  /** Empty until TMDB gave it: the way back is opened first. */
+interface LoginAttempt {
+  /** Empty until TMDB gives it: the loopback is opened first. */
   requestToken: string;
   loopback: Loopback | null;
   timer?: ReturnType<typeof setTimeout>;
-  trading?: Promise<Trade>;
+  exchange?: Promise<ExchangeResult>;
 }
 
-type Trade =
+type ExchangeResult =
   | 'authenticated'
-  /** TMDB will not trade the token: it is not approved. */
+  /** The token is not approved. */
   | 'refused'
-  /** TMDB could not be asked. The token is still good. */
+  /** TMDB could not be reached; the token is still good. */
   | 'retry'
-  /** The login ended in some other way, already reflected in the state. */
+  /** The attempt ended some other way, already shown in the state. */
   | 'over';
 
 /**
- * Signing in to TMDB, the way TMDB asks apps to do it: the app gets a
- * request token, the user approves it on the TMDB website, in their own
- * browser, and the app trades the approved token for a session. With the
- * access token of the app that is TMDB v4, which also gives the access
- * token of the user (client.ts).
+ * TMDB sign-in: the app gets a request token, the user approves it on the
+ * TMDB website in their browser, and the app exchanges it for a session.
  *
- * What signing in gave lives here, in the main process, and on disk for
- * the next launch (session-store.ts), and nowhere else: the renderer is
- * only told who signed in.
+ * The session lives only here and on disk (session-store.ts); the renderer
+ * is only told who signed in.
  */
 export function createAuthService(options: AuthServiceOptions) {
   const { tmdb, store } = options;
@@ -89,159 +78,167 @@ export function createAuthService(options: AuthServiceOptions) {
 
   let state: SessionState = { status: 'anonymous' };
   let access: Access | null = null;
-  let kept: SessionKeeping = 'failed';
-  let attempt: Attempt | null = null;
-  let starting: Promise<SessionState> | null = null;
-  let recheck: ReturnType<typeof setTimeout> | undefined;
-  let rechecks = 0;
-  let storing: Promise<unknown> = Promise.resolve();
+  let persistence: SessionPersistence = 'failed';
+  let pendingLogin: LoginAttempt | null = null;
+  let loginStarting: Promise<SessionState> | null = null;
+  let recheckTimer: ReturnType<typeof setTimeout> | undefined;
+  let failedChecks = 0;
+  let storageQueue: Promise<unknown> = Promise.resolve();
 
-  function set(next: SessionState) {
+  function setState(next: SessionState) {
     state = next;
     options.onChange?.(next);
 
     return next;
   }
 
-  function signIn(account: Account, offline = false) {
+  function setSignedIn(account: Account, offline = false) {
     const next: SessionState = {
       status: 'authenticated',
       account,
-      kept,
+      persistence,
       offline,
     };
 
-    // A check that changes nothing has nothing to tell.
-    return JSON.stringify(next) === JSON.stringify(state) ? state : set(next);
+    // Unchanged: nothing to notify.
+    return JSON.stringify(next) === JSON.stringify(state)
+      ? state
+      : setState(next);
   }
 
-  // One after the other: a sign out that comes while the session is being
-  // saved removes what was written, instead of racing it.
-  function keep<T>(work: () => Promise<T>): Promise<T> {
-    const next = storing.then(work, work);
+  // Storage operations run one after the other, so a logout during a save
+  // removes what was written instead of racing it.
+  function queueStorage<T>(task: () => Promise<T>): Promise<T> {
+    const next = storageQueue.then(task, task);
 
-    storing = next.catch(() => {});
+    storageQueue = next.catch(() => {});
 
     return next;
   }
 
-  const save = (given: Access, account: Account, evenUnencrypted?: boolean) =>
-    keep(() => store.save({ ...given, account }, evenUnencrypted)).catch(
-      (): SessionKeeping => 'failed',
-    );
+  const saveSession = (
+    granted: Access,
+    account: Account,
+    evenUnencrypted?: boolean,
+  ) =>
+    queueStorage(() =>
+      store.save({ ...granted, account }, evenUnencrypted),
+    ).catch((): SessionPersistence => 'failed');
 
-  const forget = () => keep(() => store.clear()).catch(() => {});
+  const clearSavedSession = () =>
+    queueStorage(() => store.clear()).catch(() => {});
 
-  /** TMDB no longer knows the session: whoever it was is signed out. */
-  async function over() {
+  async function signOutExpired() {
     access = null;
-    clearTimeout(recheck);
-    set({ status: 'anonymous' });
-    await forget();
+    clearTimeout(recheckTimer);
+    setState({ status: 'anonymous' });
+    await clearSavedSession();
   }
 
-  /** Asks TMDB whether the session saved by an earlier launch still works. */
-  async function check(checked: Access) {
-    clearTimeout(recheck);
+  /** Asks TMDB whether a session saved by an earlier launch still works. */
+  async function verifySession(saved: Access) {
+    clearTimeout(recheckTimer);
 
     let account: Account;
 
     try {
-      account = await tmdb.account(checked.sessionId);
+      account = await tmdb.account(saved.sessionId);
     } catch (error) {
-      if (access !== checked || state.status !== 'authenticated') {
+      if (access !== saved || state.status !== 'authenticated') {
         return;
       }
 
-      // Ended in this app on another launch, or on the TMDB website.
-      if (isSessionOver(error)) {
-        await over();
+      if (isSessionExpired(error)) {
+        await signOutExpired();
 
         return;
       }
 
-      // Nothing else says the session is over, and being offline is no
-      // reason to sign anyone out.
-      signIn(state.account, true);
-      recheck = setTimeout(
-        () => void check(checked),
-        recheckDelays[Math.min(rechecks, recheckDelays.length - 1)],
+      // Being offline is no reason to sign anyone out.
+      setSignedIn(state.account, true);
+      recheckTimer = setTimeout(
+        () => void verifySession(saved),
+        recheckDelays[Math.min(failedChecks, recheckDelays.length - 1)],
       );
-      rechecks += 1;
+      failedChecks += 1;
 
       return;
     }
 
-    if (access !== checked || state.status !== 'authenticated') {
+    if (access !== saved || state.status !== 'authenticated') {
       return;
     }
 
-    rechecks = 0;
+    failedChecks = 0;
 
-    // Changed on TMDB: the next launch shows the new name while offline.
+    // The account changed on TMDB: save it for the next offline launch.
     if (JSON.stringify(account) !== JSON.stringify(state.account)) {
-      const keeping = await save(checked, account, kept === 'unencrypted');
+      const newPersistence = await saveSession(
+        saved,
+        account,
+        persistence === 'unencrypted',
+      );
 
-      if (access !== checked) {
+      if (access !== saved) {
         return;
       }
 
-      kept = keeping;
+      persistence = newPersistence;
     }
 
-    signIn(account);
+    setSignedIn(account);
   }
 
-  /** Stops waiting: no timer running and nothing listening. */
-  function end(ended: Attempt) {
-    clearTimeout(ended.timer);
-    void ended.loopback?.close();
+  /** Clears the timer and closes the loopback. */
+  function stopWaiting(attempt: LoginAttempt) {
+    clearTimeout(attempt.timer);
+    void attempt.loopback?.close();
 
-    if (attempt === ended) {
-      attempt = null;
+    if (pendingLogin === attempt) {
+      pendingLogin = null;
     }
   }
 
-  function fail(ended: Attempt, reason: LoginFailure) {
-    end(ended);
-    set({ status: 'error', reason });
+  function failLogin(attempt: LoginAttempt, reason: LoginFailure) {
+    stopWaiting(attempt);
+    setState({ status: 'error', reason });
   }
 
-  /** Ends at TMDB what signing in gave, when the app is not going to use it. */
-  async function discard(ended: Access) {
+  /** Revokes at TMDB what the app is not going to use. */
+  async function revokeAccess(unused: Access) {
     try {
-      await tmdb.deleteSession(ended);
+      await tmdb.deleteSession(unused);
     } catch {
-      // It is forgotten here either way, which is all the app can do.
+      // Forgotten here either way.
     }
   }
 
-  async function trade(current: Attempt): Promise<Trade> {
-    let got: Access;
+  async function exchangeToken(attempt: LoginAttempt): Promise<ExchangeResult> {
+    let granted: Access;
 
     try {
-      got = await tmdb.createSession(current.requestToken);
+      granted = await tmdb.createSession(attempt.requestToken);
     } catch (error) {
-      if (attempt !== current) {
+      if (pendingLogin !== attempt) {
         return 'over';
       }
 
-      if (isSessionDenied(error)) {
+      if (isTokenNotApproved(error)) {
         return 'refused';
       }
 
-      if (isTemporary(error)) {
+      if (isTemporaryError(error)) {
         return 'retry';
       }
 
-      fail(current, 'unavailable');
+      failLogin(attempt, 'unavailable');
 
       return 'over';
     }
 
     // Cancelled or timed out while TMDB was answering.
-    if (attempt !== current) {
-      await discard(got);
+    if (pendingLogin !== attempt) {
+      await revokeAccess(granted);
 
       return 'over';
     }
@@ -249,116 +246,116 @@ export function createAuthService(options: AuthServiceOptions) {
     let account: Account;
 
     try {
-      account = await tmdb.account(got.sessionId);
+      account = await tmdb.account(granted.sessionId);
     } catch (error) {
-      // The request token is spent: there is no trying again with it.
-      await discard(got);
+      // The request token is spent: no retry is possible.
+      await revokeAccess(granted);
 
-      if (attempt === current) {
-        fail(current, loginFailure(error));
+      if (pendingLogin === attempt) {
+        failLogin(attempt, toLoginFailure(error));
       }
 
       return 'over';
     }
 
-    if (attempt !== current) {
-      await discard(got);
+    if (pendingLogin !== attempt) {
+      await revokeAccess(granted);
 
       return 'over';
     }
 
-    const keeping = await save(got, account);
+    const newPersistence = await saveSession(granted, account);
 
-    // Cancelled while the session was being saved.
-    if (attempt !== current) {
-      await forget();
-      await discard(got);
+    // Cancelled while saving.
+    if (pendingLogin !== attempt) {
+      await clearSavedSession();
+      await revokeAccess(granted);
 
       return 'over';
     }
 
-    end(current);
-    access = got;
-    kept = keeping;
-    rechecks = 0;
-    signIn(account);
+    stopWaiting(attempt);
+    access = granted;
+    persistence = newPersistence;
+    failedChecks = 0;
+    setSignedIn(account);
 
     return 'authenticated';
   }
 
-  // A request token is traded once, so the browser coming back and the user
-  // confirming by hand at the same moment must share one request.
-  function tradeOnce(current: Attempt) {
-    current.trading ??= trade(current).finally(() => {
-      current.trading = undefined;
+  // A token can be exchanged only once, so the browser callback and a manual
+  // confirmation at the same moment share one request.
+  function exchangeTokenOnce(attempt: LoginAttempt) {
+    attempt.exchange ??= exchangeToken(attempt).finally(() => {
+      attempt.exchange = undefined;
     });
 
-    return current.trading;
+    return attempt.exchange;
   }
 
-  /** The browser came back from TMDB. */
-  async function comeBack(current: Attempt): Promise<CallbackOutcome> {
-    if (attempt !== current) {
+  async function handleCallback(
+    attempt: LoginAttempt,
+  ): Promise<CallbackOutcome> {
+    if (pendingLogin !== attempt) {
       return 'failed';
     }
 
-    const result = await tradeOnce(current);
+    const result = await exchangeTokenOnce(attempt);
 
-    // TMDB only sends the browser back after the user answered, so a token
-    // it still refuses is one the user did not approve.
-    if (result === 'refused' && attempt === current) {
-      fail(current, 'denied');
+    // TMDB only redirects after the user answered, so a refused token means
+    // the user denied it.
+    if (result === 'refused' && pendingLogin === attempt) {
+      failLogin(attempt, 'denied');
     }
 
     return result === 'authenticated' ? 'done' : 'failed';
   }
 
-  async function start(language: string): Promise<SessionState> {
-    const current: Attempt = { requestToken: '', loopback: null };
+  async function startLogin(language: string): Promise<SessionState> {
+    const attempt: LoginAttempt = { requestToken: '', loopback: null };
 
-    // Opened first: a v4 request token is told the way back when it is made.
+    // First, because a v4 request token takes the redirect when created.
     try {
-      current.loopback = await options.startLoopback({
-        onCallback: () => comeBack(current),
+      attempt.loopback = await options.startLoopback({
+        onCallback: () => handleCallback(attempt),
         page: (outcome) => callbackPage(language, outcome),
       });
     } catch {
-      // The browser has no way back to the app then. The login still works:
-      // the user says when the approval is done (confirmManual).
+      // Without a loopback the user confirms by hand (confirmManual).
     }
 
     try {
-      current.requestToken = await tmdb.createRequestToken(
-        current.loopback?.url,
+      attempt.requestToken = await tmdb.createRequestToken(
+        attempt.loopback?.url,
       );
     } catch (error) {
-      void current.loopback?.close();
+      void attempt.loopback?.close();
 
-      return set({ status: 'error', reason: loginFailure(error) });
+      return setState({ status: 'error', reason: toLoginFailure(error) });
     }
 
-    const url = authorizeUrl(current.requestToken, current.loopback?.url);
+    const url = authorizeUrl(attempt.requestToken, attempt.loopback?.url);
 
-    attempt = current;
+    pendingLogin = attempt;
 
     try {
       await options.openExternal(url);
     } catch {
-      // The renderer shows the address, to be opened by hand.
+      // The renderer shows the url to open by hand.
     }
 
     // Cancelled while the browser was opening.
-    if (attempt !== current) {
+    if (pendingLogin !== attempt) {
       return state;
     }
 
-    current.timer = setTimeout(() => {
-      if (attempt === current) {
-        fail(current, 'timeout');
+    attempt.timer = setTimeout(() => {
+      if (pendingLogin === attempt) {
+        failLogin(attempt, 'timeout');
       }
     }, timeoutMs);
 
-    return set({
+    return setState({
       status: 'pending',
       expiresAt: now() + timeoutMs,
       authorizeUrl: url,
@@ -368,96 +365,87 @@ export function createAuthService(options: AuthServiceOptions) {
   return {
     getSession: () => state,
 
-    /**
-     * Signs in with the session that an earlier launch saved, if there is
-     * one. Who it is shows at once, and TMDB is asked in the background
-     * whether the session still works.
-     */
+    /** Signs in with the saved session at once, then verifies it in the background. */
     async restore(): Promise<SessionState> {
-      const saved = await keep(() => store.load()).catch(() => null);
+      const saved = await queueStorage(() => store.load()).catch(() => null);
 
       if (!saved || state.status !== 'anonymous') {
         return state;
       }
 
-      const { account, ...restored } = saved.session;
+      const { account, ...savedAccess } = saved.session;
 
-      access = restored;
-      kept = saved.kept;
-      rechecks = 0;
-      signIn(account);
-      void check(restored);
+      access = savedAccess;
+      persistence = saved.persistence;
+      failedChecks = 0;
+      setSignedIn(account);
+      void verifySession(savedAccess);
 
       return state;
     },
 
-    /** Opens the approval page. A login already going on is left as it is. */
+    /** A login already pending is left as it is. */
     login(language: string): Promise<SessionState> {
       if (state.status === 'pending' || state.status === 'authenticated') {
         return Promise.resolve(state);
       }
 
-      starting ??= start(language).finally(() => {
-        starting = null;
+      loginStarting ??= startLogin(language).finally(() => {
+        loginStarting = null;
       });
 
-      return starting;
+      return loginStarting;
     },
 
-    /**
-     * Asks TMDB whether the access was approved, for when the browser did
-     * not come back. Until it is approved the login just keeps waiting.
-     */
+    /** Until the token is approved, the login keeps waiting. */
     async confirmManual(): Promise<SessionState> {
-      if (attempt) {
-        await tradeOnce(attempt);
+      if (pendingLogin) {
+        await exchangeTokenOnce(pendingLogin);
       }
 
       return state;
     },
 
-    /** Gives up a login that is waiting, or dismisses one that failed. */
     cancelLogin(): SessionState {
-      if (attempt) {
-        end(attempt);
+      if (pendingLogin) {
+        stopWaiting(pendingLogin);
       }
 
       return state.status === 'pending' || state.status === 'error'
-        ? set({ status: 'anonymous' })
+        ? setState({ status: 'anonymous' })
         : state;
     },
 
-    /**
-     * Keeps the session for the next launch on a system without a keyring,
-     * once the user agreed to keep it unencrypted.
-     */
+    /** Saves the session unencrypted, after the user agreed (`persistence: 'ask'`). */
     async remember(): Promise<SessionState> {
       const current = access;
 
-      if (!current || state.status !== 'authenticated' || kept !== 'ask') {
+      if (
+        !current ||
+        state.status !== 'authenticated' ||
+        persistence !== 'ask'
+      ) {
         return state;
       }
 
-      const keeping = await save(current, state.account, true);
+      const newPersistence = await saveSession(current, state.account, true);
 
       // Signed out meanwhile, which removed what was written.
       if (access !== current || state.status !== 'authenticated') {
         return state;
       }
 
-      kept = keeping;
+      persistence = newPersistence;
 
-      return signIn(state.account, state.offline);
+      return setSignedIn(state.account, state.offline);
     },
 
     /**
-     * Asks TMDB something of the account of whoever signed in, with their
-     * session, which never leaves this process. Nobody signed in, or a
-     * session that TMDB says is over, is `signed-out`; the second also signs
-     * them out here.
+     * Runs `task` with the session, which never leaves this process. An
+     * expired session signs the user out and fails with `signed-out`.
      */
     async withSession<T>(
-      work: (sessionId: string, account: Account) => Promise<T>,
+      task: (sessionId: string, account: Account) => Promise<T>,
     ): Promise<T> {
       const current = access;
 
@@ -466,65 +454,61 @@ export function createAuthService(options: AuthServiceOptions) {
       }
 
       try {
-        return await work(current.sessionId, state.account);
+        return await task(current.sessionId, state.account);
       } catch (error) {
-        if (!isSessionOver(error)) {
+        if (!isSessionExpired(error)) {
           throw error;
         }
 
         if (access === current) {
-          await over();
+          await signOutExpired();
         }
 
         throw new TmdbError('signed-out', 401);
       }
     },
 
-    /**
-     * What signing in gave, for what needs more than the session: the lists
-     * of the user take their access token (v4). Nobody signed in is
-     * `signed-out`.
-     */
-    async withAccess<T>(work: (access: Access) => Promise<T>): Promise<T> {
+    /** Runs `task` with everything signing in gave (the lists need the access token). */
+    async withAccess<T>(task: (access: Access) => Promise<T>): Promise<T> {
       const current = access;
 
       if (!current || state.status !== 'authenticated') {
         throw new TmdbError('signed-out');
       }
 
-      return work(current);
+      return task(current);
     },
 
-    /** Signs out here first, so being offline never keeps anyone signed in. */
+    /** Signs out locally first, so being offline never keeps anyone signed in. */
     async logout(): Promise<SessionState> {
-      const ended = access;
+      const previousAccess = access;
 
       access = null;
-      clearTimeout(recheck);
+      clearTimeout(recheckTimer);
 
-      if (attempt) {
-        end(attempt);
+      if (pendingLogin) {
+        stopWaiting(pendingLogin);
       }
 
       if (state.status !== 'anonymous') {
-        set({ status: 'anonymous' });
+        setState({ status: 'anonymous' });
       }
 
-      await forget();
+      await clearSavedSession();
 
-      if (ended) {
-        await discard(ended);
+      if (previousAccess) {
+        await revokeAccess(previousAccess);
       }
 
       return state;
     },
 
-    /** For when the app quits: leaves no timer and no server behind. */
+    /** On quit: leaves no timer or server behind. */
     dispose() {
-      clearTimeout(recheck);
+      clearTimeout(recheckTimer);
 
-      if (attempt) {
-        end(attempt);
+      if (pendingLogin) {
+        stopWaiting(pendingLogin);
       }
     },
   };

@@ -7,7 +7,7 @@ import type {
   MediaItem,
   Paged,
   SearchItem,
-  SessionKeeping,
+  SessionPersistence,
   SessionState,
 } from '@shared/api';
 
@@ -43,9 +43,14 @@ export const SIGNED_IN: SessionState = {
 
 /** Signed in on the desktop, which also tells how the session is kept. */
 export const signedInOnDesktop = (
-  kept: SessionKeeping,
+  persistence: SessionPersistence,
   offline = false,
-): SessionState => ({ status: 'authenticated', account: ADA, kept, offline });
+): SessionState => ({
+  status: 'authenticated',
+  account: ADA,
+  persistence,
+  offline,
+});
 
 /** The page of a movie with everything filled in. */
 export const MATRIX: MediaDetails = {

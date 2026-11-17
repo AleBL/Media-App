@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   Account,
-  SessionKeeping,
+  SessionPersistence,
   SessionState,
 } from '../../../shared/api';
 import { TmdbError, type Access } from '../../../shared/tmdb/client';
@@ -36,7 +36,7 @@ const PENDING: SessionState = {
 const SIGNED_IN: SessionState = {
   status: 'authenticated',
   account: ACCOUNT,
-  kept: 'encrypted',
+  persistence: 'encrypted',
   offline: false,
 };
 const ANONYMOUS: SessionState = { status: 'anonymous' };
@@ -62,11 +62,11 @@ const sessionOver = () =>
  * nothing is saved until the user agrees.
  */
 function fakeStore({ keyring = true } = {}) {
-  const kept: SessionKeeping = keyring ? 'encrypted' : 'unencrypted';
+  const persistence: SessionPersistence = keyring ? 'encrypted' : 'unencrypted';
   const held: { saved: SavedSession | null } = { saved: null };
   const store = Object.assign(held, {
     load: vi.fn<SessionStore['load']>(async () =>
-      held.saved ? { session: held.saved, kept } : null,
+      held.saved ? { session: held.saved, persistence } : null,
     ),
     save: vi.fn<SessionStore['save']>(async (session, evenUnencrypted) => {
       if (!keyring && !evenUnencrypted) {
@@ -75,7 +75,7 @@ function fakeStore({ keyring = true } = {}) {
 
       held.saved = session;
 
-      return kept;
+      return persistence;
     }),
     clear: vi.fn<SessionStore['clear']>(async () => {
       held.saved = null;
@@ -541,18 +541,18 @@ describe('auth service', () => {
 
       expect(context.service.getSession()).toEqual({
         ...SIGNED_IN,
-        kept: 'ask',
+        persistence: 'ask',
       });
       expect(context.store.saved).toBeNull();
 
       await expect(context.service.remember()).resolves.toEqual({
         ...SIGNED_IN,
-        kept: 'unencrypted',
+        persistence: 'unencrypted',
       });
       expect(context.store.saved).toEqual(SAVED);
       expect(context.changes.at(-1)).toEqual({
         ...SIGNED_IN,
-        kept: 'unencrypted',
+        persistence: 'unencrypted',
       });
     });
 
@@ -572,7 +572,7 @@ describe('auth service', () => {
       await signIn(context);
       expect(context.service.getSession()).toEqual({
         ...SIGNED_IN,
-        kept: 'failed',
+        persistence: 'failed',
       });
 
       await context.service.logout();
@@ -580,13 +580,13 @@ describe('auth service', () => {
       await signIn(context);
       expect(context.service.getSession()).toEqual({
         ...SIGNED_IN,
-        kept: 'failed',
+        persistence: 'failed',
       });
     });
 
     it('keeps nothing of a login cancelled while it was being saved', async () => {
       const context = setup();
-      const saving = deferred<SessionKeeping>();
+      const saving = deferred<SessionPersistence>();
       context.store.save.mockImplementationOnce(async (session) => {
         context.store.saved = session;
 
@@ -610,7 +610,7 @@ describe('auth service', () => {
     it('removes what a save wrote when the sign out came during it', async () => {
       const context = setup(fakeStore({ keyring: false }));
       await signIn(context);
-      const saving = deferred<SessionKeeping>();
+      const saving = deferred<SessionPersistence>();
       context.store.save.mockImplementationOnce(async (session) => {
         context.store.saved = session;
 
@@ -843,7 +843,7 @@ describe('auth service', () => {
 
       await expect(service.restore()).resolves.toEqual({
         ...SIGNED_IN,
-        kept: 'unencrypted',
+        persistence: 'unencrypted',
       });
       await flush();
 
@@ -854,7 +854,7 @@ describe('auth service', () => {
       expect(service.getSession()).toEqual({
         ...SIGNED_IN,
         account: renamed,
-        kept: 'unencrypted',
+        persistence: 'unencrypted',
       });
     });
 

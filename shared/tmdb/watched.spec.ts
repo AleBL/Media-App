@@ -5,8 +5,8 @@ import {
   createWatched,
   MAX_LIST_PAGES,
   MAX_LIST_TRIES,
-  memoryCache,
-  userAccess,
+  createMemoryListCache,
+  requireUserAccess,
   WATCHED_MARKER,
   type UserAccess,
 } from './watched';
@@ -45,7 +45,7 @@ function setup(pages: UserList[][] = [[OTHER]]) {
       totalResults: 1,
     })),
   };
-  const cacheFor = memoryCache();
+  const cacheFor = createMemoryListCache();
 
   return {
     tmdb,
@@ -64,7 +64,7 @@ const mark = (value: boolean) => ({
 describe('watched titles', () => {
   describe('the access they need', () => {
     it('is the access token of the user, from the v4 login', () => {
-      expect(userAccess(ACCESS)).toEqual(ACCESS);
+      expect(requireUserAccess(ACCESS)).toEqual(ACCESS);
     });
 
     it.each([
@@ -75,7 +75,7 @@ describe('watched titles', () => {
         'sign-in-again',
       ],
     ] as const)('is missing with %s', (_case, access, code) => {
-      expect(() => userAccess(access)).toThrow(
+      expect(() => requireUserAccess(access)).toThrow(
         expect.objectContaining({ code }),
       );
     });
@@ -314,7 +314,7 @@ describe('watched titles', () => {
   });
 
   it('keeps the id of the list of each account apart', () => {
-    const cacheFor = memoryCache();
+    const cacheFor = createMemoryListCache();
 
     cacheFor(ACCESS).set(77);
 

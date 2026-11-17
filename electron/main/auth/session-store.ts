@@ -1,25 +1,20 @@
-import type { Account, SessionKeeping } from '../../../shared/api';
+import type { Account, SessionPersistence } from '../../../shared/api';
 import type { Access } from '../../../shared/tmdb/client';
 import { createSecretFile, type Encryption } from '../secret-file';
 
 export const ENCRYPTED_FILE = 'tmdb-session.bin';
 export const PLAIN_FILE = 'tmdb-session.txt';
 
-/**
- * What a launch leaves for the next one: what signing in gave (the session
- * and, with the v4 login, the access token of the user), each of them
- * enough to act as the user. A launch before the v4 login saved the
- * session alone.
- */
+/** Sessions saved before the v4 login have no access token. */
 export interface SavedSession extends Access {
-  /** Who it is, to show while TMDB cannot be asked. */
+  /** Shown while TMDB cannot be reached. */
   account: Account;
 }
 
-const filled = (value: unknown) =>
+const nonEmpty = (value: unknown) =>
   typeof value === 'string' && value ? value : undefined;
 
-function parse(text: string): SavedSession | null {
+function parseSavedSession(text: string): SavedSession | null {
   let value: unknown;
 
   try {
@@ -45,13 +40,13 @@ function parse(text: string): SavedSession | null {
   }
 
   const v4 = {
-    accessToken: filled(accessToken),
-    accountObjectId: filled(accountObjectId),
+    accessToken: nonEmpty(accessToken),
+    accountObjectId: nonEmpty(accountObjectId),
   };
 
   return {
     sessionId,
-    // Both or neither: one is of no use without the other.
+    // Both or neither: one is useless without the other.
     ...(v4.accessToken && v4.accountObjectId ? v4 : {}),
     account: {
       id,
@@ -63,10 +58,8 @@ function parse(text: string): SavedSession | null {
 }
 
 /**
- * Keeps the TMDB session of whoever signed in, so the next launch starts
- * signed in. It is a password of the account, so it is only saved when the
- * keyring of the system encrypts it, or when the user agreed to keep it
- * without that: on a system without a keyring, the app asks first.
+ * Saves the session for the next launch. It works as a password, so without
+ * a keyring it is only written after the user agrees.
  */
 export function createSessionStore(directory: string, encryption: Encryption) {
   const file = createSecretFile(
@@ -76,56 +69,54 @@ export function createSessionStore(directory: string, encryption: Encryption) {
   );
 
   return {
-    /** The session saved by an earlier launch, and how it is kept. */
     async load(): Promise<{
       session: SavedSession;
-      kept: SessionKeeping;
+      persistence: SessionPersistence;
     } | null> {
       const saved = await file.read();
-      const session = saved && parse(saved.value);
+      const session = saved && parseSavedSession(saved.value);
 
       if (!saved) {
         return null;
       }
 
       if (!session) {
-        // Not something this app wrote: nothing to sign in with.
+        // Not written by this app.
         await file.remove();
 
         return null;
       }
 
-      return { session, kept: saved.encrypted ? 'encrypted' : 'unencrypted' };
+      return {
+        session,
+        persistence: saved.encrypted ? 'encrypted' : 'unencrypted',
+      };
     },
 
-    /**
-     * Saves `session` for the next launch. Without a keyring nothing is
-     * written, and the answer is `ask`, unless `evenUnencrypted`: the user
-     * agreed to keep it like that.
-     */
+    /** Without a keyring, writes nothing and answers `ask` unless `evenUnencrypted`. */
     async save(
       session: SavedSession,
       evenUnencrypted = false,
-    ): Promise<SessionKeeping> {
+    ): Promise<SessionPersistence> {
       if (!evenUnencrypted && !(await file.protects())) {
         return 'ask';
       }
 
-      const kept = await file.write(JSON.stringify(session));
+      const written = await file.write(JSON.stringify(session));
 
-      if (!kept.persisted) {
+      if (!written.persisted) {
         return 'failed';
       }
 
-      return kept.encrypted ? 'encrypted' : 'unencrypted';
+      return written.encrypted ? 'encrypted' : 'unencrypted';
     },
 
-    /** Forgets the saved session. Never throws: signing out must work. */
+    /** Never throws: signing out must always work. */
     async clear() {
       try {
         await file.remove();
       } catch {
-        // Nothing else to do: the next launch will find TMDB refusing it.
+        // The next launch will find TMDB refusing it anyway.
       }
     },
   };

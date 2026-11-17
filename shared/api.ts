@@ -1,22 +1,11 @@
-// What the renderer can ask of whoever holds the TMDB credential.
-//
-// In the desktop app that is the main process: the preload script exposes
-// this API as `window.api`, and the renderer has no other Node or Electron
-// access. On the web there is no preload script, and the same API is
-// implemented over HTTP (src/services/webApi.ts) on top of functions of the
-// site, which keep the credential and the session on the server (the files
-// in /api).
+// What the renderer can ask of whoever holds the TMDB credential: the main
+// process on the desktop (through the preload, as `window.api`), or the
+// site's functions in /api on the web (src/services/webApi.ts).
 
-/** Where the site answers TMDB requests for the web version of the app. */
 export const TMDB_PROXY_PATH = '/api/tmdb';
 
-/**
- * Where the site answers, for whoever signed in on the web version, what
- * their TMDB account has: the watchlist, the favorites and the ratings.
- */
 export const ACCOUNT_PATH = '/api/account';
 
-/** Where the site answers the sign-in requests of the web version. */
 export const AUTH_PATHS = {
   login: '/api/auth/login',
   callback: '/api/auth/callback',
@@ -28,17 +17,15 @@ export type NativeTheme = 'system' | 'light' | 'dark';
 
 export type MediaType = 'movie' | 'tv';
 
-/** What a search looks for: `multi` is movies, tv shows and people at once. */
+/** `multi` searches movies, tv shows and people at once. */
 export type SearchType = MediaType | 'multi';
 
 /** TMDB always answers searches with 20 results per page. */
 export const TMDB_PAGE_SIZE = 20;
 
-// A movie or tv show as returned by the TMDB search endpoints. Movies
-// carry title/release_date, tv shows carry name/first_air_date.
+// Movies carry title/release_date, tv shows name/first_air_date.
 export interface MediaItem {
   id: number;
-  /** Which of the two it is, whatever was searched for. */
   media_type?: MediaType;
   title?: string;
   name?: string;
@@ -47,23 +34,20 @@ export interface MediaItem {
   poster_path?: string | null;
   genre_ids?: number[];
   vote_average?: number;
-  /** The rating whoever signed in gave it: in the list of rated titles. */
+  /** Only in the list of rated titles. */
   rating?: number;
-  /** When they marked it watched, YYYY-MM-DD: in the list of watched titles. */
+  /** YYYY-MM-DD, only in the list of watched titles. */
   watchedAt?: string;
 }
 
-/** Someone found by a search of everything (`multi`). */
 export interface PersonItem {
   id: number;
   media_type: 'person';
   name: string;
   profile_path?: string;
-  /** A few of the movies and tv shows they are known for. */
   known_for: MediaItem[];
 }
 
-/** What a search finds: people only when it looks for everything. */
 export type SearchItem = MediaItem | PersonItem;
 
 export interface Genre {
@@ -78,67 +62,57 @@ export interface Paged<T> {
   totalResults: number;
 }
 
+/** `language` is an app locale such as `en` or `pt-BR`, here and below. */
 export interface SearchRequest {
   type: SearchType;
   query: string;
   page: number;
-  /** An app locale such as `en` or `pt-BR`. */
   language: string;
 }
 
-/** The lists of titles on the home page. */
-export type MediaList =
-  /** Movies and tv shows most watched this week. */
-  'trending' | 'popular-movies' | 'popular-tv';
+/** The lists of the home page. */
+export type MediaList = 'trending' | 'popular-movies' | 'popular-tv';
 
 export interface ListRequest {
   list: MediaList;
-  /** An app locale such as `en` or `pt-BR`. */
   language: string;
 }
 
 export interface DetailsRequest {
   type: MediaType;
   id: number;
-  /** An app locale such as `en` or `pt-BR`. */
   language: string;
-  /** Where the user is, as a country code such as `BR`: for `watch`. */
+  /** Country code such as `BR`, for where to watch. */
   region: string;
 }
 
-/** A movie or tv show, by its id at TMDB. */
 export interface TitleRequest {
   type: MediaType;
   id: number;
 }
 
-/** The lists of titles of the TMDB account of whoever signed in. */
 export type AccountList = 'watchlist' | 'favorite';
 
-/** Whether a title is in each list of the account. */
 export type AccountStates = Record<AccountList, boolean>;
 
-/** The ratings TMDB takes: from 0.5 to 10, in steps of 0.5. */
+/** From 0.5 to 10, in steps of 0.5. */
 export const RATINGS: readonly number[] = Array.from(
   { length: 20 },
   (_, step) => (step + 1) / 2,
 );
 
-/** What the account has of a title: its lists, and the rating it gave. */
 export interface TitleStates extends AccountStates {
-  /** One of RATINGS, or null when the title has no rating. */
+  /** One of RATINGS, or null when not rated. */
   rated: number | null;
 }
 
-/** Gives a title a rating (one of RATINGS), or takes it away (`null`). */
+/** `value: null` removes the rating. */
 export interface RateRequest extends TitleRequest {
   value: number | null;
 }
 
-/** The lists the app shows a page at a time: the rated titles too. */
 export type TitleList = AccountList | 'rated';
 
-/** Puts a title in a list of the account (`value`), or takes it out. */
 export interface MarkRequest extends TitleRequest {
   list: AccountList;
   value: boolean;
@@ -149,26 +123,22 @@ export interface AccountListRequest {
   /** TMDB keeps the movies and the tv shows of a list apart. */
   type: MediaType;
   page: number;
-  /** An app locale such as `en` or `pt-BR`. */
   language: string;
 }
 
-/** Marks a title as watched (`value`), on `date`, or takes the mark away. */
 export interface WatchedRequest extends TitleRequest {
   value: boolean;
-  /** The day of the user, as YYYY-MM-DD. */
+  /** The user's local day, YYYY-MM-DD. */
   date: string;
-  /** An app locale: the name of the list of watched titles, if it is new. */
+  /** Names the list when it has to be created. */
   language: string;
 }
 
 export interface WatchedListRequest {
   page: number;
-  /** An app locale such as `en` or `pt-BR`. */
   language: string;
 }
 
-/** Someone in the cast of a movie or tv show. */
 export interface CastMember {
   id: number;
   name: string;
@@ -176,21 +146,16 @@ export interface CastMember {
   profilePath?: string;
 }
 
-/** A streaming service, store or channel. */
 export interface WatchProvider {
   id: number;
   name: string;
   logoPath?: string;
 }
 
-/**
- * Where a title can be watched in one country, from JustWatch. Whoever
- * shows it must say that it comes from JustWatch.
- */
+/** From JustWatch, which must be credited wherever this is shown. */
 export interface WatchOptions {
-  /** The page of TMDB with a link to each of the services. */
+  /** The TMDB page that links to each provider. */
   link?: string;
-  /** Included in a subscription. */
   stream: WatchProvider[];
   /** Free, with or without ads. */
   free: WatchProvider[];
@@ -198,18 +163,17 @@ export interface WatchOptions {
   buy: WatchProvider[];
 }
 
-/** What the page of a movie or tv show shows. */
 export interface MediaDetails {
   type: MediaType;
   id: number;
   title: string;
-  /** The title in its own language, when it is not the same. */
+  /** Only when different from `title`. */
   originalTitle?: string;
   tagline?: string;
   overview?: string;
-  /** YYYY-MM-DD: the release of a movie, the first episode of a tv show. */
+  /** YYYY-MM-DD: release of a movie, first episode of a tv show. */
   date?: string;
-  /** In minutes: the movie, or an episode of the tv show. */
+  /** Minutes: the movie, or an episode. */
   runtime?: number;
   seasons?: number;
   episodes?: number;
@@ -217,13 +181,10 @@ export interface MediaDetails {
   posterPath?: string;
   voteAverage?: number;
   voteCount?: number;
-  /** Such as `tt0133093`, for a link to IMDb. */
   imdbId?: string;
-  /** A video on YouTube. */
+  /** A YouTube video. */
   trailer?: { key: string; name: string };
-  /** The first names of the cast, in billing order. */
   cast: CastMember[];
-  /** In the region of the request, when JustWatch knows of any. */
   watch?: WatchOptions;
 }
 
@@ -236,12 +197,9 @@ export type TmdbErrorCode =
   | 'server'
   | 'network'
   | 'timeout'
-  /** Nobody is signed in, or TMDB says the session is over. */
+  /** Nobody is signed in, or the session is over. */
   | 'signed-out'
-  /**
-   * Signed in without the access token of the user (before the v4 login, or
-   * with a key), or one TMDB no longer takes: signing in again gives it.
-   */
+  /** Signed in without the user's v4 access token (or with a revoked one). */
   | 'sign-in-again';
 
 export interface TmdbFailure {
@@ -251,181 +209,134 @@ export interface TmdbFailure {
   message?: string;
 }
 
-// Errors lose their fields when they cross IPC, so calls that can fail
-// answer with a result instead of rejecting.
+// Errors lose their fields over IPC, so failures are returned, not thrown.
 export type Result<T> =
   { ok: true; data: T } | { ok: false; error: TmdbFailure };
 
 export interface CredentialStatus {
-  /** The user saved a TMDB key of their own, used instead of the app's. */
+  /** The user saved a TMDB key of their own. */
   hasKey: boolean;
-  /** The key is saved for the next launch, not only kept in memory. */
+  /** Saved on disk, not only in memory. */
   persisted: boolean;
-  /** The saved key is encrypted by the operating system. */
+  /** Encrypted by the system keyring. */
   encrypted: boolean;
-  /** The app was built with its own TMDB credential: no key is needed. */
+  /** The app was built with its own TMDB credential. */
   builtIn: boolean;
 }
 
-/** What the app shows of the TMDB account of whoever signed in. */
 export interface Account {
   id: number;
   username: string;
-  /** The name the user gave to TMDB, when there is one. */
   name?: string;
-  /** Path of the picture the user uploaded to TMDB, when there is one. */
   avatarPath?: string;
 }
 
 export type LoginFailure =
-  /** The access was refused on the TMDB website. */
+  /** Refused on the TMDB website. */
   | 'denied'
-  /** Nobody approved it in time. */
   | 'timeout'
   | 'network'
-  /** TMDB would not start or finish the login: nothing the user can fix. */
+  /** TMDB would not start or finish the login. */
   | 'unavailable';
 
-// The session itself (TMDB's session_id) works as a password of the account
-// and stays with whoever holds the credential of the app. The renderer only
-// learns this much about it.
+// The session_id works as a password, so it never reaches the renderer.
 export type SessionState =
   | { status: 'anonymous' }
   | {
       /** Waiting for the user to approve on the TMDB website. */
       status: 'pending';
-      /** When the app stops waiting, in milliseconds since the epoch. */
+      /** Epoch milliseconds. */
       expiresAt: number;
-      /** The page to approve on, for a browser that did not open by itself. */
+      /** For a browser that did not open by itself. */
       authorizeUrl: string;
     }
   | {
       status: 'authenticated';
       account: Account;
-      /** Desktop only: how the session is kept for the next launch. */
-      kept?: SessionKeeping;
+      /** Desktop only. */
+      persistence?: SessionPersistence;
       /**
-       * Desktop only: TMDB could not confirm, at this launch, the session
-       * that the last one saved. Whoever it was stays signed in, with the
-       * account saved then, and the app asks again by itself.
+       * Desktop only: TMDB could not confirm the saved session at launch.
+       * The user stays signed in and the app checks again later.
        */
       offline?: boolean;
     }
   | { status: 'error'; reason: LoginFailure };
 
-/**
- * Where the desktop app keeps a session for the next launch. On the web the
- * site keeps it, in a cookie.
- */
-export type SessionKeeping =
-  /** Encrypted by the keyring of the system. */
+/** How the desktop app saves the session for the next launch. */
+export type SessionPersistence =
   | 'encrypted'
-  /** The system has no keyring, and the user agreed to keep it anyway. */
+  /** No keyring, and the user agreed to save it anyway. */
   | 'unencrypted'
-  /**
-   * The system has no keyring, so it is only kept until the app closes,
-   * unless the user agrees to keep it unencrypted (`auth.remember()`).
-   */
+  /** No keyring: kept in memory until the user agrees (`auth.remember()`). */
   | 'ask'
-  /** It could not be written: it lasts until the app closes. */
+  /** Could not be written: lasts until the app closes. */
   | 'failed';
 
 export interface MediaAppApi {
-  /**
-   * Where the app is running: installed, inside Electron, or as a web page.
-   * A web page has no key of the user to keep and no window chrome to theme.
-   */
   platform: 'desktop' | 'web';
-  /** Versions of the runtime the desktop app is running on. */
+  /** Desktop only. */
   versions?: {
     electron: string;
     node: string;
     chrome: string;
   };
-  /** Makes the window chrome and `prefers-color-scheme` follow the app theme. */
+  /** Makes the window chrome and `prefers-color-scheme` follow the app. */
   setNativeTheme(theme: NativeTheme): void;
-  /** TMDB requests run in the main process, which holds the key. */
   tmdb: {
     search(request: SearchRequest): Promise<Result<Paged<SearchItem>>>;
     genres(language: string): Promise<Result<Genre[]>>;
     details(request: DetailsRequest): Promise<Result<MediaDetails>>;
     /** The first page of a list, each title tagged with its type. */
     list(request: ListRequest): Promise<Result<MediaItem[]>>;
-    /**
-     * The countries TMDB knows where to watch titles in, as codes such as
-     * `BR`, sorted.
-     */
+    /** Country codes with watch providers, such as `BR`, sorted. */
     regions(): Promise<Result<string[]>>;
   };
-  /**
-   * Forgets what the app keeps to be faster: the names of the genres and
-   * the images, asked again when needed. Nothing to forget on the web,
-   * where the browser keeps them.
-   */
+  /** Forgets cached genres and images. Does nothing on the web. */
   clearCache(): Promise<Result<null>>;
-  /**
-   * The lists and the ratings of the TMDB account of whoever signed in.
-   * Each call answers `signed-out` when nobody is.
-   */
+  /** Fails with `signed-out` when nobody is signed in. */
   account: {
     states(request: TitleRequest): Promise<Result<TitleStates>>;
     mark(request: MarkRequest): Promise<Result<null>>;
     rate(request: RateRequest): Promise<Result<null>>;
-    /** A page of a list, the titles added (or rated) last first. */
+    /** Last added (or rated) first. */
     list(request: AccountListRequest): Promise<Result<Paged<MediaItem>>>;
   };
   /**
-   * The titles whoever signed in watched, in a private list of their TMDB
-   * account (v4), made the first time one is marked. Each call answers
-   * `signed-out` when nobody is, and `sign-in-again` without the access
-   * token of the user.
+   * Kept in a private v4 list of the user, created on the first mark. Fails
+   * with `signed-out`, or `sign-in-again` without the user's access token.
    */
   watched: {
     state(request: TitleRequest): Promise<Result<boolean>>;
     mark(request: WatchedRequest): Promise<Result<null>>;
-    /** A page of the watched titles, movies and tv shows together. */
     list(request: WatchedListRequest): Promise<Result<Paged<MediaItem>>>;
   };
-  /** The TMDB key never comes back to the renderer once it is saved. */
+  /** A saved key is never sent back to the renderer. */
   credentials: {
     status(): Promise<CredentialStatus>;
     save(apiKey: string): Promise<CredentialStatus>;
     clear(): Promise<CredentialStatus>;
   };
-  /**
-   * Signing in to TMDB. It is optional: searching never needs it. The user
-   * approves the access on the TMDB website, in their own browser, so the
-   * app never sees a password.
-   */
+  /** Optional: searching never needs it. Approval happens on the TMDB website. */
   auth: {
     getSession(): Promise<SessionState>;
     /**
-     * Opens the approval page, with the result page in `language`. Answers
-     * `pending` as soon as it is open: the rest arrives through `onChange`.
-     * On the web the app itself goes to that page and is loaded again on the
-     * way back, so there is no `pending` and nothing to wait for.
+     * Desktop: opens the approval page and answers `pending`; the result
+     * comes through `onChange`. Web: the page itself goes to TMDB and back.
      */
     login(language: string): Promise<SessionState>;
-    /**
-     * For when the browser does not come back by itself: asks TMDB whether
-     * the access was approved. Still `pending` when it was not.
-     */
+    /** Asks TMDB whether the user approved, when the browser did not return. */
     confirmManual(): Promise<SessionState>;
-    /** Gives up a login that is waiting, or dismisses one that failed. */
+    /** Cancels a pending login, or dismisses a failed one. */
     cancelLogin(): Promise<SessionState>;
     logout(): Promise<SessionState>;
-    /**
-     * Keeps the session for the next launch on a system without a keyring,
-     * where that means saving it unencrypted: only after the user agreed
-     * (`kept` is `ask`). Elsewhere there is nothing to do.
-     */
+    /** Saves the session unencrypted once the user agreed (`persistence: 'ask'`). */
     remember(): Promise<SessionState>;
-    /** Calls `listener` on every change. Returns how to stop listening. */
+    /** Returns a function that stops listening. */
     onChange(listener: (state: SessionState) => void): () => void;
   };
 }
 
-/** IPC channel names, shared by the preload and the main process. */
 export const IPC = {
   setNativeTheme: 'theme:set-native',
   tmdbSearch: 'tmdb:search',
@@ -452,7 +363,7 @@ export const IPC = {
   authRemember: 'auth:remember',
 } as const;
 
-/** Channels the main process sends on, without being asked. */
+/** Sent by the main process without being asked. */
 export const IPC_EVENTS = {
   authChanged: 'auth:changed',
 } as const;

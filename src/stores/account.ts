@@ -10,18 +10,16 @@ import type {
 import i18n from '@/plugins/i18n';
 import { getApi } from '@/services/api';
 import { useSessionStore } from '@/stores/session';
+import { titleKey } from '@/util/media';
 
 /**
- * How many pages of 20 the app reads of each list for the cards. Past
- * them, a card takes a title for not being in the list; its page asks TMDB
- * about it alone and knows.
+ * Pages of 20 read from each list for the card buttons. Past them a card
+ * assumes the title is not in the list; the title page asks for it alone.
  */
 export const MAX_LIST_PAGES = 10;
 
-const key = ({ type, id }: TitleRequest) => `${type}-${id}`;
-
-/** What a call that threw answers instead: a failure like any other. */
-export async function settle<T>(
+/** Turns a thrown error into a failed Result. */
+export async function safeCall<T>(
   call: () => Promise<Result<T>>,
 ): Promise<Result<T>> {
   try {
@@ -38,46 +36,41 @@ export async function settle<T>(
 }
 
 /**
- * Whether titles are in the watchlist and in the favorites of whoever signed
- * in, the ratings they gave, and the changes to them. A change shows at once
- * and is undone if TMDB does not take it.
+ * Watchlist, favorites and ratings of the signed-in user. Changes show at
+ * once and are undone if TMDB refuses them.
  */
 export const useAccountStore = defineStore('account', () => {
   const session = useSessionStore();
-  // By title, such as "movie-603": what TMDB said of that title, or what
-  // the user changed. It wins over `lists`.
+  // By title key: what TMDB said or the user changed. Wins over `lists`.
   const states = ref<Record<string, AccountStates>>({});
-  // Every title in each list, read at once for the cards; null until then.
+  // Every title of each list, for the cards; null until loaded.
   const lists = ref<Record<AccountList, Set<string>> | null>(null);
-  // The changes on their way, such as "watchlist:movie-603".
+  // Changes in flight, such as "watchlist:movie-603".
   const saving = ref<Record<string, boolean>>({});
-  // By title: its rating, null for none, as TMDB said on the page of the
-  // title or as the user changed it. Only the pages of titles read them.
+  // By title key: the rating, null for none. Only title pages load them.
   const ratings = ref<Record<string, number | null>>({});
-  // The titles whose rating is on its way to TMDB.
-  let rating: Record<string, true> = {};
-  // Incremented on every reading of the lists, so an older one is dropped.
-  let reading = 0;
-  // Incremented whenever someone else signs in, or nobody is, so what was
-  // on its way for the one before does not touch what is known now.
-  let signIns = 0;
+  let ratingsInFlight: Record<string, true> = {};
+  // Ignores answers of an older load of the lists.
+  let listsRequest = 0;
+  // Changes on every sign-in or sign-out, so late answers are ignored.
+  let sessionVersion = 0;
 
   /**
-   * Reads which titles are in the lists, page by page up to MAX_LIST_PAGES
-   * for each of the four (movies and tv shows of each list). TMDB tells this
-   * one title at a time otherwise, too many requests for a page of cards.
+   * Reads which titles are in the lists, up to MAX_LIST_PAGES of each
+   * (movies and tv shows of each list). Otherwise TMDB answers one title at
+   * a time, too many requests for a page of cards.
    */
   async function loadLists() {
-    const request = ++reading;
+    const request = ++listsRequest;
     const found: Record<AccountList, Set<string>> = {
       watchlist: new Set(),
       favorite: new Set(),
     };
 
-    async function read(list: AccountList, type: MediaType) {
+    async function readList(list: AccountList, type: MediaType) {
       for (let page = 1; page <= MAX_LIST_PAGES; page += 1) {
-        const answer = check(
-          await settle(() =>
+        const result = handleSignedOut(
+          await safeCall(() =>
             getApi().account.list({
               list,
               type,
@@ -87,15 +80,15 @@ export const useAccountStore = defineStore('account', () => {
           ),
         );
 
-        if (!answer.ok) {
+        if (!result.ok) {
           return false;
         }
 
-        for (const { id } of answer.data.results) {
-          found[list].add(key({ type, id }));
+        for (const { id } of result.data.results) {
+          found[list].add(titleKey({ type, id }));
         }
 
-        if (page >= answer.data.totalPages) {
+        if (page >= result.data.totalPages) {
           return true;
         }
       }
@@ -103,211 +96,209 @@ export const useAccountStore = defineStore('account', () => {
       return true;
     }
 
-    const done = await Promise.all([
-      read('watchlist', 'movie'),
-      read('watchlist', 'tv'),
-      read('favorite', 'movie'),
-      read('favorite', 'tv'),
+    const complete = await Promise.all([
+      readList('watchlist', 'movie'),
+      readList('watchlist', 'tv'),
+      readList('favorite', 'movie'),
+      readList('favorite', 'tv'),
     ]);
 
-    // Without all four, the cards could say a title is not in a list it
-    // is in: they show no buttons instead.
-    if (request === reading) {
-      lists.value = done.every(Boolean) ? found : null;
+    // With a list missing, the cards could be wrong: they show no buttons.
+    if (request === listsRequest) {
+      lists.value = complete.every(Boolean) ? found : null;
     }
   }
 
-  // Someone else signed in, or nobody is: what was known no longer holds.
   watch(
     () => session.account?.id,
-    (signedIn) => {
+    (accountId) => {
       states.value = {};
       saving.value = {};
       lists.value = null;
       ratings.value = {};
-      rating = {};
-      reading += 1;
-      signIns += 1;
+      ratingsInFlight = {};
+      listsRequest += 1;
+      sessionVersion += 1;
 
-      if (signedIn !== undefined) {
+      if (accountId !== undefined) {
         void loadLists();
       }
     },
     { immediate: true },
   );
 
-  /** TMDB says nobody is signed in: the app learns it too. */
-  function check<T>(answer: Result<T>) {
-    if (!answer.ok && answer.error.code === 'signed-out') {
+  /** Reloads the session when TMDB says nobody is signed in. */
+  function handleSignedOut<T>(result: Result<T>) {
+    if (!result.ok && result.error.code === 'signed-out') {
       void session.load();
     }
 
-    return answer;
+    return result;
   }
 
-  /** Where a title is, if the app knows: by itself, or from the lists. */
+  /** Undefined while unknown. */
   function statesOf(title: TitleRequest): AccountStates | undefined {
-    const known = states.value[key(title)];
+    const known = states.value[titleKey(title)];
 
     if (known || !lists.value) {
       return known;
     }
 
     return {
-      watchlist: lists.value.watchlist.has(key(title)),
-      favorite: lists.value.favorite.has(key(title)),
+      watchlist: lists.value.watchlist.has(titleKey(title)),
+      favorite: lists.value.favorite.has(titleKey(title)),
     };
   }
 
   const isSaving = (list: AccountList, title: TitleRequest) =>
-    !!saving.value[`${list}:${key(title)}`];
+    !!saving.value[`${list}:${titleKey(title)}`];
 
-  /** The rating of a title: undefined until TMDB said, null for none. */
+  /** Undefined until TMDB answered, null for no rating. */
   const ratingOf = (title: TitleRequest): number | null | undefined =>
-    ratings.value[key(title)];
+    ratings.value[titleKey(title)];
 
   async function load(title: TitleRequest) {
-    const answer = check(await settle(() => getApi().account.states(title)));
+    const result = handleSignedOut(
+      await safeCall(() => getApi().account.states(title)),
+    );
 
-    if (answer.ok) {
-      const { rated, ...inLists } = answer.data;
+    if (result.ok) {
+      const { rated, ...inLists } = result.data;
 
-      states.value[key(title)] = inLists;
+      states.value[titleKey(title)] = inLists;
 
-      // A rating on its way wins over what TMDB had before it.
-      if (!rating[key(title)]) {
-        ratings.value[key(title)] = rated;
+      // A rating in flight wins over the older one from TMDB.
+      if (!ratingsInFlight[titleKey(title)]) {
+        ratings.value[titleKey(title)] = rated;
       }
     }
 
-    return answer;
+    return result;
   }
 
-  /**
-   * Asks TMDB again which lists a title is in, and keeps what it says,
-   * except for a change of a list that is on its way.
-   */
-  async function relist(title: TitleRequest) {
-    const started = signIns;
-    const answer = check(await settle(() => getApi().account.states(title)));
-    const now = statesOf(title);
+  /** Reloads which lists a title is in, keeping changes in flight. */
+  async function refreshListStates(title: TitleRequest) {
+    const version = sessionVersion;
+    const result = handleSignedOut(
+      await safeCall(() => getApi().account.states(title)),
+    );
+    const current = statesOf(title);
 
-    if (!answer.ok || started !== signIns || !now) {
+    if (!result.ok || version !== sessionVersion || !current) {
       return;
     }
 
-    states.value[key(title)] = {
+    states.value[titleKey(title)] = {
       watchlist: isSaving('watchlist', title)
-        ? now.watchlist
-        : answer.data.watchlist,
+        ? current.watchlist
+        : result.data.watchlist,
       favorite: isSaving('favorite', title)
-        ? now.favorite
-        : answer.data.favorite,
+        ? current.favorite
+        : result.data.favorite,
     };
   }
 
   /**
-   * Gives the title a rating, or takes it away (`null`), at once. A change
-   * made while another is on its way goes after it, only the last one, so
-   * TMDB ends with what the page shows. If TMDB refuses, the page goes back
-   * to the rating TMDB has.
+   * Sets the rating (null removes it) at once. Changes made while one is in
+   * flight are sent after it, only the last one. If TMDB refuses, the
+   * rating goes back to what TMDB has.
    */
   async function rate(
     title: TitleRequest,
     value: number | null,
   ): Promise<Result<null> | undefined> {
-    const at = key(title);
-    const before: number | null | undefined = ratings.value[at];
+    const key = titleKey(title);
+    const before: number | null | undefined = ratings.value[key];
 
-    // Nothing to change before TMDB said what the rating is.
+    // Not loaded yet.
     if (before === undefined) {
       return undefined;
     }
 
-    ratings.value[at] = value;
+    ratings.value[key] = value;
 
-    // The change on its way sends this one when it is done.
-    if (rating[at]) {
+    // The request in flight sends this value when it is done.
+    if (ratingsInFlight[key]) {
       return undefined;
     }
 
-    const started = signIns;
-    let atTmdb = before;
-    let answer: Result<null> = { ok: true, data: null };
-    // TMDB took a rating (not a removal) of the title.
-    let rated = false;
+    const version = sessionVersion;
+    let savedRating = before;
+    let result: Result<null> = { ok: true, data: null };
+    let ratedAtLeastOnce = false;
 
-    rating[at] = true;
+    ratingsInFlight[key] = true;
 
-    while (ratings.value[at] !== atTmdb) {
-      const wanted = ratings.value[at];
+    while (ratings.value[key] !== savedRating) {
+      const wanted = ratings.value[key];
 
-      answer = check(
-        await settle(() => getApi().account.rate({ ...title, value: wanted })),
+      result = handleSignedOut(
+        await safeCall(() =>
+          getApi().account.rate({ ...title, value: wanted }),
+        ),
       );
 
-      // Signed out, or someone else signed in, meanwhile: nothing to undo.
-      if (started !== signIns) {
-        return answer;
+      // Signed out or another user meanwhile: nothing to undo.
+      if (version !== sessionVersion) {
+        return result;
       }
 
-      if (!answer.ok) {
-        ratings.value[at] = atTmdb;
+      if (!result.ok) {
+        ratings.value[key] = savedRating;
         break;
       }
 
-      atTmdb = wanted;
-      rated ||= wanted !== null;
+      savedRating = wanted;
+      ratedAtLeastOnce ||= wanted !== null;
     }
 
-    delete rating[at];
+    delete ratingsInFlight[key];
 
-    // By default TMDB takes a title it rates out of the watchlist: the
-    // lists of the title are asked again.
-    if (rated) {
-      await relist(title);
+    // TMDB takes a rated title out of the watchlist.
+    if (ratedAtLeastOnce) {
+      await refreshListStates(title);
     }
 
-    return answer;
+    return result;
   }
 
-  /** Puts the title in the list, or takes it out: the opposite of now. */
+  /** Adds the title to the list, or removes it. */
   async function toggle(
     list: AccountList,
     title: TitleRequest,
   ): Promise<Result<null> | undefined> {
     const current = statesOf(title);
-    const change = `${list}:${key(title)}`;
+    const change = `${list}:${titleKey(title)}`;
 
-    // Nothing to flip before TMDB said where it is, and one change at once.
+    // Not loaded yet, or a change already in flight.
     if (!current || saving.value[change]) {
       return undefined;
     }
 
     const value = !current[list];
-    const account = session.account?.id;
+    const accountId = session.account?.id;
 
-    states.value[key(title)] = { ...current, [list]: value };
+    states.value[titleKey(title)] = { ...current, [list]: value };
     saving.value[change] = true;
 
-    const answer = check(
-      await settle(() => getApi().account.mark({ ...title, list, value })),
+    const result = handleSignedOut(
+      await safeCall(() => getApi().account.mark({ ...title, list, value })),
     );
 
-    // Signed out, or someone else signed in, meanwhile: nothing to undo.
-    if (session.account?.id !== account) {
-      return answer;
+    // Signed out or another user meanwhile: nothing to undo.
+    if (session.account?.id !== accountId) {
+      return result;
     }
 
     delete saving.value[change];
 
     const now = statesOf(title);
 
-    if (!answer.ok && now) {
-      states.value[key(title)] = { ...now, [list]: !value };
+    if (!result.ok && now) {
+      states.value[titleKey(title)] = { ...now, [list]: !value };
     }
 
-    return answer;
+    return result;
   }
 
   return {

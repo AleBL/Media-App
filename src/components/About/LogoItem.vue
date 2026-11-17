@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import '@fontsource/alfa-slab-one/latin-400.css';
   import { Logo } from '@/types';
   import LogoViewLink from './LogoViewLink.vue';
 

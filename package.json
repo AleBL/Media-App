@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@fontsource/alfa-slab-one": "^5.3.0",
     "@playwright/test": "^1.65.1",
     "@tailwindcss/vite": "^4.3.5",
     "@types/minimatch": "^5.1.2",

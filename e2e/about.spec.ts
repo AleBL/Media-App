@@ -29,6 +29,31 @@ test.describe('about', () => {
     await expect.poll(openedInBrowser).toEqual(['https://www.themoviedb.org/']);
   });
 
+  test('shows the versions in their own font', async ({ running }) => {
+    const { page } = running;
+    await openPage(page, 'about');
+    await expect(page.locator('.waviy').first()).toBeVisible();
+
+    // Loaded from the app itself, under the Content-Security-Policy
+    await expect
+      .poll(() =>
+        page.evaluate(async () => {
+          await document.fonts.ready;
+
+          const statuses: string[] = [];
+
+          document.fonts.forEach(({ family, status }) => {
+            if (family.replace(/"/g, '') === 'Alfa Slab One') {
+              statuses.push(status);
+            }
+          });
+
+          return statuses;
+        }),
+      )
+      .toContain('loaded');
+  });
+
   // The terms forbid suggesting that TMDB made or endorses the app.
   test('the window has the name of the app alone', async ({ running }) => {
     const { app, page } = running;

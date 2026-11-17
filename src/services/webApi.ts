@@ -298,5 +298,11 @@ export function createWebApi(
       // Nothing changes while the page is open.
       onChange: () => () => {},
     },
+    // A web page is always the latest version of the site.
+    updates: {
+      state: async () => ({ status: 'idle' }),
+      install: async () => {},
+      onChange: () => () => {},
+    },
   };
 }

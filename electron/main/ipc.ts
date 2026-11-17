@@ -18,6 +18,7 @@ import {
   type TitleRequest,
   type TitleStates,
   type TmdbFailure,
+  type UpdateState,
   type WatchedListRequest,
   type WatchedRequest,
 } from '../../shared/api';
@@ -93,6 +94,10 @@ export interface IpcServices {
     logout(): Promise<SessionState>;
     remember(): Promise<SessionState>;
   };
+  updates: {
+    getState(): UpdateState;
+    install(): Promise<void>;
+  };
 }
 
 const NO_CREDENTIAL: CredentialStatus = {
@@ -103,6 +108,8 @@ const NO_CREDENTIAL: CredentialStatus = {
 };
 
 const NO_SESSION: SessionState = { status: 'anonymous' };
+
+const NO_UPDATE: UpdateState = { status: 'idle' };
 
 function toFailure(error: unknown): TmdbFailure {
   if (error instanceof TmdbError) {
@@ -288,4 +295,14 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
   ipc.handle(IPC.authRemember, (event) =>
     isTrusted(event) ? services.auth.remember() : NO_SESSION,
   );
+
+  ipc.handle(IPC.updatesState, (event) =>
+    isTrusted(event) ? services.updates.getState() : NO_UPDATE,
+  );
+
+  ipc.handle(IPC.updatesInstall, async (event) => {
+    if (isTrusted(event)) {
+      await services.updates.install();
+    }
+  });
 }

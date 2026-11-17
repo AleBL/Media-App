@@ -121,6 +121,10 @@ describe('ipc handlers', () => {
         logout: vi.fn(async () => ANONYMOUS),
         remember: vi.fn(async () => SIGNED_IN),
       },
+      updates: {
+        getState: vi.fn(() => ({ status: 'ready' as const, version: '0.3.0' })),
+        install: vi.fn(async () => {}),
+      },
     };
 
     const register = (
@@ -339,6 +343,30 @@ describe('ipc handlers', () => {
       }
       expect(services.account.mark).not.toHaveBeenCalled();
       expect(services.account.rate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updates', () => {
+    it('answers the update state and installs the downloaded version', async () => {
+      await expect(call(IPC.updatesState, fromApp)).resolves.toEqual({
+        status: 'ready',
+        version: '0.3.0',
+      });
+
+      await call(IPC.updatesInstall, fromApp);
+
+      expect(services.updates.install).toHaveBeenCalledOnce();
+    });
+
+    it('tells nothing to, and installs nothing for, another page', async () => {
+      await expect(call(IPC.updatesState, fromElsewhere)).resolves.toEqual({
+        status: 'idle',
+      });
+
+      await call(IPC.updatesInstall, fromElsewhere);
+
+      expect(services.updates.getState).not.toHaveBeenCalled();
+      expect(services.updates.install).not.toHaveBeenCalled();
     });
   });
 

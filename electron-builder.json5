@@ -12,6 +12,13 @@
     output: 'release/${version}',
   },
   files: ['dist-electron', 'dist'],
+  // Where the installed app looks for new versions (electron-updater). The
+  // release workflow uploads the packages itself.
+  publish: {
+    provider: 'github',
+    owner: 'AleBL',
+    repo: 'Media-App',
+  },
   // Turns off Electron features the app does not use: running it as Node,
   // NODE_OPTIONS and --inspect, and loading code from outside the checked asar.
   electronFuses: {
@@ -39,6 +46,11 @@
     target: [
       {
         target: 'nsis',
+        arch: ['x64'],
+      },
+      // The same app in a folder, to run without installing.
+      {
+        target: 'zip',
         arch: ['x64'],
       },
     ],

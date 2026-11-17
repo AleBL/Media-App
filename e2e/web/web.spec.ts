@@ -209,6 +209,84 @@ test.describe('web version', () => {
       .toBeGreaterThan(0);
   });
 
+  test('fits the tools of the about page on a phone', async ({
+    page,
+    site,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${site.url}#/about`);
+
+    const versions = page.locator('.waviy');
+
+    await expect(versions).toHaveCount(9);
+
+    // Each version stays on one line, beside its logo.
+    for (const version of await versions.all()) {
+      const lines = await version.evaluate(
+        (element) =>
+          new Set(
+            Array.from(
+              element.children,
+              (character) => (character as HTMLElement).offsetTop,
+            ),
+          ).size,
+      );
+
+      expect(lines).toBe(1);
+    }
+
+    // And nothing pushes the page sideways.
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(390);
+  });
+
+  test('folds the menu behind a button until it fits in one row', async ({
+    page,
+    site,
+  }) => {
+    // Spanish and the dark theme have the longest labels.
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.addInitScript(() => localStorage.setItem('locale', 'es'));
+    await page.setViewportSize({ width: 1023, height: 800 });
+    await page.goto(site.url);
+
+    const toggle = page.getByRole('button', { name: 'Menú' });
+    const menu = page.locator('#main-menu');
+
+    await expect(toggle).toBeVisible();
+    await expect(menu).toBeHidden();
+
+    await toggle.click();
+    await expect(menu).toBeVisible();
+
+    await page.setViewportSize({ width: 1024, height: 800 });
+
+    // The bar keeps its height: its items did not wrap to a second row.
+    await expect(toggle).toBeHidden();
+    expect((await page.locator('header nav').boundingBox())?.height).toBe(64);
+  });
+
+  test('keeps the dark theme down to the end of a long page', async ({
+    page,
+    site,
+  }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${site.url}#/about`);
+    await expect(page.locator('html')).toHaveClass(/dark/);
+
+    // What shows past the app, as below the margin of its last element,
+    // has the color of the app.
+    const [app, body] = await page.evaluate(() =>
+      [document.getElementById('app')!, document.body].map(
+        (element) => getComputedStyle(element).backgroundColor,
+      ),
+    );
+
+    expect(body).toBe(app);
+  });
+
   test('shows where to watch in the country chosen in the settings', async ({
     page,
     site,

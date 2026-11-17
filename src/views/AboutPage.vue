@@ -68,9 +68,9 @@
 </script>
 
 <template>
+  <!-- One column on a phone, two from a tablet up -->
   <div
-    class="items-center justify-center gap-5"
-    style="padding-top: 5%; display: grid; grid-template-columns: 20% 20%"
+    class="grid grid-cols-[max-content] items-center justify-center gap-5 px-4 pt-[5%] sm:grid-cols-[repeat(2,minmax(0,16rem))]"
   >
     <LogoItem v-for="(item, index) in items" :key="index" :item="item" />
   </div>

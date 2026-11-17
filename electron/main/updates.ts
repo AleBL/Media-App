@@ -18,7 +18,7 @@ export interface Updater {
   ): unknown;
   on(event: 'error', listener: (error: Error) => void): unknown;
   checkForUpdates(): Promise<unknown>;
-  quitAndInstall(): void;
+  quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void;
 }
 
 export interface UpdatesOptions {
@@ -108,8 +108,10 @@ export function createUpdates({
     },
 
     async install() {
+      // Silently, then the app opens again. Without it the Windows installer
+      // shows its whole wizard, as on the first install.
       if (state.status === 'ready') {
-        updater.quitAndInstall();
+        updater.quitAndInstall(true, true);
       }
     },
 

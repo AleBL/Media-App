@@ -39,20 +39,29 @@ describe('AppButton', () => {
     expect(link.attributes('rel')).toBe('noopener noreferrer');
   });
 
-  it('waits with a spinner, and cannot be pressed meanwhile', () => {
+  it('waits with a spinner, and cannot be pressed meanwhile', async () => {
+    const onClick = vi.fn();
+
     wrapper = mount(AppButton, {
       props: { label: 'Save key', icon: 'pi pi-save', loading: true },
-      // Even when the page says it could be pressed.
-      attrs: { disabled: false },
+      attrs: { onClick },
+      attachTo: document.body,
     });
 
     const button = wrapper.get('button');
 
     expect(button.attributes('aria-busy')).toBe('true');
-    expect(button.attributes('disabled')).toBeDefined();
+    expect(button.attributes('aria-disabled')).toBe('true');
     expect(button.find('.pi-save').exists()).toBe(false);
     expect(button.find('.animate-spin').exists()).toBe(true);
     expect(button.text()).toBe('Save key');
+
+    // It keeps the focus, but a press does nothing.
+    (button.element as HTMLButtonElement).focus();
+    await button.trigger('click');
+
+    expect(document.activeElement).toBe(button.element);
+    expect(onClick).not.toHaveBeenCalled();
   });
 
   it('passes the rest to the button, such as a name', () => {

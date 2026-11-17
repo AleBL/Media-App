@@ -67,9 +67,18 @@
       return { href: props.href, target: '_blank', rel: 'noopener noreferrer' };
     }
 
+    // While loading it keeps the focus (a disabled button would drop it to
+    // the page): aria-disabled says it, and clicks stop here.
     return {
       type: 'button',
-      ...(props.loading && { disabled: true, 'aria-busy': 'true' }),
+      ...(props.loading && {
+        'aria-disabled': 'true',
+        'aria-busy': 'true',
+        onClickCapture: (event: Event) => {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        },
+      }),
     };
   }
 </script>
@@ -81,7 +90,7 @@
     :class="[
       'relative inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-center align-bottom text-sm font-semibold no-underline transition duration-200',
       'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-primary-400 dark:focus-visible:ring-offset-surface-800',
-      'disabled:pointer-events-none disabled:cursor-default disabled:opacity-60',
+      'disabled:pointer-events-none disabled:cursor-default disabled:opacity-60 aria-disabled:cursor-default aria-disabled:opacity-60',
       label || $slots.default ? SIZE[size].text : SIZE[size].icon,
       SEVERITY[severity],
     ]"

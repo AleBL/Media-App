@@ -70,7 +70,7 @@ cp .env.example .env.local # ignored by git
 
 `npm run dev` and the build scripts read it from `.env.local` or from the environment, which is how a release workflow passes a repository secret. Without it everything still builds, with a warning, and the app asks each user for a key of their own on the **Settings** page.
 
-The token is compiled into the main process only (`dist-electron/main`), never into the renderer. It is not in the repository, but anyone can extract it from a distributed app: treat it as what identifies the app to TMDB, not as a secret, and be ready to replace it. A key that a user saves in **Settings** is used instead of it, which keeps their copy working if the token is ever revoked.
+The token is compiled into the main process only (`dist-electron/main`), never into the renderer. It is not in the repository, but anyone can extract it from a distributed app: treat it as what identifies the app to TMDB, not as a secret, and be ready to [replace it](#replacing-the-tmdb-token). A key that a user saves in **Settings** is used instead of it, which keeps their copy working if the token is ever revoked.
 
 The terms of the TMDB API ask every app that uses it to name TMDB as its source. The **About** page does it, on the desktop and on the web: the official logo (`src/assets/tmdb.svg`, smaller than what names the app, as the terms ask), linked to themoviedb.org, and the notice of the terms. The notice stays in English in every language, as it is their text, not ours.
 
@@ -172,6 +172,17 @@ The packaged app looks for a newer release on GitHub when it starts and every fo
 - The Windows installer and the AppImage download it and show **Restart and update** at the top of the window; when that is ignored, it is installed as the app closes.
 - The Windows `.zip`, the `.deb` (updating it would ask for the administrator password) and macOS (an unsigned app cannot update itself) only show that the new version is available, with a link to its release.
 - The snap does not look: snaps update through the store. Neither do the web version, `npm run dev` and the tests.
+
+#### Replacing the TMDB token
+
+Anyone can take the token out of a package, so TMDB may refuse it one day, after someone else abused it, or you may want to end it yourself. Looking for updates does not go through TMDB, so a new release still reaches the installed apps:
+
+1. On the [API settings of TMDB](https://www.themoviedb.org/settings/api), **Regenerate Key**, and copy the **API Read Access Token** it shows, checking that it changed: the app uses the token, not the key.
+2. On Vercel, replace `TMDB_READ_TOKEN` (Production and Preview) and redeploy, as a variable only reaches the deployments made after it. The web version works again when that ends.
+3. On GitHub, replace the `TMDB_READ_TOKEN` secret; locally, the one in `.env.local`.
+4. Release a new version, as above. The Windows installer and the AppImage update themselves; the Windows `.zip`, the `.deb` and macOS show that it is available; the snap has to be installed again by hand.
+
+Until it updates, a desktop app with the old token says that TMDB refused its access and points to **Settings**, where a key of the user's own makes it work; a copy that already had one never stops. Whoever signed in stays signed in, as a refused token is not an ended session. TMDB does not say whether the sessions made before go on with the new key: if they do not, **Sign out** and sign in again.
 
 #### Lint and Prettier
 

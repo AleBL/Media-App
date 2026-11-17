@@ -86,9 +86,14 @@ export const test = base.extend<Fixtures>({
           '--lang=en-US',
           `--user-data-dir=${userDataDir}`,
           // On Linux the app can run without any display, so nothing shows
-          // up on the desktop and CI needs no virtual screen.
+          // up on the desktop and CI needs no virtual screen. That screen is
+          // 1x1 unless given a size, which would leave the window at its
+          // smallest, with the menu folded behind a button.
           ...(hidden && process.platform === 'linux'
-            ? ['--ozone-platform=headless']
+            ? [
+                '--ozone-platform=headless',
+                '--ozone-override-screen-size=1920,1080',
+              ]
             : []),
           // Never the keyring of whoever runs the tests: on Linux the app
           // sees a system without one, like on CI, and asks before keeping

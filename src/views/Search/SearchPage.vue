@@ -8,7 +8,11 @@
   import { useSearchStore } from '@/stores/search';
   import { accessProblem } from '@/util/access';
   import { isPerson, searchKey } from '@/util/media';
+  import AppButton from '@/components/ui/AppButton.vue';
+  import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
   import AppPaginator from '@/components/ui/AppPaginator.vue';
+  import AppState from '@/components/ui/AppState.vue';
+  import PosterCardSkeleton from '@/components/Home/PosterCardSkeleton.vue';
   import PersonCard from '@/components/Search/PersonCard.vue';
   import SearchItemCard from '@/components/Search/SearchItemCard.vue';
   import SearchBar from '@/components/Search/SearchBar.vue';
@@ -68,24 +72,26 @@
 <template>
   <SearchBar />
 
-  <div
-    v-if="error"
-    role="alert"
-    class="p-5 text-center text-red-600 dark:text-red-400"
-  >
-    <p>
-      {{ t(errorMessage) }}
-    </p>
-    <RouterLink v-if="problem && desktop" :to="{ name: 'settings' }">
-      {{ t('access.openSettings') }}
-    </RouterLink>
-  </div>
+  <AppState v-if="error" tone="error" icon="pi pi-exclamation-triangle">
+    {{ t(errorMessage) }}
+    <template #actions>
+      <RouterLink v-if="problem && desktop" :to="{ name: 'settings' }">
+        {{ t('access.openSettings') }}
+      </RouterLink>
+      <!-- Nothing to try again on a site without access: it says so. -->
+      <AppButton
+        v-else-if="!problem"
+        :label="t('search.tryAgain')"
+        icon="pi pi-refresh"
+        @click="store.search(currentPage)"
+      />
+    </template>
+  </AppState>
 
-  <div
-    v-else-if="results.length"
-    :class="{ 'opacity-50': loading }"
-    :aria-busy="loading"
-  >
+  <div v-else-if="results.length" :aria-busy="loading">
+    <!-- Another page or type on its way: the results stay readable. -->
+    <AppLoadingBar v-if="loading" class="my-1" />
+
     <AppPaginator
       class="my-4"
       :page="currentPage"
@@ -111,11 +117,22 @@
     </ul>
   </div>
 
-  <div v-else-if="loading" role="status" class="p-5 text-center">
-    {{ t('search.loading') }}
+  <!-- The shape of the results until they come; the text is for screen
+       readers. -->
+  <div
+    v-else-if="loading"
+    role="status"
+    class="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+  >
+    <span class="sr-only">{{ t('search.loading') }}</span>
+    <PosterCardSkeleton v-for="index in 12" :key="index" />
   </div>
 
-  <div v-else-if="searched" class="p-5 text-center">
-    {{ t('search.notFound') }}
-  </div>
+  <AppState
+    v-else-if="searched"
+    icon="pi pi-search"
+    :title="t('search.notFound')"
+  >
+    {{ t('search.notFoundHint') }}
+  </AppState>
 </template>

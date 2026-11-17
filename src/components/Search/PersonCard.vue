@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import type { MediaItem, PersonItem } from '@shared/api';
+  import AppImage from '@/components/ui/AppImage.vue';
   import { profileUrl } from '@/util/images';
   import { mediaPage, mediaTitle, mediaYear, searchKey } from '@/util/media';
 
@@ -24,20 +25,13 @@
     class="flex flex-col rounded-md border border-surface-200 bg-surface-0 p-4 dark:border-surface-700 dark:bg-surface-900"
   >
     <div class="flex justify-center p-3">
-      <img
-        v-if="person.profile_path"
-        class="aspect-[2/3] w-full max-w-[400px] rounded-md object-cover"
-        :src="profileUrl(person.profile_path, 'h632')"
-        alt=""
-        loading="lazy"
+      <AppImage
+        :src="
+          person.profile_path ? profileUrl(person.profile_path, 'h632') : null
+        "
+        icon="pi pi-user"
+        class="w-full max-w-[400px] rounded-md"
       />
-      <div
-        v-else
-        class="flex aspect-[2/3] w-full max-w-[400px] items-center justify-center rounded-md bg-surface-100 dark:bg-surface-700"
-        aria-hidden="true"
-      >
-        <span class="pi pi-user text-6xl text-surface-400" />
-      </div>
     </div>
     <p
       class="text-center text-xs font-semibold uppercase tracking-wide text-primary-600 dark:text-primary-400"

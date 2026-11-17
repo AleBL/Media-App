@@ -3,7 +3,10 @@
   import { useRoute, useRouter } from 'vue-router';
   import { TMDB_PAGE_SIZE, type TitleList } from '@shared/api';
   import AppButton from '@/components/ui/AppButton.vue';
+  import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
   import AppPaginator from '@/components/ui/AppPaginator.vue';
+  import AppState from '@/components/ui/AppState.vue';
+  import PosterCardSkeleton from '@/components/Home/PosterCardSkeleton.vue';
   import SearchItemCard from '@/components/Search/SearchItemCard.vue';
   import { useAccountListsStore } from '@/stores/accountLists';
   import { useGenresStore } from '@/stores/genres';
@@ -23,13 +26,29 @@
   const totalPages = computed(() =>
     Math.ceil(view.value.totalResults / TMDB_PAGE_SIZE),
   );
-  const TEXTS: Record<TitleList, { heading: string; empty: string }> = {
-    watchlist: { heading: 'lists.watchlist', empty: 'lists.emptyWatchlist' },
-    favorite: { heading: 'lists.favorites', empty: 'lists.emptyFavorites' },
-    rated: { heading: 'lists.rated', empty: 'lists.emptyRated' },
+  const TEXTS: Record<
+    TitleList,
+    { heading: string; empty: string; icon: string }
+  > = {
+    watchlist: {
+      heading: 'lists.watchlist',
+      empty: 'lists.emptyWatchlist',
+      icon: 'pi pi-bookmark',
+    },
+    favorite: {
+      heading: 'lists.favorites',
+      empty: 'lists.emptyFavorites',
+      icon: 'pi pi-heart',
+    },
+    rated: {
+      heading: 'lists.rated',
+      empty: 'lists.emptyRated',
+      icon: 'pi pi-star',
+    },
   };
   const heading = computed(() => TEXTS[props.list].heading);
   const empty = computed(() => TEXTS[props.list].empty);
+  const icon = computed(() => TEXTS[props.list].icon);
 
   const TYPES = [
     { value: MEDIA_TYPES.MOVIE, label: 'lists.movies' },
@@ -85,25 +104,25 @@
       </div>
     </div>
 
-    <div
+    <AppState
       v-if="view.error && view.error.code !== 'signed-out'"
-      role="alert"
-      class="p-5 text-center text-red-600 dark:text-red-400"
+      tone="error"
+      icon="pi pi-exclamation-triangle"
     >
-      <p>{{ t('lists.error') }}</p>
-      <AppButton
-        class="mt-4"
-        :label="t('lists.tryAgain')"
-        icon="pi pi-refresh"
-        @click="lists.load(list)"
-      />
-    </div>
+      {{ t('lists.error') }}
+      <template #actions>
+        <AppButton
+          :label="t('lists.tryAgain')"
+          icon="pi pi-refresh"
+          @click="lists.load(list)"
+        />
+      </template>
+    </AppState>
 
-    <div
-      v-else-if="view.results.length"
-      :class="{ 'opacity-50': view.loading }"
-      :aria-busy="view.loading"
-    >
+    <div v-else-if="view.results.length" :aria-busy="view.loading">
+      <!-- Another page or kind on its way: the list stays readable. -->
+      <AppLoadingBar v-if="view.loading" class="my-1" />
+
       <AppPaginator
         class="my-4"
         :page="view.page"
@@ -122,12 +141,19 @@
       </ul>
     </div>
 
-    <div v-else-if="view.loaded && !view.loading" class="p-5 text-center">
+    <AppState v-else-if="view.loaded && !view.loading" :icon="icon">
       {{ t(empty) }}
-    </div>
+    </AppState>
 
-    <div v-else role="status" class="p-5 text-center">
-      {{ t('lists.loading') }}
+    <!-- The shape of the list until it comes; the text is for screen
+         readers. -->
+    <div
+      v-else
+      role="status"
+      class="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+    >
+      <span class="sr-only">{{ t('lists.loading') }}</span>
+      <PosterCardSkeleton v-for="index in 12" :key="index" />
     </div>
   </div>
 </template>

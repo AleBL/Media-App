@@ -5,6 +5,10 @@
   import type { MediaType, WatchProvider } from '@shared/api';
   import AccountButtons from '@/components/Account/AccountButtons.vue';
   import AppButton from '@/components/ui/AppButton.vue';
+  import AppImage from '@/components/ui/AppImage.vue';
+  import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
+  import AppSkeleton from '@/components/ui/AppSkeleton.vue';
+  import AppState from '@/components/ui/AppState.vue';
   import { isDesktop } from '@/services/api';
   import { useCredentialsStore } from '@/stores/credentials';
   import { useDetailsStore } from '@/stores/details';
@@ -189,39 +193,59 @@
       />
     </div>
 
-    <div
+    <AppState
       v-if="error"
-      role="alert"
-      class="p-5 text-center text-red-600 dark:text-red-400"
+      tone="error"
+      :icon="
+        error.code === 'not-found'
+          ? 'pi pi-question-circle'
+          : 'pi pi-exclamation-triangle'
+      "
     >
-      <p>{{ t(errorMessage) }}</p>
-      <RouterLink v-if="problem && desktop" :to="{ name: 'settings' }">
-        {{ t('access.openSettings') }}
-      </RouterLink>
-      <AppButton
-        v-else-if="canRetry"
-        class="mt-4"
-        :label="t('details.tryAgain')"
-        icon="pi pi-refresh"
-        @click="store.load(type, id)"
+      {{ t(errorMessage) }}
+      <template #actions>
+        <RouterLink v-if="problem && desktop" :to="{ name: 'settings' }">
+          {{ t('access.openSettings') }}
+        </RouterLink>
+        <AppButton
+          v-else-if="canRetry"
+          :label="t('details.tryAgain')"
+          icon="pi pi-refresh"
+          @click="store.load(type, id)"
+        />
+      </template>
+    </AppState>
+
+    <!-- The shape of the page until it comes; the text is for screen
+         readers. -->
+    <div
+      v-else-if="!details"
+      role="status"
+      class="flex flex-col gap-6 sm:flex-row"
+    >
+      <span class="sr-only">{{ t('details.loading') }}</span>
+      <AppSkeleton
+        class="aspect-[2/3] w-48 self-center sm:w-64 sm:self-start"
       />
+      <div class="flex-1">
+        <AppSkeleton class="h-9 w-2/3" />
+        <AppSkeleton class="mt-3 h-5 w-1/2" />
+        <AppSkeleton class="mt-3 h-4 w-3/4" />
+        <AppSkeleton class="mt-6 h-4 w-full" />
+        <AppSkeleton class="mt-3 h-4 w-full" />
+        <AppSkeleton class="mt-3 h-4 w-5/6" />
+      </div>
     </div>
 
-    <div v-else-if="!details" role="status" class="p-5 text-center">
-      {{ t('details.loading') }}
-    </div>
+    <article v-else :aria-busy="loading" aria-labelledby="details-title">
+      <!-- In another language, on its way: the page stays readable. -->
+      <AppLoadingBar v-if="loading" class="mb-3" />
 
-    <article
-      v-else
-      :class="{ 'opacity-50': loading }"
-      :aria-busy="loading"
-      aria-labelledby="details-title"
-    >
       <div class="flex flex-col gap-6 sm:flex-row">
-        <img
+        <AppImage
           :src="posterUrl(details.posterPath)"
-          alt=""
-          class="w-48 self-center rounded-md shadow-md sm:w-64 sm:self-start"
+          eager
+          class="w-48 shrink-0 self-center rounded-md shadow-md sm:w-64 sm:self-start"
         />
 
         <div class="flex-1">
@@ -303,13 +327,13 @@
             </h3>
             <ul class="mt-2 flex list-none flex-wrap gap-3 p-0">
               <li v-for="provider in group.providers" :key="provider.id">
-                <img
+                <AppImage
                   v-if="provider.logoPath"
                   :src="logoUrl(provider.logoPath)"
                   :alt="provider.name"
                   :title="provider.name"
+                  shape="square"
                   class="h-12 w-12 rounded-lg"
-                  loading="lazy"
                 />
                 <span
                   v-else
@@ -355,20 +379,11 @@
             :key="person.id"
             class="text-center"
           >
-            <img
-              v-if="person.profilePath"
-              :src="profileUrl(person.profilePath)"
-              alt=""
-              loading="lazy"
-              class="mx-auto aspect-[2/3] w-full max-w-36 rounded-md object-cover"
+            <AppImage
+              :src="person.profilePath ? profileUrl(person.profilePath) : null"
+              icon="pi pi-user"
+              class="mx-auto w-full max-w-36 rounded-md"
             />
-            <div
-              v-else
-              class="mx-auto flex aspect-[2/3] w-full max-w-36 items-center justify-center rounded-md bg-surface-100 dark:bg-surface-700"
-              aria-hidden="true"
-            >
-              <span class="pi pi-user text-3xl text-surface-400" />
-            </div>
             <p class="mt-2 text-sm font-medium">{{ person.name }}</p>
             <p
               v-if="person.character"

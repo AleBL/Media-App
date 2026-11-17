@@ -3,7 +3,10 @@
   import { useRoute, useRouter } from 'vue-router';
   import { TMDB_PAGE_SIZE } from '@shared/api';
   import AppButton from '@/components/ui/AppButton.vue';
+  import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
   import AppPaginator from '@/components/ui/AppPaginator.vue';
+  import AppState from '@/components/ui/AppState.vue';
+  import PosterCardSkeleton from '@/components/Home/PosterCardSkeleton.vue';
   import SearchItemCard from '@/components/Search/SearchItemCard.vue';
   import { useGenresStore } from '@/stores/genres';
   import { useSessionStore } from '@/stores/session';
@@ -63,25 +66,21 @@
       </RouterLink>
     </p>
 
-    <div
-      v-else-if="failed"
-      role="alert"
-      class="p-5 text-center text-red-600 dark:text-red-400"
-    >
-      <p>{{ t('lists.error') }}</p>
-      <AppButton
-        class="mt-4"
-        :label="t('lists.tryAgain')"
-        icon="pi pi-refresh"
-        @click="watched.loadPage()"
-      />
-    </div>
+    <AppState v-else-if="failed" tone="error" icon="pi pi-exclamation-triangle">
+      {{ t('lists.error') }}
+      <template #actions>
+        <AppButton
+          :label="t('lists.tryAgain')"
+          icon="pi pi-refresh"
+          @click="watched.loadPage()"
+        />
+      </template>
+    </AppState>
 
-    <div
-      v-else-if="view.results.length"
-      :class="{ 'opacity-50': view.loading }"
-      :aria-busy="view.loading"
-    >
+    <div v-else-if="view.results.length" :aria-busy="view.loading">
+      <!-- Another page on its way: the list stays readable. -->
+      <AppLoadingBar v-if="view.loading" class="my-1" />
+
       <AppPaginator
         class="my-4"
         :page="view.page"
@@ -100,12 +99,19 @@
       </ul>
     </div>
 
-    <div v-else-if="view.loaded && !view.loading" class="p-5 text-center">
+    <AppState v-else-if="view.loaded && !view.loading" icon="pi pi-eye">
       {{ t('lists.emptyWatched') }}
-    </div>
+    </AppState>
 
-    <div v-else role="status" class="p-5 text-center">
-      {{ t('lists.loading') }}
+    <!-- The shape of the list until it comes; the text is for screen
+         readers. -->
+    <div
+      v-else
+      role="status"
+      class="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+    >
+      <span class="sr-only">{{ t('lists.loading') }}</span>
+      <PosterCardSkeleton v-for="index in 12" :key="index" />
     </div>
   </div>
 </template>

@@ -148,6 +148,10 @@ npm run build:linux # uses linux as build target
 
 Optional configuration options can be found in the [Electron Builder CLI docs](https://www.electron.build/cli.html).
 
+The packages land in `release/<version>`: a `.dmg` for macOS, an installer for Windows, and an AppImage, a `.deb` and a snap for Linux, configured in `electron-builder.json5`. They turn off what the app does not use of Electron (running it as Node, `--inspect`, loading code from outside the checked `app.asar`), so a packaged app cannot be debugged that way: use `npm run dev`.
+
+The icon is drawn in `build/icon.svg`. After changing it, `npm run icons` renders every size the packages and the site need (`build/icon.png`, `build/icons/`, `public/favicon.*`).
+
 #### Lint and Prettier
 
 ```bash

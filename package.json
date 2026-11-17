@@ -1,7 +1,9 @@
 {
   "name": "media-app",
   "version": "0.1.0",
-  "description": "An Electron + Vue 3 starter project setup with Vite, Typescript, Vue-Router, Pinia, Eslint, Prettier, Tailwind CSS",
+  "description": "Search movies and TV shows on TMDB and keep your watchlist, favorites, ratings and watched titles",
+  "homepage": "https://github.com/AleBL/Media-App",
+  "desktopName": "media-app.desktop",
   "repository": "https://github.com/AleBL/Media-App",
   "author": {
     "name": "Alessandro",
@@ -16,10 +18,10 @@
   "packageManager": "npm@11.12.1",
   "main": "dist-electron/main/index.js",
   "keywords": [
+    "tmdb",
+    "movies",
+    "tv-shows",
     "electron",
-    "rollup",
-    "vite",
-    "vue3",
     "vue"
   ],
   "debug": {
@@ -42,6 +44,7 @@
     "test:e2e": "playwright test",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
+    "icons": "node scripts/generate-icons.mjs",
     "deps:update": "taze major -I"
   },
   "devDependencies": {

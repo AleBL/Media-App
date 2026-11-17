@@ -77,6 +77,14 @@
     "dataSource": "Las películas, series, personas, imágenes y cuentas vienen de TMDB, The Movie Database."
   },
 
+  "updates": {
+    "ready": "La versión {version} está lista.",
+    "restart": "Reiniciar y actualizar",
+    "available": "La versión {version} está disponible.",
+    "download": "Descargar",
+    "dismiss": "Descartar"
+  },
+
   "search": {
     "notFound": "No se encontraron registros",
     "loading": "Buscando...",

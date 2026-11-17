@@ -37,9 +37,8 @@ export const useCredentialsStore = defineStore('credentials', () => {
       return;
     }
 
-    // The app searches with its own credential now, so the old key is just
-    // dropped. A copy built without one still needs that key: it is handed
-    // to the main process instead.
+    // Dropped when the app has its own credential; otherwise moved to the
+    // main process.
     if (legacyKey && !hasKey.value && !builtIn.value) {
       apply(await getApi().credentials.save(legacyKey));
     }

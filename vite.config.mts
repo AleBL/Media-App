@@ -30,10 +30,8 @@ const isDevelopment =
   process.env.NODE_ENV === 'development' || !!process.env.VSCODE_DEBUG;
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Adds the Content-Security-Policy to index.html. The renderer may only run
-// its own scripts and load posters from TMDB: the API calls are made by the
-// main process. The dev server also needs a WebSocket for hot reload, which
-// is why the policy is not written in index.html.
+// Generated instead of written in index.html: the dev server also needs a
+// WebSocket for hot reload.
 function contentSecurityPolicy(): Plugin {
   let isDevServer = false;
 
@@ -67,10 +65,9 @@ function contentSecurityPolicy(): Plugin {
   };
 }
 
-// The TMDB credential of the app itself comes from TMDB_READ_TOKEN, set in
-// the environment or in .env.local (see .env.example). The empty prefix is
-// what makes loadEnv read a variable without VITE_ in its name, and that
-// missing VITE_ is what keeps Vite from handing it to the renderer.
+// From the environment or .env.local. The empty prefix lets loadEnv read a
+// variable without VITE_, and without VITE_ Vite never gives it to the
+// renderer.
 function appCredential(mode: string) {
   const token = (loadEnv(mode, root, '').TMDB_READ_TOKEN ?? '').trim();
 
@@ -84,16 +81,13 @@ function appCredential(mode: string) {
   return token;
 }
 
-// The web version of the app asks functions of the site for TMDB data and
-// for the session of whoever signed in (the files in /api, deployed by
-// Vercel). The dev and preview servers answer the same paths with the same
-// code, so the app also works when it is opened in a browser here.
+// The dev and preview servers answer the paths of /api (the Vercel
+// functions) with the same code, so the web version works locally too.
 // TMDB_BASE_URL points them at another server, for tests.
 function siteFunctions(credential: string): Plugin {
   type SiteModule = typeof import('./shared/tmdb/site');
 
-  // This file is loaded by Node, which cannot import the TypeScript of the
-  // app. The functions are loaded through Vite instead, when first needed.
+  // Node cannot import the app's TypeScript: loaded through Vite on demand.
   let loading: Promise<ReturnType<SiteModule['createSite']>> | undefined;
   const site = () =>
     (loading ??= runnerImport<SiteModule>(`${root}shared/tmdb/site.ts`, {
@@ -179,9 +173,7 @@ export default defineConfig(({ mode }) => {
             }
           },
           vite: {
-            // Only the main process gets the credential: it is the one that
-            // talks to TMDB. Never move this to the `define` above, which is
-            // the renderer's.
+            // Main process only. Never in the `define` above (the renderer's).
             define: {
               __TMDB_READ_TOKEN__: JSON.stringify(credential),
             },

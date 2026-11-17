@@ -27,8 +27,7 @@ export const useSearchStore = defineStore('search', () => {
   const searched = ref(false);
   const error = ref<TmdbFailure | null>(null);
 
-  // Incremented on every call, so a slow answer to an older request can be
-  // recognised and dropped instead of overwriting a newer one.
+  // Ignores answers of an older request.
   let latestRequest = 0;
 
   function clearResults() {

@@ -5,13 +5,9 @@ import { createWebAccount } from './web-account';
 import { createWebAuth, type WebAuthOptions } from './web-auth';
 
 /**
- * The functions of the site (the files in /api, which Vercel deploys) for
- * the servers that are not Vercel: the dev and preview servers of Vite and
- * the one of the end-to-end tests. They answer the same paths with the same
- * code, so the web version works the same way everywhere.
- *
- * Answers `true` when the request was one for a function. Any other is left
- * untouched, for the server to answer.
+ * The /api functions for servers that are not Vercel (Vite dev/preview and
+ * the E2E server), with the same code. Answers `true` when it handled the
+ * request; anything else is left to the server.
  */
 export function createSite(options: TmdbProxyOptions & WebAuthOptions) {
   const proxy = createTmdbProxy(options);

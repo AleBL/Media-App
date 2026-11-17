@@ -35,8 +35,7 @@ export const useHomeStore = defineStore('home', () => {
     >,
   );
 
-  // One counter per list, so a slow answer in the language left behind is
-  // dropped instead of replacing the one asked for after it.
+  // Per list: ignores answers of an older request (such as another language).
   const latest = new Map<MediaList, number>();
 
   async function loadList(list: MediaList) {

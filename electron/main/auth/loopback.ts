@@ -31,15 +31,11 @@ const HEADERS = {
 };
 
 /**
- * The way back from the browser to the app: a web server that only this
- * computer can reach (127.0.0.1), on a port picked by the system, for one
- * login. TMDB sends the browser to it once the user answered.
+ * A one-login server on 127.0.0.1 where TMDB sends the browser back.
  *
- * Any program or web page on this computer can also knock on that port, so
- * the callback proves nothing by itself: it is only the signal to go and ask
- * TMDB, which is what `onCallback` does. Its address ends in a value made up
- * for this login, which only TMDB is given (TMDB v4 brings nothing else
- * back): everything else gets a 404 and changes nothing.
+ * Anything on this computer can reach the port, so the callback proves
+ * nothing: it only triggers `onCallback`, which asks TMDB. The path ends in
+ * a random value only TMDB knows; anything else gets a 404.
  */
 export async function startLoopback(
   options: LoopbackOptions,

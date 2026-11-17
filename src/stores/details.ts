@@ -13,8 +13,7 @@ export const useDetailsStore = defineStore('details', () => {
   const loading = ref(false);
   const error = ref<TmdbFailure | null>(null);
 
-  // Incremented on every call, so a slow answer about the title shown before
-  // is dropped instead of replacing the one asked for after it.
+  // Ignores answers of an older request.
   let latestRequest = 0;
 
   async function load(type: MediaType, id: number) {

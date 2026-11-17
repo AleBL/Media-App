@@ -166,6 +166,7 @@
     "yourRating": "Sua nota",
     "yourRatingIs": "Sua nota: {rating}",
     "notRated": "Sem nota",
+    "removeRating": "Tirar a nota",
     "rateFailed": "A nota não foi salva. Tente de novo.",
     "watched": "Assistidos",
     "watchedButton": "Assistido",

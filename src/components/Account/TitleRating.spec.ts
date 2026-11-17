@@ -32,19 +32,33 @@ describe('TitleRating', () => {
     await flushPromises();
   }
 
-  const select = () => wrapper.get('select');
-  const shown = () =>
-    (select().element as HTMLSelectElement).selectedOptions[0].text;
-  /** Picks the option that says `text`, as the user would. */
+  const group = () => wrapper.get('[role="radiogroup"]');
+  const radios = () => group().findAll('input[type="radio"]');
+  /** The number a screen reader reads for each half of a star. */
+  const names = () =>
+    group()
+      .findAll('label')
+      .map((label) => label.text());
+  const checked = () => {
+    const index = radios().findIndex(
+      (radio) => (radio.element as HTMLInputElement).checked,
+    );
+
+    return index < 0 ? null : names()[index];
+  };
+  /** Picks the half star that reads `text`, as the user would. */
   function choose(text: string) {
-    const option = select()
-      .findAll('option')
-      .find((found) => found.text() === text)!;
+    const index = names().indexOf(text);
+    const radio = radios()[index];
 
-    (option.element as HTMLOptionElement).selected = true;
+    (radio.element as HTMLInputElement).checked = true;
 
-    return select().trigger('change');
+    return radio.trigger('change');
   }
+  const removeButton = () =>
+    wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Remove the rating');
 
   beforeEach(() => {
     i18n.global.locale.value = 'en';
@@ -59,35 +73,36 @@ describe('TitleRating', () => {
     delete window.api;
   });
 
-  it('is a select named by its label, from none to 10 in steps of 0.5', async () => {
+  it('is a group of ten stars in halves, from 0.5 to 10, named by its label', async () => {
     await mountRating(null);
 
-    const id = select().attributes('id');
-    expect(wrapper.get(`label[for="${id}"]`).text()).toBe('Your rating');
-
-    const options = select().findAll('option');
-    expect(options).toHaveLength(21);
-    expect(options.slice(0, 4).map((option) => option.text())).toEqual([
-      'Not rated',
-      '0.5',
-      '1.0',
-      '1.5',
-    ]);
-    expect(options.at(-1)!.text()).toBe('10.0');
-    expect(shown()).toBe('Not rated');
+    const id = group().attributes('aria-labelledby');
+    expect(wrapper.get(`#${id}`).text()).toBe('Your rating');
+    expect(radios()).toHaveLength(20);
+    expect(names().slice(0, 3)).toEqual(['0.5', '1.0', '1.5']);
+    expect(names().at(-1)).toBe('10.0');
+    expect(wrapper.findAll('.pi-star')).toHaveLength(10);
+    expect(checked()).toBeNull();
+    expect(wrapper.text()).toContain('Not rated');
+    expect(removeButton()).toBeUndefined();
   });
 
   it('waits for TMDB to say what the rating is', async () => {
     await mountRating('unknown');
 
-    expect(select().attributes('disabled')).toBeDefined();
+    expect(
+      radios().every((radio) => radio.attributes('disabled') !== undefined),
+    ).toBe(true);
   });
 
-  it('shows the rating the title has', async () => {
+  it('shows the rating the title has, in full and half stars', async () => {
     await mountRating(8.5);
 
-    expect(select().attributes('disabled')).toBeUndefined();
-    expect(shown()).toBe('8.5');
+    expect(radios()[0].attributes('disabled')).toBeUndefined();
+    expect(checked()).toBe('8.5');
+    expect(wrapper.findAll('.pi-star-fill')).toHaveLength(8);
+    expect(wrapper.findAll('.pi-star-half-fill')).toHaveLength(1);
+    expect(wrapper.findAll('.pi-star')).toHaveLength(1);
   });
 
   it('rates the title as soon as a rating is chosen', async () => {
@@ -97,18 +112,19 @@ describe('TitleRating', () => {
     await flushPromises();
 
     expect(api.account.rate).toHaveBeenCalledWith({ ...MATRIX, value: 9 });
-    expect(shown()).toBe('9.0');
+    expect(checked()).toBe('9.0');
     expect(wrapper.find('[role="alert"]').exists()).toBe(false);
   });
 
-  it('takes the rating away with "Not rated"', async () => {
+  it('takes the rating away with its own button', async () => {
     await mountRating(6);
 
-    await choose('Not rated');
+    await removeButton()!.trigger('click');
     await flushPromises();
 
     expect(api.account.rate).toHaveBeenCalledWith({ ...MATRIX, value: null });
-    expect(shown()).toBe('Not rated');
+    expect(checked()).toBeNull();
+    expect(removeButton()).toBeUndefined();
   });
 
   it('goes back with a message when TMDB refuses', async () => {
@@ -120,12 +136,12 @@ describe('TitleRating', () => {
 
     await choose('3.0');
 
-    expect(shown()).toBe('3.0');
+    expect(checked()).toBe('3.0');
 
     answer({ ok: false, error: { code: 'network' } });
     await flushPromises();
 
-    expect(shown()).toBe('6.0');
+    expect(checked()).toBe('6.0');
     expect(wrapper.get('[role="alert"]').text()).toBe(
       'The rating could not be saved. Try again.',
     );
@@ -149,7 +165,8 @@ describe('TitleRating', () => {
 
     await mountRating(8.5);
 
-    expect(shown()).toBe('8,5');
-    expect(select().findAll('option')[0].text()).toBe('Sem nota');
+    expect(checked()).toBe('8,5');
+    expect(removeButton()).toBeUndefined();
+    expect(wrapper.text()).toContain('Tirar a nota');
   });
 });

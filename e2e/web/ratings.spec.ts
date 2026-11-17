@@ -20,8 +20,12 @@ test.describe('ratings on the web version', () => {
     await cards(page).first().getByRole('link').click();
     await expect(heading(page)).toHaveText('Movie 1 [en] (2020)');
 
-    const rating = page.getByLabel('Your rating');
-    await rating.selectOption({ label: '7.5' });
+    const rating = page.getByRole('radiogroup', { name: 'Your rating' });
+    // The half of a star, which holds its radio button out of sight.
+    await rating
+      .locator('label')
+      .filter({ has: page.getByText('7.5', { exact: true }) })
+      .click();
 
     await expect.poll(() => tmdb.ratings()).toEqual({ 'movie:1': 7.5 });
 
@@ -31,8 +35,8 @@ test.describe('ratings on the web version', () => {
     await expect(cards(page).first()).toContainText('Your rating: 7.5');
 
     await cards(page).first().getByRole('link').click();
-    await expect(rating).toHaveValue('7.5');
-    await rating.selectOption({ label: 'Not rated' });
+    await expect(rating.locator('input:checked')).toHaveValue('7.5');
+    await page.getByRole('button', { name: 'Remove the rating' }).click();
 
     await expect.poll(() => tmdb.ratings()).toEqual({});
   });

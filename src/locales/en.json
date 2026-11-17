@@ -166,6 +166,7 @@
     "yourRating": "Your rating",
     "yourRatingIs": "Your rating: {rating}",
     "notRated": "Not rated",
+    "removeRating": "Remove the rating",
     "rateFailed": "The rating could not be saved. Try again.",
     "watched": "Watched",
     "watchedButton": "Watched",

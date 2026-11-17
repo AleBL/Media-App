@@ -166,6 +166,7 @@
     "yourRating": "Tu valoración",
     "yourRatingIs": "Tu valoración: {rating}",
     "notRated": "Sin valorar",
+    "removeRating": "Quitar la valoración",
     "rateFailed": "No se pudo guardar la valoración. Inténtalo de nuevo.",
     "watched": "Vistos",
     "watchedButton": "Visto",

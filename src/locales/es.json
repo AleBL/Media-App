@@ -90,6 +90,12 @@
     "dismiss": "Descartar"
   },
 
+  "toast": {
+    "label": "Notificaciones",
+    "dismiss": "Descartar",
+    "undo": "Deshacer"
+  },
+
   "search": {
     "notFound": "No se encontraron registros",
     "loading": "Buscando...",
@@ -165,7 +171,13 @@
     "watchedButton": "Visto",
     "watchedOn": "Visto el {date}",
     "emptyWatched": "Aún no has visto nada. Marca películas y series como vistas desde sus páginas.",
-    "signInAgain": "Para marcar lo que has visto, cierra sesión y vuelve a iniciarla con TMDB: la app ahora lo guarda en una lista de tu cuenta."
+    "signInAgain": "Para marcar lo que has visto, cierra sesión y vuelve a iniciarla con TMDB: la app ahora lo guarda en una lista de tu cuenta.",
+    "addedWatchlist": "Añadido a Mi lista.",
+    "removedWatchlist": "Quitado de Mi lista.",
+    "addedFavorite": "Añadido a Favoritos.",
+    "removedFavorite": "Quitado de Favoritos.",
+    "markedWatched": "Marcado como visto.",
+    "unmarkedWatched": "Desmarcado como visto."
   },
 
   "account": {

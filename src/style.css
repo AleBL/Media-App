@@ -39,6 +39,15 @@
   --color-surface-900: rgb(15 23 42);
   --color-surface-950: rgb(3 6 23);
 
+  /* A page coming in fades in (App.vue). */
+  --animate-page-in: page-in 150ms ease-out;
+
+  @keyframes page-in {
+    from {
+      opacity: 0;
+    }
+  }
+
   /* A stripe that runs across the loading bar (AppLoadingBar). */
   --animate-loading-bar: loading-bar 1.2s ease-in-out infinite;
 
@@ -82,8 +91,16 @@
     @apply mx-2 rounded-sm bg-gray-200 px-1 py-0.5 dark:bg-gray-700;
   }
 
+  /* The green of the app, dark enough on white and light enough on the
+     dark theme for the 4.5:1 of WCAG AA. */
   a {
-    @apply text-[#42b983];
+    @apply text-primary-700 dark:text-primary-400;
+  }
+
+  /* A visible ring on whatever the keyboard reaches, where a component
+     does not draw its own. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary-600 dark:outline-primary-400;
   }
 }
 

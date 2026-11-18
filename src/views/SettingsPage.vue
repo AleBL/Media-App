@@ -11,7 +11,7 @@
   import { safeCall } from '@/stores/account';
   import { useCredentialsStore } from '@/stores/credentials';
   import { useGenresStore } from '@/stores/genres';
-  import { useSettingsStore } from '@/stores/settings';
+  import { UI_SIZES, useSettingsStore } from '@/stores/settings';
   import { userRegion } from '@/util/region';
 
   const { t, locale, availableLocales } = useI18n();
@@ -51,6 +51,17 @@
     { value: 'light', label: t('theme.light'), icon: 'pi pi-sun' },
     { value: 'dark', label: t('theme.dark'), icon: 'pi pi-moon' },
   ]);
+
+  // Automatic, then each percentage as the language writes it.
+  const sizes = computed(() => {
+    const percent = new Intl.NumberFormat(locale.value, { style: 'percent' });
+
+    return UI_SIZES.map((size) => ({
+      value: size,
+      label:
+        size === 'auto' ? t('settings.sizeAuto') : percent.format(+size / 100),
+    }));
+  });
 
   // The countries TMDB knows where to watch in, by name; the one chosen
   // before stays, even when TMDB could not be asked.
@@ -134,6 +145,19 @@
         :options="themes"
         :label="t('theme.text')"
         name="settings-theme"
+      />
+    </section>
+
+    <section>
+      <h2 class="mb-2 text-xl">{{ t('settings.sizeTitle') }}</h2>
+      <p class="mb-3 text-sm text-surface-600 dark:text-surface-300">
+        {{ t('settings.sizeHint') }}
+      </p>
+      <AppSegmented
+        v-model="settings.uiSize"
+        :options="sizes"
+        :label="t('settings.sizeTitle')"
+        name="settings-size"
       />
     </section>
 

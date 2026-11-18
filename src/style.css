@@ -120,6 +120,35 @@
     scrollbar-color: var(--color-surface-600) transparent;
   }
 
+  /* Text, spacing, buttons and cards are all in rem: the size of the text
+     of the root makes the whole interface a little bigger on a big screen
+     (the media queries go by the size the browser starts with, so this does
+     not move them). The size chosen in the settings (data-ui-size, from the
+     settings store and public/theme.js) takes its place. */
+  @media (width >= 96rem) {
+    :root:not([data-ui-size]) {
+      font-size: 106.25%;
+    }
+  }
+
+  @media (width >= 120rem) {
+    :root:not([data-ui-size]) {
+      font-size: 112.5%;
+    }
+  }
+
+  :root[data-ui-size='90'] {
+    font-size: 90%;
+  }
+
+  :root[data-ui-size='110'] {
+    font-size: 110%;
+  }
+
+  :root[data-ui-size='125'] {
+    font-size: 125%;
+  }
+
   /* The page as it was with Bootstrap, which set these. Dark like #app
      (index.html), for what shows past it, as the last margin of a page. */
   body {

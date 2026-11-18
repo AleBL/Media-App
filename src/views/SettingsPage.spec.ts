@@ -112,6 +112,28 @@ describe('SettingsPage', () => {
     await radio('settings-theme', 'auto').setValue(true);
   });
 
+  it('makes the interface bigger or smaller, or leaves it to the screen', async () => {
+    await mountPage();
+
+    const sizes = wrapper
+      .get('[role="radiogroup"][aria-label="Interface size"]')
+      .text();
+    expect(sizes).toContain('Automatic');
+    expect(sizes).toContain('125%');
+    expect(isChecked('settings-size', 'auto')).toBe(true);
+
+    await radio('settings-size', '125').setValue(true);
+    await flushPromises();
+
+    expect(localStorage.getItem('ui-size')).toBe('125');
+    expect(document.documentElement.dataset.uiSize).toBe('125');
+
+    await radio('settings-size', 'auto').setValue(true);
+    await flushPromises();
+
+    expect(document.documentElement.dataset.uiSize).toBeUndefined();
+  });
+
   it('chooses the country of where to watch, among those TMDB knows', async () => {
     await mountPage();
 

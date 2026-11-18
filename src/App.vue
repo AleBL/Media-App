@@ -7,6 +7,16 @@
 <template>
   <NavBar />
   <UpdateBanner />
-  <RouterView />
+  <!-- Each page fades in; the one before goes at once, so there are never
+       two of them, and the place a page scrolled to stays right. Another
+       search or another title on the same page does not fade. -->
+  <RouterView v-slot="{ Component, route }">
+    <div
+      :key="String(route.name)"
+      class="animate-page-in motion-reduce:animate-none"
+    >
+      <component :is="Component" />
+    </div>
+  </RouterView>
   <AppToaster />
 </template>

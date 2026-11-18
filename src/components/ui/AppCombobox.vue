@@ -50,7 +50,7 @@
       <ComboboxContent
         position="popper"
         :side-offset="4"
-        class="z-50 max-h-72 w-[var(--reka-combobox-trigger-width)] overflow-y-auto rounded-md border border-surface-200 bg-surface-0 p-1 shadow-lg dark:border-surface-700 dark:bg-surface-900"
+        class="z-50 max-h-72 w-[var(--reka-combobox-trigger-width)] overflow-y-auto rounded-md border border-surface-200 bg-surface-0 p-1 shadow-lg outline-hidden dark:border-surface-700 dark:bg-surface-900"
       >
         <ComboboxViewport>
           <ComboboxEmpty

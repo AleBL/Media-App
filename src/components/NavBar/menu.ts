@@ -1,6 +1,6 @@
 // The look of the menus that open from the bar (languages, account).
 export const MENU =
-  'z-50 min-w-48 rounded-md border border-surface-200 bg-surface-0 p-1 shadow-lg dark:border-surface-700 dark:bg-surface-900';
+  'z-50 min-w-48 rounded-md border border-surface-200 bg-surface-0 p-1 shadow-lg outline-hidden dark:border-surface-700 dark:bg-surface-900';
 
 export const MENU_ITEM =
   'flex w-full cursor-pointer select-none items-center gap-2 rounded px-3 py-2 text-sm text-surface-700 no-underline outline-hidden data-[highlighted]:bg-surface-100 data-[highlighted]:text-surface-900 dark:text-surface-200 dark:data-[highlighted]:bg-surface-800 dark:data-[highlighted]:text-surface-0';

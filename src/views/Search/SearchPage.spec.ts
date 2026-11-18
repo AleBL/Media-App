@@ -6,7 +6,7 @@ import i18n from '@/plugins/i18n';
 import router from '@/router';
 import SearchPage from '@/views/Search/SearchPage.vue';
 import { useCredentialsStore } from '@/stores/credentials';
-import { useSearchStore } from '@/stores/search';
+import { SEARCH_DEBOUNCE_MS, useSearchStore } from '@/stores/search';
 import { installFakeApi } from '@/test/fakeApi';
 
 function movie(id: number): MediaItem {
@@ -159,6 +159,13 @@ describe('SearchPage', () => {
     await flushPromises();
 
     expect(router.currentRoute.value.query).toEqual({ q: 'aliens' });
+
+    // The search typed goes out after a pause, even once the page is gone:
+    // it should not reach the fake api of the next test.
+    await new Promise((resolve) =>
+      setTimeout(resolve, SEARCH_DEBOUNCE_MS + 20),
+    );
+    await flushPromises();
   });
 
   it('shows people and titles of a search of everything, saying what each is', async () => {

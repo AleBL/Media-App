@@ -77,8 +77,10 @@ describe('AccountButtons', () => {
 
     expect(api.account.states).toHaveBeenCalledOnce();
     expect(
-      (wrapper.get('select').element as HTMLSelectElement).selectedOptions[0]
-        .text,
+      (
+        wrapper.get('[role="radiogroup"] input:checked')
+          .element as HTMLInputElement
+      ).value,
     ).toBe('7.5');
   });
 

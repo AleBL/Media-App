@@ -194,6 +194,12 @@ export async function openPage(
   await expect(page).toHaveURL(new RegExp(`#/${name}$`));
 }
 
+/** Picks the country of where to watch on the settings page, by typing it. */
+export async function chooseCountry(page: Page, name: string) {
+  await page.getByRole('combobox', { name: 'Country' }).fill(name);
+  await page.getByRole('option', { name, exact: true }).click();
+}
+
 /** Switches the app to a language from the menu, by its own name. */
 export async function chooseLanguage(page: Page, name: string) {
   await page.locator('header button:has(.pi-language)').click();

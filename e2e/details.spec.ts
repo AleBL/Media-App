@@ -90,7 +90,7 @@ test.describe('page of a title', () => {
   });
 
   test('opens a tv show', async ({ page }) => {
-    await page.getByText('TV Show', { exact: true }).click();
+    await page.getByRole('radio', { name: 'TV Show' }).check();
     await expect(cards(page).first()).toContainText('Show 1');
 
     await cards(page).first().getByRole('link').click();

@@ -85,7 +85,7 @@ describe('AccountListPage', () => {
     await mountPage('favorite');
     expect(wrapper.get('h1').text()).toBe('Favorites');
 
-    await wrapper.get('#favorite-tv').setValue(true);
+    await wrapper.get('input[value="tv"]').setValue(true);
     await flushPromises();
 
     expect(api.account.list).toHaveBeenLastCalledWith({
@@ -95,7 +95,7 @@ describe('AccountListPage', () => {
       language: 'en',
     });
     expect(
-      (wrapper.get('#favorite-tv').element as HTMLInputElement).checked,
+      (wrapper.get('input[value="tv"]').element as HTMLInputElement).checked,
     ).toBe(true);
   });
 

@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import { APP_TOKEN, TRAILER_KEY } from '../support/fake-tmdb';
 import {
   cards,
+  chooseCountry,
   chooseLanguage,
   heading,
   openPage,
@@ -305,7 +306,7 @@ test.describe('web version', () => {
   }) => {
     await page.goto(site.url);
     await openPage(page, 'settings');
-    await page.getByLabel('Country').selectOption({ label: 'Brazil' });
+    await chooseCountry(page, 'Brazil');
 
     await openPage(page, 'search');
     await searchBox(page).fill('matrix');

@@ -1,7 +1,9 @@
 <script setup lang="ts">
-  import { watch } from 'vue';
+  import { computed, watch } from 'vue';
   import { storeToRefs } from 'pinia';
   import { watchDebounced } from '@vueuse/core';
+  import type { SearchType } from '@shared/api';
+  import AppSegmented from '@/components/ui/AppSegmented.vue';
   import { SEARCH_DEBOUNCE_MS, useSearchStore } from '@/stores/search';
   import { MEDIA_TYPES } from '@/util/constants';
 
@@ -23,6 +25,16 @@
     // Movies, tv shows and people.
     { id: 'mediaTypeAll', value: MEDIA_TYPES.ALL, label: 'search.all' },
   ];
+
+  const options = computed(() =>
+    types.map((type) => ({ value: type.value, label: t(type.label) })),
+  );
+  const kind = computed({
+    get: () => mediaType.value,
+    set: (value: string) => {
+      mediaType.value = value as SearchType;
+    },
+  });
 
   // One request after the user stops typing instead of one per key press.
   watchDebounced(query, () => store.search(), {
@@ -51,19 +63,12 @@
       />
     </div>
 
-    <!-- The choices wrap together, below the field on a narrow screen. -->
-    <div class="flex flex-wrap justify-center gap-3">
-      <div v-for="type in types" :key="type.id" class="flex items-center">
-        <input
-          :id="type.id"
-          v-model="mediaType"
-          type="radio"
-          name="mediaType"
-          class="h-4 w-4 accent-primary-500 dark:accent-primary-400 dark:[color-scheme:dark]"
-          :value="type.value"
-        />
-        <label :for="type.id" class="ml-2">{{ t(type.label) }}</label>
-      </div>
-    </div>
+    <!-- Below the field on a narrow screen. -->
+    <AppSegmented
+      v-model="kind"
+      :options="options"
+      :label="t('search.kind')"
+      name="mediaType"
+    />
   </div>
 </template>

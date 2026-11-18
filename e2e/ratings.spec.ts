@@ -17,7 +17,15 @@ async function openMovie(page: Page) {
   await expect(heading(page)).toHaveText('Movie 1 [en] (2020)');
 }
 
-const rating = (page: Page) => page.getByLabel('Your rating');
+const rating = (page: Page) =>
+  page.getByRole('radiogroup', { name: 'Your rating' });
+const rate = (page: Page, value: string) =>
+  rating(page)
+    // The half of a star, which holds its radio button out of sight.
+    .locator('label')
+    .filter({ has: page.getByText(value, { exact: true }) })
+    .click();
+const chosen = (page: Page) => rating(page).locator('input:checked');
 
 // Ratings belong to the TMDB account, like the watchlist: they need someone
 // signed in, and live at TMDB.
@@ -31,12 +39,10 @@ test.describe('ratings', () => {
     await signIn(running, tmdb);
     await openMovie(page);
 
-    await expect(rating(page)).toBeEnabled();
-    await expect(rating(page).locator('option:checked')).toHaveText(
-      'Not rated',
-    );
+    await expect(rating(page).getByRole('radio').first()).toBeEnabled();
+    await expect(chosen(page)).toHaveCount(0);
 
-    await rating(page).selectOption({ label: '8.5' });
+    await rate(page, '8.5');
 
     await expect.poll(() => tmdb.ratings()).toEqual({ 'movie:1': 8.5 });
 
@@ -48,8 +54,8 @@ test.describe('ratings', () => {
 
     // Taken away, from the page of the title.
     await cards(page).first().getByRole('link').click();
-    await expect(rating(page)).toHaveValue('8.5');
-    await rating(page).selectOption({ label: 'Not rated' });
+    await expect(chosen(page)).toHaveValue('8.5');
+    await page.getByRole('button', { name: 'Remove the rating' }).click();
     await expect.poll(() => tmdb.ratings()).toEqual({});
 
     await page.getByRole('button', { name: 'Back' }).click();
@@ -71,11 +77,11 @@ test.describe('ratings', () => {
     await openMovie(page);
 
     const myList = page.getByRole('button', { name: 'My list', exact: true });
-    await expect(rating(page)).toHaveValue('4');
+    await expect(chosen(page)).toHaveValue('4');
     await expect(myList).toHaveAttribute('aria-pressed', 'true');
 
     // TMDB takes a title it rates out of the watchlist, by default.
-    await rating(page).selectOption({ label: '6.0' });
+    await rate(page, '6.0');
 
     await expect(myList).toHaveAttribute('aria-pressed', 'false');
     expect(tmdb.ratings()).toEqual({ 'movie:1': 6 });

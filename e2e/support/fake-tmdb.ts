@@ -541,6 +541,7 @@ export async function startFakeTmdb() {
         poster_path: null,
         genre_ids: [28],
         vote_average: 7.5,
+        overview: `The story of title ${number}, told in ${query.language}.`,
       });
       const show = (number: number) => ({
         id: 9000 + number,
@@ -549,6 +550,7 @@ export async function startFakeTmdb() {
         poster_path: null,
         genre_ids: [18],
         vote_average: 8.9,
+        overview: `The story of show ${number}, told in ${query.language}.`,
       });
       // A search of everything has a movie, a tv show and a person in
       // turn. The person has the id of the movie two places before, as

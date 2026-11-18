@@ -236,6 +236,7 @@ function toMediaItem(item: MediaItem, type: MediaType): MediaItem {
     poster_path: item.poster_path,
     genre_ids: item.genre_ids,
     vote_average: item.vote_average,
+    overview: nonEmptyText(item.overview),
   };
 }
 
@@ -297,8 +298,13 @@ function toPeople(item: JsonObject): PersonItem[] {
       media_type: 'person',
       name,
       profile_path: nonEmptyText(item.profile_path),
+      // Only names that lead to the titles: no synopsis.
       known_for: objectArray(item.known_for)
         .flatMap((title) => toTitles(title, title.media_type))
+        .map((title) => {
+          delete title.overview;
+          return title;
+        })
         .slice(0, KNOWN_FOR_SIZE),
     },
   ];

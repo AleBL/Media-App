@@ -34,6 +34,8 @@ export interface MediaItem {
   poster_path?: string | null;
   genre_ids?: number[];
   vote_average?: number;
+  /** The synopsis, for the list view. */
+  overview?: string;
   /** Only in the list of rated titles. */
   rating?: number;
   /** YYYY-MM-DD, only in the list of watched titles. */

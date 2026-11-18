@@ -121,6 +121,24 @@ describe('search', () => {
     });
   });
 
+  it('keeps the synopsis of a title, for the list view, and not a blank one', async () => {
+    const { client } = setup([
+      answer(200, {
+        ...page,
+        results: [
+          { id: 603, title: 'The Matrix', overview: 'A hacker learns.' },
+          { id: 604, title: 'The Matrix Reloaded', overview: '  ' },
+        ],
+      }),
+    ]);
+
+    const { results } = await client.search(search);
+
+    expect(
+      results.map((item) => ('overview' in item ? item.overview : null)),
+    ).toEqual(['A hacker learns.', undefined]);
+  });
+
   it('caps the totals at the last page TMDB accepts', async () => {
     const { client } = setup([
       answer(200, { ...page, total_pages: 900, total_results: 18000 }),

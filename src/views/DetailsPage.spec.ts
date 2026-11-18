@@ -83,6 +83,46 @@ describe('DetailsPage', () => {
     );
   });
 
+  const ageRating = () => wrapper.find('[aria-label^="Age rating"]');
+
+  it('shows the age rating before the date, with what it means', async () => {
+    await open();
+
+    expect(ageRating().text()).toBe('R');
+    expect(ageRating().attributes('aria-label')).toBe(
+      'Age rating: R. Under 17 only with a parent or guardian',
+    );
+    expect(
+      ageRating().element.closest('li')!.nextElementSibling!.textContent,
+    ).toContain('Released March 31, 1999');
+  });
+
+  it('says whose age rating it is when the region of the user has none', async () => {
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['pt-BR']);
+
+    await open();
+
+    expect(api.tmdb.details).toHaveBeenCalledWith(
+      expect.objectContaining({ region: 'BR' }),
+    );
+    expect(ageRating().text()).toBe('US R');
+    expect(ageRating().attributes('aria-label')).toContain(
+      'Age rating (United States): R.',
+    );
+  });
+
+  it('shows no age rating where TMDB has none', async () => {
+    api.tmdb.details.mockResolvedValue({
+      ok: true,
+      data: { ...MATRIX, certification: undefined },
+    });
+
+    await open();
+
+    expect(ageRating().exists()).toBe(false);
+    expect(wrapper.text()).toContain('Released March 31, 1999');
+  });
+
   it('shows a wide still of the title behind its top, as a picture only', async () => {
     api.tmdb.details.mockResolvedValue({
       ok: true,

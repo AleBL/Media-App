@@ -29,12 +29,19 @@ test.describe('page of a title', () => {
     ).toBeVisible();
     await expect(page.getByText('Ada Actor')).toBeVisible();
     await expect(page.getByText('Villain')).toBeVisible();
+    // the age rating of the region, with what it means
+    await expect(
+      page.getByRole('img', {
+        name: 'Age rating: PG-13. May be inappropriate for children under 13',
+      }),
+    ).toHaveText('PG-13');
     expect(tmdb.pages()).toEqual([
       {
         path: '/3/movie/2',
         credential: 'app',
         language: 'en',
-        append_to_response: 'credits,videos,watch/providers,external_ids',
+        append_to_response:
+          'credits,videos,watch/providers,external_ids,release_dates',
         include_video_language: 'en,en-US,null',
       },
     ]);
@@ -144,6 +151,9 @@ test.describe('page of a title', () => {
     await expect(heading(page)).toHaveText('Show 1 [en] (2008)');
     await expect(page.getByText('5 seasons')).toBeVisible();
     await expect(page.getByText('47 min per episode')).toBeVisible();
+    await expect(
+      page.getByRole('img', { name: 'Age rating: TV-MA. Adults only' }),
+    ).toBeVisible();
   });
 
   test('follows the language chosen in the menu', async ({ page, tmdb }) => {

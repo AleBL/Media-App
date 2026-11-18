@@ -7,6 +7,7 @@
   import { useGenresStore } from '@/stores/genres';
   import { posterUrl } from '@/util/images';
   import { mediaPage, mediaTitle, mediaType, mediaYear } from '@/util/media';
+  import { creditRole } from '@/util/people';
 
   const props = defineProps<{
     item: MediaItem;
@@ -48,6 +49,10 @@
   const typeLabel = computed(() =>
     mediaType(props.item) === 'tv' ? 'pageTitles.tvShow' : 'pageTitles.movie',
   );
+
+  // Only the titles of the page of a person have one: who they played, or
+  // what they did.
+  const role = computed(() => creditRole(props.item, t));
 
   // Only the titles of the list of rated titles have one.
   const yourRating = computed(() =>
@@ -102,6 +107,12 @@
         {{ name }}
       </RouterLink>
     </h3>
+    <p
+      v-if="role"
+      class="mt-0.5 line-clamp-2 text-xs text-surface-600 dark:text-surface-300"
+    >
+      {{ role }}
+    </p>
     <p
       class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-surface-500 dark:text-surface-400"
     >

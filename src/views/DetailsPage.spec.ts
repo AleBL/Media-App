@@ -81,6 +81,21 @@ describe('DetailsPage', () => {
     );
   });
 
+  it('shows a wide still of the title behind its top, as a picture only', async () => {
+    api.tmdb.details.mockResolvedValue({
+      ok: true,
+      data: { ...MATRIX, backdropPath: '/matrix-wide.jpg' },
+    });
+
+    await open();
+
+    const still = wrapper.get('img[src$="/w1280/matrix-wide.jpg"]');
+    expect(still.attributes('alt')).toBe('');
+    expect(still.element.parentElement!.getAttribute('aria-hidden')).toBe(
+      'true',
+    );
+  });
+
   it('links to the trailer and to IMDb, to open in the browser', async () => {
     await open();
 

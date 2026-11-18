@@ -1,5 +1,54 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { isAppUrl, isNativeTheme, isSafeExternalUrl } from './security';
+import {
+  allowsPermission,
+  APP_REFERER,
+  isAppUrl,
+  isNativeTheme,
+  isSafeExternalUrl,
+  isTrailerUrl,
+  withAppReferer,
+} from './security';
+
+describe('the player of a trailer', () => {
+  it('is the player of YouTube without cookies, and nothing else', () => {
+    expect(
+      isTrailerUrl(
+        'https://www.youtube-nocookie.com/embed/vKQi3bBA1y8?autoplay=1',
+      ),
+    ).toBe(true);
+    expect(isTrailerUrl('https://www.youtube-nocookie.com/')).toBe(false);
+    expect(isTrailerUrl('https://www.youtube.com/embed/vKQi3bBA1y8')).toBe(
+      false,
+    );
+    expect(isTrailerUrl('http://www.youtube-nocookie.com/embed/x')).toBe(false);
+    expect(isTrailerUrl('not a url')).toBe(false);
+  });
+
+  it('may go full screen, as nothing else may, and ask for nothing more', () => {
+    const player = 'https://www.youtube-nocookie.com/embed/vKQi3bBA1y8';
+
+    expect(allowsPermission('fullscreen', player)).toBe(true);
+    expect(allowsPermission('fullscreen', 'file:///app/index.html')).toBe(
+      false,
+    );
+    expect(allowsPermission('fullscreen', undefined)).toBe(false);
+    expect(allowsPermission('media', player)).toBe(false);
+    expect(allowsPermission('notifications', player)).toBe(false);
+  });
+
+  it('is told who embeds it by the id of the app', () => {
+    // The tests run from the root of the project.
+    const config = readFileSync('electron-builder.json5', 'utf8');
+    const appId = /appId:\s*'([^']+)'/.exec(config)?.[1];
+
+    expect(APP_REFERER).toBe(`https://${appId}`);
+    // over whatever the page said, which from file:// is nothing
+    expect(
+      withAppReferer({ Accept: 'text/html', Referer: 'file:///' }),
+    ).toEqual({ Accept: 'text/html', Referer: APP_REFERER });
+  });
+});
 
 describe('isSafeExternalUrl', () => {
   it('accepts https pages', () => {

@@ -48,7 +48,7 @@ describe('AppToggleButton', () => {
     const button = mountToggle({ pressed: true, loading: true });
 
     expect(button.attributes('aria-busy')).toBe('true');
-    expect(button.attributes('disabled')).toBeDefined();
+    expect(button.attributes('aria-disabled')).toBe('true');
     expect(button.attributes('aria-pressed')).toBe('true');
   });
 });

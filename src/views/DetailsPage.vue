@@ -188,7 +188,8 @@
       <AppButton
         :label="t('details.back')"
         icon="pi pi-arrow-left"
-        severity="secondary"
+        severity="ghost"
+        class="-ml-3"
         @click="back"
       />
     </div>

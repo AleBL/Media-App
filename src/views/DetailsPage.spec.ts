@@ -109,6 +109,11 @@ describe('DetailsPage', () => {
     expect(imdb.attributes('href')).toBe(
       'https://www.imdb.com/title/tt0133093/',
     );
+    // in the colors of IMDb
+    expect(imdb.text()).toBe('See on IMDb');
+    expect(imdb.classes()).toEqual(
+      expect.arrayContaining(['bg-imdb', 'text-black']),
+    );
     for (const link of [trailer, imdb]) {
       expect(link.attributes('target')).toBe('_blank');
       expect(link.attributes('rel')).toBe('noopener noreferrer');

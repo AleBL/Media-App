@@ -334,13 +334,17 @@
               :label="t('details.trailer')"
               icon="pi pi-youtube"
             />
-            <AppButton
+            <!-- In the colors of IMDb, where it leads. -->
+            <a
               v-if="imdbUrl"
               :href="imdbUrl"
-              :label="t('details.imdb')"
-              icon="pi pi-external-link"
-              severity="secondary"
-            />
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex h-9 items-center gap-2 rounded-md bg-imdb px-3.5 text-sm font-semibold text-black no-underline shadow-xs transition hover:brightness-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-primary-400 dark:focus-visible:ring-offset-surface-800"
+            >
+              <span class="pi pi-external-link" aria-hidden="true" />
+              {{ t('details.imdb') }}
+            </a>
           </div>
         </div>
 

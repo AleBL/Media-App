@@ -8,14 +8,13 @@
   import { useGenresStore } from '@/stores/genres';
   import { useSearchStore } from '@/stores/search';
   import { accessProblem } from '@/util/access';
-  import { isPerson, searchKey } from '@/util/media';
   import AppButton from '@/components/ui/AppButton.vue';
   import AppLoadMore from '@/components/ui/AppLoadMore.vue';
   import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
   import AppState from '@/components/ui/AppState.vue';
-  import PersonCard from '@/components/Search/PersonCard.vue';
-  import PosterCard from '@/components/Home/PosterCard.vue';
-  import PosterCardSkeleton from '@/components/Home/PosterCardSkeleton.vue';
+  import CardGrid from '@/components/Cards/CardGrid.vue';
+  import CardGridSkeleton from '@/components/Cards/CardGridSkeleton.vue';
+  import CardViewPicker from '@/components/Cards/CardViewPicker.vue';
   import SearchBar from '@/components/Search/SearchBar.vue';
 
   const { t, locale } = useI18n();
@@ -132,19 +131,11 @@
       {{ t('search.showing', { shown: results.length, total: totalResults }) }}
     </p>
 
-    <!-- A search of everything mixes movies, tv shows and people, and two
-         of them can have the same id. -->
-    <ul class="page card-grid list-none py-4">
-      <li v-for="item in results" :key="searchKey(item)">
-        <PersonCard v-if="isPerson(item)" :person="item" />
-        <PosterCard
-          v-else
-          :item="item"
-          grid
-          :show-type="resultsType === 'multi'"
-        />
-      </li>
-    </ul>
+    <div class="page flex justify-end pt-2">
+      <CardViewPicker name="search-view" />
+    </div>
+
+    <CardGrid :items="results" :show-type="resultsType === 'multi'" />
 
     <AppLoadMore
       :loading="loadingMore"
@@ -156,10 +147,7 @@
 
   <!-- The shape of the results until they come; the text is for screen
        readers. -->
-  <div v-else-if="loading" role="status" class="page card-grid py-4">
-    <span class="sr-only">{{ t('search.loading') }}</span>
-    <PosterCardSkeleton v-for="index in 12" :key="index" />
-  </div>
+  <CardGridSkeleton v-else-if="loading" :label="t('search.loading')" />
 
   <AppState
     v-else-if="searched"

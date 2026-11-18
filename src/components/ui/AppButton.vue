@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import { useAttrs } from 'vue';
   import { RouterLink, type RouteLocationRaw } from 'vue-router';
   import AppSpinner from './AppSpinner.vue';
 
@@ -6,6 +7,8 @@
   // a click listener, goes to the <button> (or <a>) itself; bound by hand so
   // that `loading` disables it even when `disabled` says otherwise.
   defineOptions({ inheritAttrs: false });
+
+  const attrs = useAttrs();
 
   const props = withDefaults(
     defineProps<{
@@ -70,7 +73,8 @@
     // While loading it keeps the focus (a disabled button would drop it to
     // the page): aria-disabled says it, and clicks stop here.
     return {
-      type: 'button',
+      // A plain button unless asked otherwise, such as the submit of a form.
+      type: attrs.type ?? 'button',
       ...(props.loading && {
         'aria-disabled': 'true',
         'aria-busy': 'true',

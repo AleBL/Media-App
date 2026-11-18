@@ -5,6 +5,7 @@
   import type { MediaType, WatchProvider } from '@shared/api';
   import AccountButtons from '@/components/Account/AccountButtons.vue';
   import AgeRating from '@/components/Details/AgeRating.vue';
+  import ImdbLink from '@/components/Details/ImdbLink.vue';
   import TrailerDialog from '@/components/Details/TrailerDialog.vue';
   import AppButton from '@/components/ui/AppButton.vue';
   import AppImage from '@/components/ui/AppImage.vue';
@@ -336,17 +337,7 @@
               :video-key="details.trailer.key"
               :title="details.title"
             />
-            <!-- In the colors of IMDb, where it leads. -->
-            <a
-              v-if="imdbUrl"
-              :href="imdbUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex h-9 items-center gap-2 rounded-md bg-imdb px-3.5 text-sm font-semibold text-black no-underline shadow-xs transition hover:brightness-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-primary-400 dark:focus-visible:ring-offset-surface-800"
-            >
-              <span class="pi pi-external-link" aria-hidden="true" />
-              {{ t('details.imdb') }}
-            </a>
+            <ImdbLink v-if="imdbUrl" :href="imdbUrl" />
           </div>
         </div>
 

@@ -38,6 +38,21 @@ test.describe('home page', () => {
     ]);
   });
 
+  test('scrolls the rows sideways without the bar of the system, which has the colors of the app', async ({
+    page,
+  }) => {
+    const row = list(page, 'Trending this week').getByRole('list').first();
+    const html = page.locator('html');
+
+    await expect(row).toHaveCSS('overflow-x', 'auto');
+    await expect(row).toHaveCSS('scrollbar-width', 'none');
+    await expect(html).toHaveCSS('color-scheme', 'light');
+    await expect(html).toHaveCSS(
+      'scrollbar-color',
+      'rgb(203, 213, 225) rgba(0, 0, 0, 0)',
+    );
+  });
+
   test('opens the page of a title, and comes back to the lists', async ({
     page,
     tmdb,

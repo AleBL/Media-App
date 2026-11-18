@@ -40,6 +40,10 @@
   },
 
   "homePage": {
+    "title": "What do you want to watch?",
+    "searchPlaceholder": "A movie, a TV show, someone",
+    "previous": "Previous titles",
+    "next": "Next titles",
     "intro": "Find movies and TV shows, with posters, genres and ratings from TMDB.",
     "startSearching": "Start searching",
     "trending": "Trending this week",

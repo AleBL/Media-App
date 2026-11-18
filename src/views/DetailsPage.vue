@@ -17,6 +17,7 @@
   import { useDetailsStore } from '@/stores/details';
   import { accessProblem } from '@/util/access';
   import { backdropUrl, logoUrl, posterUrl, profileUrl } from '@/util/images';
+  import { countryName } from '@/util/region';
 
   const props = defineProps<{ type: MediaType; id: number }>();
 
@@ -149,17 +150,7 @@
       : null,
   );
 
-  const regionName = computed(() => {
-    try {
-      return (
-        new Intl.DisplayNames([locale.value], { type: 'region' }).of(
-          region.value,
-        ) ?? region.value
-      );
-    } catch {
-      return region.value;
-    }
-  });
+  const regionName = computed(() => countryName(region.value, locale.value));
 
   const watchGroups = computed(() => {
     const watch = details.value?.watch;

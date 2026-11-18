@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import type { RouteLocationRaw } from 'vue-router';
   import AppButton from './AppButton.vue';
   import AppTooltip from './AppTooltip.vue';
 
@@ -16,6 +17,7 @@
       size?: 'sm' | 'md';
       loading?: boolean;
       href?: string;
+      to?: RouteLocationRaw;
       side?: 'top' | 'right' | 'bottom' | 'left';
     }>(),
     {
@@ -23,6 +25,7 @@
       size: 'md',
       loading: false,
       href: undefined,
+      to: undefined,
       side: 'bottom',
     },
   );
@@ -38,6 +41,7 @@
       :size="size"
       :loading="loading"
       :href="href"
+      :to="to"
     />
   </AppTooltip>
 </template>

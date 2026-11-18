@@ -37,8 +37,9 @@ test.describe('settings', () => {
       .poll(() => app.evaluate(({ nativeTheme }) => nativeTheme.themeSource))
       .toBe('dark');
 
+    // The field of the page, not the button of the menu bar.
     await page
-      .getByLabel('Language')
+      .getByRole('combobox', { name: 'Language' })
       .selectOption({ label: 'Português (Brasil)' });
 
     await expect(heading(page)).toHaveText('Configurações');

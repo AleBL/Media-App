@@ -177,20 +177,27 @@ export async function openPage(
     | 'rated'
     | 'watched',
 ) {
-  const accountMenu = page.locator(
-    'header nav button[aria-controls="account-menu"]',
-  );
+  const accountMenu = page.locator('header [data-account-menu]');
 
-  // The pages of whoever signed in are in a menu of their own.
+  // The pages of whoever signed in are in a menu of their own, which opens
+  // in a layer of its own.
   if (
     ['account', 'watchlist', 'favorites', 'rated', 'watched'].includes(name) &&
     (await accountMenu.isVisible())
   ) {
     await accountMenu.click();
+    await page.locator(`[role="menu"] a[href$="#/${name}"]`).click();
+  } else {
+    await page.locator(`header nav a[href$="#/${name}"]`).click();
   }
 
-  await page.locator(`header nav a[href$="#/${name}"]`).click();
   await expect(page).toHaveURL(new RegExp(`#/${name}$`));
+}
+
+/** Switches the app to a language from the menu, by its own name. */
+export async function chooseLanguage(page: Page, name: string) {
+  await page.locator('header button:has(.pi-language)').click();
+  await page.getByRole('menuitemradio', { name }).click();
 }
 
 /** The field of the settings page for a TMDB key of the user's own. */

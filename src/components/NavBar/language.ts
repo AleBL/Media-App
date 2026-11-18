@@ -1,66 +1,37 @@
+import type { Ref } from 'vue';
 import { defaultLocale } from '@/plugins/i18n';
 
-/** A language the menu offers. */
-export interface LanguageOption {
-  /** The locale, such as `pt-BR`. */
-  label: string;
-  /** The flag shown next to it. */
-  imageURL: string;
-  command: () => void;
+// The flags of the languages, by locale: src/assets/locales/pt-BR.svg is
+// the one of pt-BR.
+const FLAGS: Record<string, string> = Object.fromEntries(
+  Object.entries(
+    import.meta.glob<{ default: string }>('@/assets/locales/*.svg', {
+      eager: true,
+    }),
+  ).flatMap(([path, module]) => {
+    const code = /([a-z]{2}(?:-[A-Z]{2})?)\.svg$/.exec(path)?.[1];
+
+    return code ? [[code, module.default]] : [];
+  }),
+);
+
+/** The flag shown next to a language. */
+export const flagOf = (code: string) => FLAGS[code];
+
+/** A language by its own name, such as "Português (Brasil)". */
+export function languageName(code: string) {
+  try {
+    const name =
+      new Intl.DisplayNames([code], { type: 'language' }).of(code) ?? code;
+
+    return name.charAt(0).toLocaleUpperCase(code) + name.slice(1);
+  } catch {
+    return code;
+  }
 }
 
-export class LanguageItem {
-  private availableLocales: string[];
-  private locale: object;
-  private icons: {};
-
-  constructor(availableLocales: string[], locale: object) {
-    this.availableLocales = availableLocales;
-    this.locale = locale;
-
-    const regex = /(?<=\/)[a-z]{2}(-[A-Z]{2})?(?=\.svg)/g;
-
-    this.icons = Object.entries(
-      import.meta.glob<{ default: string }>('@/assets/locales/*.svg', {
-        eager: true,
-      }),
-    ).reduce((acc, [key, value]) => {
-      const matchedKey = key.match(regex)?.join();
-      return matchedKey !== undefined
-        ? { ...acc, [key.match(regex)!.join()]: value.default }
-        : acc;
-    }, {});
-  }
-
-  private getImageURL(lang: string): string {
-    return this.icons[lang];
-  }
-
-  private getLocales(): LanguageOption[] {
-    return this.availableLocales.map((lang) => {
-      return {
-        label: lang,
-        imageURL: this.getImageURL(lang),
-        command: () => this.toggleLocale(lang),
-      };
-    });
-  }
-
-  public toggleLocale(lang: string) {
-    // @ts-expect-error Value will always exist
-    this.locale.value = lang;
-    defaultLocale.value = lang;
-  }
-
-  public getLanguages(): { icon: string; items: LanguageOption[] } {
-    return {
-      icon: 'pi pi-language',
-      items: this.getLocales(),
-    };
-  }
-
-  public getCurrentLocaleIcon(): string {
-    // @ts-expect-error Value will always exist
-    return this.getImageURL(this.locale.value);
-  }
+/** Switches the app to a language, kept for the next launch. */
+export function chooseLanguage(locale: Ref<string>, code: string) {
+  locale.value = code;
+  defaultLocale.value = code;
 }

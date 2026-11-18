@@ -39,12 +39,9 @@ describe('native theme sync', () => {
 
   it('tells the main process when the theme is toggled', async () => {
     localStorage.setItem(STORAGE_KEY, 'light');
-    const { ThemeItem } = await loadTheme();
-    const theme = new ThemeItem((key: string) => key).getThemes() as {
-      command: () => void;
-    };
+    const { toggleTheme } = await loadTheme();
 
-    theme.command();
+    toggleTheme();
     await nextTick();
 
     expect(setNativeTheme).toHaveBeenLastCalledWith('dark');

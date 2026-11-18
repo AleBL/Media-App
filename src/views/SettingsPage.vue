@@ -1,10 +1,10 @@
 <script setup lang="ts">
   import { computed, onMounted, ref } from 'vue';
   import { storeToRefs } from 'pinia';
+  import { chooseLanguage, languageName } from '@/components/NavBar/language';
   import { colorScheme } from '@/components/NavBar/theme';
   import OwnKeyInput from '@/components/Settings/OwnKeyInput.vue';
   import AppButton from '@/components/ui/AppButton.vue';
-  import { defaultLocale } from '@/plugins/i18n';
   import { getApi, isDesktop } from '@/services/api';
   import { safeCall } from '@/stores/account';
   import { useCredentialsStore } from '@/stores/credentials';
@@ -17,18 +17,6 @@
   const settings = useSettingsStore();
   const genres = useGenresStore();
   const desktop = isDesktop();
-
-  /** A language by its own name, such as "Português (Brasil)". */
-  function languageName(code: string) {
-    try {
-      const name =
-        new Intl.DisplayNames([code], { type: 'language' }).of(code) ?? code;
-
-      return name.charAt(0).toLocaleUpperCase(code) + name.slice(1);
-    } catch {
-      return code;
-    }
-  }
 
   /** A country by its name in the language of the app. */
   function countryName(code: string) {
@@ -45,10 +33,7 @@
   // The same as choosing in the menu: kept for the next launch.
   const language = computed({
     get: () => locale.value,
-    set: (code: string) => {
-      locale.value = code;
-      defaultLocale.value = code;
-    },
+    set: (code: string) => chooseLanguage(locale, code),
   });
 
   const THEMES = [

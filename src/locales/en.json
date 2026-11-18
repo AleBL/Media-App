@@ -13,12 +13,17 @@
     "text": "Theme",
     "light": "Light",
     "dark": "Dark",
-    "system": "Same as the system"
+    "system": "Same as the system",
+    "toDark": "Switch to the dark theme",
+    "toLight": "Switch to the light theme"
   },
 
   "menu": {
     "label": "Main menu",
-    "toggle": "Menu"
+    "toggle": "Menu",
+    "close": "Close the menu",
+    "home": "Home",
+    "about": "About"
   },
 
   "language": {

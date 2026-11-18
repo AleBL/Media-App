@@ -13,12 +13,17 @@
     "text": "Tema",
     "light": "Claro",
     "dark": "Oscuro",
-    "system": "Igual que el sistema"
+    "system": "Igual que el sistema",
+    "toDark": "Cambiar al tema oscuro",
+    "toLight": "Cambiar al tema claro"
   },
 
   "menu": {
     "label": "Menú principal",
-    "toggle": "Menú"
+    "toggle": "Menú",
+    "close": "Cerrar el menú",
+    "home": "Inicio",
+    "about": "Acerca de"
   },
 
   "language": {

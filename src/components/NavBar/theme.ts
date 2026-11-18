@@ -1,9 +1,11 @@
-import { computed, watch, type ComputedRef } from 'vue';
+import { watch } from 'vue';
 
 // Without the <style> element that useDark adds to stop transitions while
 // the theme changes: the Content-Security-Policy refuses inline styles.
-const isDark = useDark({ disableTransition: false });
-const toggleDark = useToggle(isDark);
+export const isDark = useDark({ disableTransition: false });
+
+/** Light to dark and back, as the button of the menu does. */
+export const toggleTheme = useToggle(isDark);
 
 // useDark keeps 'auto', 'dark' or 'light' under this key. The native theme
 // follows it, so the window chrome matches the app and 'auto' keeps tracking
@@ -20,36 +22,3 @@ watch(
   },
   { immediate: true },
 );
-
-export class ThemeItem {
-  private translate: Function;
-
-  constructor(translate: Function) {
-    this.translate = translate;
-  }
-
-  public getThemes(): {
-    label: ComputedRef<string>;
-    icon: ComputedRef<string>;
-    command: () => void;
-  } {
-    const themeLabel = computed(() => {
-      return (
-        this.translate('theme.text') +
-        (isDark.value
-          ? ` ${this.translate('theme.dark')}`
-          : ` ${this.translate('theme.light')}`)
-      );
-    });
-
-    const themeIcon = computed(() => {
-      return isDark.value ? 'pi pi-moon' : 'pi pi-sun';
-    });
-
-    return {
-      label: themeLabel,
-      icon: themeIcon,
-      command: () => toggleDark(),
-    };
-  }
-}

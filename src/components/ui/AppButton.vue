@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import { RouterLink, type RouteLocationRaw } from 'vue-router';
   import AppSpinner from './AppSpinner.vue';
 
   // A button of the app. Anything else, such as `disabled`, `aria-label` or
@@ -25,6 +26,8 @@
        * browser of the system (a new tab on the web).
        */
       href?: string;
+      /** Makes it a link to a page of the app (aria-current when there). */
+      to?: RouteLocationRaw;
     }>(),
     {
       label: undefined,
@@ -33,6 +36,7 @@
       size: 'md',
       loading: false,
       href: undefined,
+      to: undefined,
     },
   );
 
@@ -55,6 +59,10 @@
   };
 
   function attributes() {
+    if (props.to) {
+      return { to: props.to };
+    }
+
     if (props.href) {
       return { href: props.href, target: '_blank', rel: 'noopener noreferrer' };
     }
@@ -68,18 +76,20 @@
 
 <template>
   <component
-    :is="href ? 'a' : 'button'"
+    :is="to ? RouterLink : href ? 'a' : 'button'"
     v-bind="{ ...$attrs, ...attributes() }"
     :class="[
       'relative inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-center align-bottom text-sm font-semibold no-underline transition duration-200',
       'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-primary-400 dark:focus-visible:ring-offset-surface-800',
       'disabled:pointer-events-none disabled:cursor-default disabled:opacity-60',
-      label ? SIZE[size].text : SIZE[size].icon,
+      label || $slots.default ? SIZE[size].text : SIZE[size].icon,
       SEVERITY[severity],
     ]"
   >
     <AppSpinner v-if="loading" size="sm" />
     <span v-else-if="icon" :class="icon" aria-hidden="true" />
     <span v-if="label">{{ label }}</span>
+    <!-- Anything else after them, such as a picture and an arrow. -->
+    <slot />
   </component>
 </template>

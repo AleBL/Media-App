@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue';
   import type { MediaType } from '@shared/api';
-  import AppButton from '@/components/ui/AppButton.vue';
+  import AppTooltip from '@/components/ui/AppTooltip.vue';
   import { useAccountStore } from '@/stores/account';
 
   const props = defineProps<{ type: MediaType; id: number }>();
@@ -108,20 +108,31 @@
           </label>
         </span>
       </div>
+      <!-- The rating and the way to take it away, together, beside the
+           stars. The radio buttons already read the number. -->
       <span
-        class="min-w-14 text-sm tabular-nums text-surface-600 dark:text-surface-300"
+        v-if="choice !== null"
+        class="inline-flex h-8 items-center gap-0.5 rounded-full bg-yellow-100 pl-3 pr-0.5 text-sm font-semibold tabular-nums text-yellow-900 dark:bg-yellow-400/15 dark:text-yellow-200"
+      >
+        <span aria-hidden="true">{{ number.format(choice) }}</span>
+        <AppTooltip :text="t('lists.removeRating')" side="top">
+          <button
+            type="button"
+            class="flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-yellow-200 dark:hover:bg-yellow-400/25"
+            :aria-label="t('lists.removeRating')"
+            @click="choose(null)"
+          >
+            <span class="pi pi-times text-xs" aria-hidden="true" />
+          </button>
+        </AppTooltip>
+      </span>
+      <span
+        v-else
+        class="text-sm text-surface-600 dark:text-surface-300"
         aria-hidden="true"
       >
-        {{ choice ? number.format(choice) : t('lists.notRated') }}
+        {{ t('lists.notRated') }}
       </span>
-      <AppButton
-        v-if="choice !== null"
-        severity="ghost"
-        size="sm"
-        icon="pi pi-times"
-        :label="t('lists.removeRating')"
-        @click="choose(null)"
-      />
     </div>
     <p
       v-if="failed"

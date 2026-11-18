@@ -179,6 +179,8 @@ export interface MediaDetails {
   episodes?: number;
   genres: Genre[];
   posterPath?: string;
+  /** A wide still of the title, behind the top of its page. */
+  backdropPath?: string;
   voteAverage?: number;
   voteCount?: number;
   imdbId?: string;

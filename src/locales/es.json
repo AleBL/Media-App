@@ -150,7 +150,9 @@
     "buy": "Comprar",
     "justWatch": "Dónde ver: datos de JustWatch.",
     "allOptions": "Ver los enlaces en TMDB",
-    "cast": "Reparto"
+    "cast": "Reparto",
+    "castPrevious": "Personas anteriores del reparto",
+    "castNext": "Más personas del reparto"
   },
 
   "lists": {

@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { APP_TOKEN, TRAILER_KEY } from '../support/fake-tmdb';
 import { cards, heading, openPage, searchBox } from '../support/fixtures';
 import { expect, test } from './fixtures';
@@ -324,6 +325,107 @@ test.describe('web version', () => {
 
     await expect(cards(page)).toHaveCount(20);
     expect(tmdb.lastSearch()?.credential).toBe('app');
+  });
+
+  test.describe('the loading screen', () => {
+    // Holds the code of the app, to see what shows before it starts.
+    async function holdTheApp(page: Page) {
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+
+      await page.route('**/assets/index-*.js', async (route) => {
+        await held;
+        await route.continue();
+      });
+
+      return release;
+    }
+
+    const background = (page: Page) =>
+      page
+        .locator('#app')
+        .evaluate((app) => getComputedStyle(app).backgroundColor);
+
+    test('shows until the app starts, in the dark theme from the start', async ({
+      page,
+      site,
+    }) => {
+      await page.emulateMedia({ colorScheme: 'dark' });
+      const release = await holdTheApp(page);
+
+      await page.goto(site.url, { waitUntil: 'commit' });
+
+      await expect(page.getByRole('status')).toContainText('Loading Media App');
+      await expect(page.locator('html')).toHaveClass(/dark/);
+      // Neither white nor transparent once the stylesheet applies.
+      await expect
+        .poll(() => background(page))
+        .not.toMatch(/^rgba?\((255, 255, 255|0, 0, 0, 0)\)$/);
+      const dark = await background(page);
+
+      release();
+
+      await expect(
+        page.getByRole('navigation', { name: 'Main menu' }),
+      ).toBeVisible();
+      await expect(page.getByText('Loading Media App')).toHaveCount(0);
+      expect(await background(page)).toBe(dark);
+    });
+
+    test('follows the theme chosen in the app over the one of the system', async ({
+      page,
+      site,
+    }) => {
+      await page.emulateMedia({ colorScheme: 'dark' });
+      await page.addInitScript(() =>
+        localStorage.setItem('vueuse-color-scheme', 'light'),
+      );
+      const release = await holdTheApp(page);
+
+      await page.goto(site.url, { waitUntil: 'commit' });
+
+      await expect(page.getByRole('status')).toContainText('Loading Media App');
+      await expect(page.locator('html')).not.toHaveClass(/dark/);
+
+      release();
+    });
+  });
+
+  test('keeps to the Content-Security-Policy on every page', async ({
+    page,
+    site,
+  }) => {
+    // Before the page, so nothing it does is missed.
+    await page.addInitScript(() => {
+      const refused: string[] = [];
+
+      Object.assign(window, { refusedByPolicy: refused });
+      document.addEventListener('securitypolicyviolation', (event) => {
+        refused.push(`${event.violatedDirective} ${event.blockedURI}`);
+      });
+    });
+
+    await page.goto(site.url);
+    await expect(cards(page).first()).toBeVisible();
+    await openPage(page, 'search');
+    await searchBox(page).fill('matrix');
+    await cards(page).first().getByRole('link').click();
+    await expect(heading(page)).toBeVisible();
+    for (const name of ['settings', 'about', 'account'] as const) {
+      await openPage(page, name);
+    }
+    // Changing the theme too, which once added a <style> element.
+    await page.getByRole('button', { name: /^Theme/ }).click();
+    await expect(page.locator('html')).toHaveClass(/dark/);
+
+    expect(
+      await page.evaluate(
+        () =>
+          (window as unknown as { refusedByPolicy: string[] }).refusedByPolicy,
+      ),
+    ).toEqual([]);
   });
 
   test.describe('on a site without a credential', () => {

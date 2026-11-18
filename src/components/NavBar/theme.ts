@@ -1,6 +1,8 @@
 import { computed, watch, type ComputedRef } from 'vue';
 
-const isDark = useDark();
+// Without the <style> element that useDark adds to stop transitions while
+// the theme changes: the Content-Security-Policy refuses inline styles.
+const isDark = useDark({ disableTransition: false });
 const toggleDark = useToggle(isDark);
 
 // useDark keeps 'auto', 'dark' or 'light' under this key. The native theme

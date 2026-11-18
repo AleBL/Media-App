@@ -20,6 +20,5 @@ useCredentialsStore(pinia).load().catch(console.error);
 // Asks who is signed in to TMDB, if anyone, and follows the changes.
 useSessionStore(pinia).load().catch(console.error);
 
-app.mount('#app').$nextTick(() => {
-  postMessage({ payload: 'removeLoading' }, '*');
-});
+// Takes the place of the loading screen in index.html.
+app.mount('#app');

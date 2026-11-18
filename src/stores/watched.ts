@@ -11,7 +11,7 @@ import i18n from '@/plugins/i18n';
 import { getApi } from '@/services/api';
 import { safeCall } from '@/stores/account';
 import { useSessionStore } from '@/stores/session';
-import { titleKey } from '@/util/media';
+import { searchKey, titleKey } from '@/util/media';
 
 /** The user's local day, YYYY-MM-DD. */
 export function today(now = new Date()) {
@@ -21,6 +21,7 @@ export function today(now = new Date()) {
 }
 
 export interface WatchedView {
+  /** The last page shown: they all are, one after the other. */
   page: number;
   results: MediaItem[];
   totalResults: number;
@@ -28,6 +29,9 @@ export interface WatchedView {
   /** TMDB answered at least once. */
   loaded: boolean;
   error: TmdbFailure | null;
+  /** The next page, added at the end. */
+  loadingMore: boolean;
+  moreFailed: boolean;
 }
 
 const emptyView = (): WatchedView => ({
@@ -37,7 +41,14 @@ const emptyView = (): WatchedView => ({
   loading: false,
   loaded: false,
   error: null,
+  loadingMore: false,
+  moreFailed: false,
 });
+
+/** Each title once, as a title can move from one page to the next. */
+const unique = (items: MediaItem[]) => [
+  ...new Map(items.map((item) => [searchKey(item), item])).values(),
+];
 
 /**
  * The watched titles (shared/tmdb/watched.ts). A mark shows at once and is
@@ -142,44 +153,89 @@ export const useWatchedStore = defineStore('watched', () => {
     return result;
   }
 
-  async function loadPage(page = view.value.page): Promise<void> {
+  const ask = (page: number) =>
+    safeCall(() =>
+      getApi().watched.list({ page, language: i18n.global.locale.value }),
+    ).then(handleFailure);
+
+  /** The pages shown, asked again, so coming back finds them all. */
+  async function loadPage(): Promise<void> {
     const request = ++latestRequest;
     const current = view.value;
+    const pages = Math.max(1, current.page);
 
     current.loading = true;
     current.error = null;
+    current.loadingMore = false;
+    current.moreFailed = false;
 
-    const result = handleFailure(
-      await safeCall(() =>
-        getApi().watched.list({ page, language: i18n.global.locale.value }),
-      ),
+    const answers = await Promise.all(
+      Array.from({ length: pages }, (_, index) => ask(index + 1)),
     );
 
     if (request !== latestRequest) {
       return;
     }
 
-    if (!result.ok) {
+    const failure = answers.find((answer) => !answer.ok);
+
+    if (failure && !failure.ok) {
       current.loading = false;
-      current.error = result.error;
+      current.error = failure.error;
 
       return;
     }
 
-    const { results, totalResults } = result.data;
+    const found = answers.flatMap((answer) => (answer.ok ? [answer.data] : []));
+    const { totalResults } = found[0];
+    // Titles unmarked elsewhere: fewer pages than before.
     const lastPage = Math.max(1, Math.ceil(totalResults / TMDB_PAGE_SIZE));
-
-    // The last titles of the last page were removed: show the one before.
-    if (results.length === 0 && page > lastPage) {
-      return loadPage(lastPage);
-    }
+    const kept = found.slice(0, lastPage);
 
     Object.assign(current, {
-      page: result.data.page,
-      results,
+      page: kept.length,
+      results: unique(kept.flatMap((answer) => answer.results)),
       totalResults,
       loading: false,
       loaded: true,
+    });
+  }
+
+  /** The page after the ones shown, at the end. */
+  async function loadMore(): Promise<void> {
+    const current = view.value;
+
+    if (
+      current.loading ||
+      current.loadingMore ||
+      current.page * TMDB_PAGE_SIZE >= current.totalResults
+    ) {
+      return;
+    }
+
+    const request = latestRequest;
+
+    current.loadingMore = true;
+    current.moreFailed = false;
+
+    const answer = await ask(current.page + 1);
+
+    if (request !== latestRequest) {
+      return;
+    }
+
+    current.loadingMore = false;
+
+    if (!answer.ok) {
+      current.moreFailed = true;
+
+      return;
+    }
+
+    Object.assign(current, {
+      page: answer.data.page,
+      results: unique([...current.results, ...answer.data.results]),
+      totalResults: answer.data.totalResults,
     });
   }
 
@@ -192,5 +248,6 @@ export const useWatchedStore = defineStore('watched', () => {
     load,
     toggle,
     loadPage,
+    loadMore,
   };
 });

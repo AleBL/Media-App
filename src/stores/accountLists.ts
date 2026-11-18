@@ -12,9 +12,10 @@ import { getApi } from '@/services/api';
 import { safeCall } from '@/stores/account';
 import { useSessionStore } from '@/stores/session';
 
-/** One page of the movies or of the tv shows of a list. */
+/** The movies or the tv shows of a list, the pages shown so far. */
 export interface ListView {
   type: MediaType;
+  /** The last page shown: they all are, one after the other. */
   page: number;
   results: MediaItem[];
   totalResults: number;
@@ -22,6 +23,9 @@ export interface ListView {
   /** TMDB answered at least once for this type. */
   loaded: boolean;
   error: TmdbFailure | null;
+  /** The next page, added at the end. */
+  loadingMore: boolean;
+  moreFailed: boolean;
 }
 
 const emptyView = (): ListView => ({
@@ -32,7 +36,14 @@ const emptyView = (): ListView => ({
   loading: false,
   loaded: false,
   error: null,
+  loadingMore: false,
+  moreFailed: false,
 });
+
+/** Each title once, as a title can move from one page to the next. */
+const unique = (items: MediaItem[]) => [
+  ...new Map(items.map((item) => [item.id, item])).values(),
+];
 
 const emptyViews = (): Record<TitleList, ListView> => ({
   watchlist: emptyView(),
@@ -41,8 +52,9 @@ const emptyViews = (): Record<TitleList, ListView> => ({
 });
 
 /**
- * Watchlist, favorites and rated titles, a page at a time. The page shown
- * stays while it reloads, so coming back finds it where it was.
+ * Watchlist, favorites and rated titles, more pages added as the user
+ * scrolls. What was shown stays while it reloads, and reloading asks for as
+ * many pages again, so coming back finds the user where they were.
  */
 export const useAccountListsStore = defineStore('accountLists', () => {
   const session = useSessionStore();
@@ -64,9 +76,28 @@ export const useAccountListsStore = defineStore('accountLists', () => {
     },
   );
 
+  const ask = (list: TitleList, type: MediaType, page: number) =>
+    safeCall(() =>
+      getApi().account.list({
+        list,
+        type,
+        page,
+        language: i18n.global.locale.value,
+      }),
+    );
+
+  function failed(view: ListView, error: TmdbFailure) {
+    view.loading = false;
+    view.error = error;
+
+    if (error.code === 'signed-out') {
+      void session.load();
+    }
+  }
+
+  /** The pages shown, asked again; the first one of another type. */
   async function load(
     list: TitleList,
-    page = views.value[list].page,
     type = views.value[list].type,
   ): Promise<void> {
     const request = ++latestRequest[list];
@@ -76,49 +107,85 @@ export const useAccountListsStore = defineStore('accountLists', () => {
       Object.assign(view, { ...emptyView(), type });
     }
 
+    const pages = Math.max(1, view.page);
+
     view.loading = true;
     view.error = null;
+    view.loadingMore = false;
+    view.moreFailed = false;
 
-    const result = await safeCall(() =>
-      getApi().account.list({
-        list,
-        type,
-        page,
-        language: i18n.global.locale.value,
-      }),
+    const answers = await Promise.all(
+      Array.from({ length: pages }, (_, index) => ask(list, type, index + 1)),
     );
 
     if (request !== latestRequest[list]) {
       return;
     }
 
-    if (!result.ok) {
-      view.loading = false;
-      view.error = result.error;
+    const failure = answers.find((answer) => !answer.ok);
 
-      if (result.error.code === 'signed-out') {
-        void session.load();
-      }
-
-      return;
+    if (failure && !failure.ok) {
+      return failed(view, failure.error);
     }
 
-    const { results, totalResults } = result.data;
+    const pagesFound = answers.flatMap((answer) =>
+      answer.ok ? [answer.data] : [],
+    );
+    const { totalResults } = pagesFound[0];
+    // Titles taken out elsewhere: fewer pages than before.
     const lastPage = Math.max(1, Math.ceil(totalResults / TMDB_PAGE_SIZE));
-
-    // The last titles of the last page were removed: show the one before.
-    if (results.length === 0 && page > lastPage) {
-      return load(list, lastPage, type);
-    }
+    const kept = pagesFound.slice(0, lastPage);
 
     Object.assign(view, {
-      page: result.data.page,
-      results,
+      page: kept.length,
+      results: unique(kept.flatMap((found) => found.results)),
       totalResults,
       loading: false,
       loaded: true,
     });
   }
 
-  return { views, load };
+  /** The page after the ones shown, at the end. */
+  async function loadMore(list: TitleList): Promise<void> {
+    const view = views.value[list];
+
+    if (
+      view.loading ||
+      view.loadingMore ||
+      view.page * TMDB_PAGE_SIZE >= view.totalResults
+    ) {
+      return;
+    }
+
+    const request = latestRequest[list];
+
+    view.loadingMore = true;
+    view.moreFailed = false;
+
+    const answer = await ask(list, view.type, view.page + 1);
+
+    if (request !== latestRequest[list]) {
+      return;
+    }
+
+    view.loadingMore = false;
+
+    if (!answer.ok) {
+      view.moreFailed = true;
+
+      if (answer.error.code === 'signed-out') {
+        void session.load();
+      }
+
+      return;
+    }
+
+    Object.assign(view, {
+      page: answer.data.page,
+      results: unique([...view.results, ...answer.data.results]),
+      totalResults: answer.data.totalResults,
+    });
+  }
+
+  return { views, load, loadMore };
 });

@@ -137,12 +137,10 @@ test.describe('web version', () => {
         page.getByRole('heading', { name: 'Where to watch in United States' }),
       ).toBeVisible();
       await expect(page.getByText('Stream US')).toBeVisible();
+      // The trailer plays over the page (the policy test opens it).
       await expect(
-        page.getByRole('link', { name: 'Watch the trailer' }),
-      ).toHaveAttribute(
-        'href',
-        `https://www.youtube.com/watch?v=${TRAILER_KEY}`,
-      );
+        page.getByRole('button', { name: 'Watch the trailer' }),
+      ).toBeVisible();
       expect(tmdb.pages().at(-1)).toMatchObject({
         path: '/3/movie/1',
         credential: 'app',
@@ -511,6 +509,20 @@ test.describe('web version', () => {
     await searchBox(page).fill('matrix');
     await cards(page).first().getByRole('link').click();
     await expect(heading(page)).toBeVisible();
+    // The trailer plays in a frame of YouTube, which the policy lets in (a
+    // stand-in here: nothing leaves the machine).
+    await page.route('https://www.youtube-nocookie.com/**', (route) =>
+      route.fulfill({ contentType: 'text/html', body: '<p>Player</p>' }),
+    );
+    await page.getByRole('button', { name: 'Watch the trailer' }).click();
+    await expect(page.locator('[role="dialog"] iframe')).toHaveAttribute(
+      'src',
+      `https://www.youtube-nocookie.com/embed/${TRAILER_KEY}?autoplay=1&rel=0`,
+    );
+    await expect(
+      page.frameLocator('[role="dialog"] iframe').getByText('Player'),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
     for (const name of ['settings', 'about', 'account'] as const) {
       await openPage(page, name);
     }

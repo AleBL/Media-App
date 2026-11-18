@@ -55,14 +55,55 @@ test.describe('page of a title', () => {
     ).toBeVisible();
   });
 
-  test('opens the trailer, IMDb and where to watch in the browser of the system', async ({
+  test('plays the trailer over the page, without leaving the app', async ({
     page,
-    running,
   }) => {
+    // A stand-in for the player of YouTube: nothing leaves the machine.
+    // (It answers before the main process adds who the app is, which the
+    // unit tests of security.ts cover.)
+    await page.route('https://www.youtube-nocookie.com/**', (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+        body: '<p>Player of the trailer</p>',
+      }),
+    );
     await cards(page).first().getByRole('link').click();
     await expect(heading(page)).toBeVisible();
 
-    await page.getByRole('link', { name: 'Watch the trailer' }).click();
+    const play = page.getByRole('button', { name: 'Watch the trailer' });
+    await play.click();
+
+    const dialog = page.getByRole('dialog', { name: 'Trailer: Movie 1 [en]' });
+    await expect(dialog.locator('iframe')).toHaveAttribute(
+      'src',
+      `https://www.youtube-nocookie.com/embed/${TRAILER_KEY}?autoplay=1&rel=0`,
+    );
+    await expect(
+      page
+        .frameLocator('[role="dialog"] iframe')
+        .getByText('Player of the trailer'),
+    ).toBeVisible();
+
+    // Esc takes it away with the video, and the focus goes back.
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(page.locator('iframe')).toHaveCount(0);
+    await expect(play).toBeFocused();
+  });
+
+  test('opens YouTube, IMDb and where to watch in the browser of the system', async ({
+    page,
+    running,
+  }) => {
+    await page.route('https://www.youtube-nocookie.com/**', (route) =>
+      route.fulfill({ contentType: 'text/html', body: '<p>Player</p>' }),
+    );
+    await cards(page).first().getByRole('link').click();
+    await expect(heading(page)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Watch the trailer' }).click();
+    await page.getByRole('link', { name: 'Open on YouTube' }).click();
+    await page.keyboard.press('Escape');
     await page.getByRole('link', { name: 'See on IMDb' }).click();
     // A service leads to the page of TMDB with the links to each one.
     await page.getByRole('link', { name: 'Stream US' }).click();

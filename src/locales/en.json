@@ -13,12 +13,17 @@
     "text": "Theme",
     "light": "Light",
     "dark": "Dark",
-    "system": "Same as the system"
+    "system": "Same as the system",
+    "toDark": "Switch to the dark theme",
+    "toLight": "Switch to the light theme"
   },
 
   "menu": {
     "label": "Main menu",
-    "toggle": "Menu"
+    "toggle": "Menu",
+    "close": "Close the menu",
+    "home": "Home",
+    "about": "About"
   },
 
   "language": {
@@ -35,6 +40,10 @@
   },
 
   "homePage": {
+    "title": "What do you want to watch?",
+    "searchPlaceholder": "A movie, a TV show, someone",
+    "previous": "Previous titles",
+    "next": "Next titles",
     "intro": "Find movies and TV shows, with posters, genres and ratings from TMDB.",
     "startSearching": "Start searching",
     "trending": "Trending this week",
@@ -65,6 +74,8 @@
     "regionLabel": "Country",
     "regionAuto": "Automatic ({country})",
     "regionsFailed": "The list of countries could not be loaded. Try again later.",
+    "noCountry": "No country has that name.",
+    "allCountries": "Show all the countries",
     "cacheTitle": "Cache",
     "cacheHint": "The app keeps the names of the genres and the images to be faster. Clearing them makes it ask TMDB again.",
     "clearCache": "Clear cache",
@@ -85,6 +96,12 @@
     "dismiss": "Dismiss"
   },
 
+  "toast": {
+    "label": "Notifications",
+    "dismiss": "Dismiss",
+    "undo": "Undo"
+  },
+
   "search": {
     "notFound": "No records found",
     "loading": "Searching...",
@@ -92,7 +109,13 @@
     "errorWebUnavailable": "The search is unavailable at the moment. Please try again later.",
     "all": "All",
     "person": "Person",
-    "knownFor": "Known for"
+    "knownFor": "Known for",
+    "kind": "What to search",
+    "loadMore": "Show more",
+    "moreFailed": "The next results could not be loaded.",
+    "showing": "{shown} of {total} results",
+    "notFoundHint": "Try other words, or search everything at once.",
+    "tryAgain": "Try again"
   },
 
   "access": {
@@ -127,7 +150,9 @@
     "buy": "Buy",
     "justWatch": "Where to watch: data from JustWatch.",
     "allOptions": "See the links on TMDB",
-    "cast": "Cast"
+    "cast": "Cast",
+    "castPrevious": "Previous people of the cast",
+    "castNext": "More people of the cast"
   },
 
   "lists": {
@@ -153,12 +178,19 @@
     "yourRating": "Your rating",
     "yourRatingIs": "Your rating: {rating}",
     "notRated": "Not rated",
+    "removeRating": "Remove the rating",
     "rateFailed": "The rating could not be saved. Try again.",
     "watched": "Watched",
     "watchedButton": "Watched",
     "watchedOn": "Watched on {date}",
     "emptyWatched": "Nothing watched yet. Mark movies and TV shows as watched from their pages.",
-    "signInAgain": "To mark what you watched, sign out and sign in with TMDB again: the app now keeps it in a list of your account."
+    "signInAgain": "To mark what you watched, sign out and sign in with TMDB again: the app now keeps it in a list of your account.",
+    "addedWatchlist": "Added to My list.",
+    "removedWatchlist": "Removed from My list.",
+    "addedFavorite": "Added to Favorites.",
+    "removedFavorite": "Removed from Favorites.",
+    "markedWatched": "Marked as watched.",
+    "unmarkedWatched": "No longer marked as watched."
   },
 
   "account": {

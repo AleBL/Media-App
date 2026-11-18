@@ -44,8 +44,10 @@ function contentSecurityPolicy(): Plugin {
       const policy = [
         "default-src 'self'",
         "script-src 'self'",
-        // Vue and the loading screen of the preload script set inline styles
-        "style-src 'self' 'unsafe-inline'",
+        // The dev server puts the styles of each file in <style> elements;
+        // the build links them. Vue and Reka UI set the rest through the
+        // CSSOM, which the policy does not restrict.
+        `style-src 'self'${isDevServer ? " 'unsafe-inline'" : ''}`,
         "img-src 'self' data: https://image.tmdb.org",
         "font-src 'self' data:",
         `connect-src 'self'${isDevServer ? ' ws:' : ''}`,

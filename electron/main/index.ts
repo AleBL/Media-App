@@ -69,6 +69,10 @@ function createWindow() {
     height: 900,
     minWidth: 765,
     minHeight: 720,
+    // Shown once the page painted its loading screen (below), never blank;
+    // the color of the page in the theme of the system until then.
+    show: false,
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1e293b' : '#ffffff',
     webPreferences: {
       preload,
       // The renderer only reaches the main process through the preload API.
@@ -77,6 +81,8 @@ function createWindow() {
       sandbox: true,
     },
   });
+
+  win.once('ready-to-show', () => win?.show());
 
   if (appLocation.devServerUrl) {
     win.loadURL(appLocation.devServerUrl);

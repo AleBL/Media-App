@@ -13,12 +13,17 @@
     "text": "Tema",
     "light": "Claro",
     "dark": "Escuro",
-    "system": "Igual ao sistema"
+    "system": "Igual ao sistema",
+    "toDark": "Mudar para o tema escuro",
+    "toLight": "Mudar para o tema claro"
   },
 
   "menu": {
     "label": "Menu principal",
-    "toggle": "Menu"
+    "toggle": "Menu",
+    "close": "Fechar o menu",
+    "home": "Início",
+    "about": "Sobre"
   },
 
   "language": {
@@ -35,6 +40,10 @@
   },
 
   "homePage": {
+    "title": "O que você quer assistir?",
+    "searchPlaceholder": "Um filme, uma série, alguém",
+    "previous": "Títulos anteriores",
+    "next": "Próximos títulos",
     "intro": "Encontre filmes e séries, com pôsteres, gêneros e notas do TMDB.",
     "startSearching": "Começar a procurar",
     "trending": "Em alta na semana",
@@ -65,6 +74,8 @@
     "regionLabel": "País",
     "regionAuto": "Automático ({country})",
     "regionsFailed": "Não foi possível carregar a lista de países. Tente de novo mais tarde.",
+    "noCountry": "Nenhum país tem esse nome.",
+    "allCountries": "Mostrar todos os países",
     "cacheTitle": "Cache",
     "cacheHint": "O app guarda os nomes dos gêneros e as imagens para ser mais rápido. Limpar faz ele pedir tudo de novo ao TMDB.",
     "clearCache": "Limpar cache",
@@ -85,6 +96,12 @@
     "dismiss": "Dispensar"
   },
 
+  "toast": {
+    "label": "Notificações",
+    "dismiss": "Dispensar",
+    "undo": "Desfazer"
+  },
+
   "search": {
     "notFound": "Nenhum registro foi encontrado",
     "loading": "Buscando...",
@@ -92,7 +109,13 @@
     "errorWebUnavailable": "A busca está indisponível no momento. Tente de novo mais tarde.",
     "all": "Tudo",
     "person": "Pessoa",
-    "knownFor": "Conhecido(a) por"
+    "knownFor": "Conhecido(a) por",
+    "kind": "O que procurar",
+    "loadMore": "Mostrar mais",
+    "moreFailed": "Não foi possível carregar os próximos resultados.",
+    "showing": "{shown} de {total} resultados",
+    "notFoundHint": "Tente outras palavras, ou procure em tudo de uma vez.",
+    "tryAgain": "Tentar de novo"
   },
 
   "access": {
@@ -127,7 +150,9 @@
     "buy": "Comprar",
     "justWatch": "Onde assistir: dados do JustWatch.",
     "allOptions": "Ver os links no TMDB",
-    "cast": "Elenco"
+    "cast": "Elenco",
+    "castPrevious": "Pessoas anteriores do elenco",
+    "castNext": "Mais pessoas do elenco"
   },
 
   "lists": {
@@ -153,12 +178,19 @@
     "yourRating": "Sua nota",
     "yourRatingIs": "Sua nota: {rating}",
     "notRated": "Sem nota",
+    "removeRating": "Tirar a nota",
     "rateFailed": "A nota não foi salva. Tente de novo.",
     "watched": "Assistidos",
     "watchedButton": "Assistido",
     "watchedOn": "Assistido em {date}",
     "emptyWatched": "Nada assistido ainda. Marque filmes e séries como assistidos nas páginas deles.",
-    "signInAgain": "Para marcar o que você assistiu, saia e entre de novo com o TMDB: o app agora guarda isso numa lista da sua conta."
+    "signInAgain": "Para marcar o que você assistiu, saia e entre de novo com o TMDB: o app agora guarda isso numa lista da sua conta.",
+    "addedWatchlist": "Adicionado à Minha lista.",
+    "removedWatchlist": "Tirado da Minha lista.",
+    "addedFavorite": "Adicionado aos Favoritos.",
+    "removedFavorite": "Tirado dos Favoritos.",
+    "markedWatched": "Marcado como assistido.",
+    "unmarkedWatched": "Desmarcado como assistido."
   },
 
   "account": {

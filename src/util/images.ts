@@ -20,5 +20,8 @@ export const profileUrl = (path: string, size: string = PROFILE_SIZE) =>
 /** The picture of whoever signed in, as small as the menu shows it. */
 export const avatarUrl = (path: string) => `${TMDB_IMAGES}w45${path}`;
 
+/** A wide still of a title, for the top of its page. */
+export const backdropUrl = (path: string) => `${TMDB_IMAGES}w1280${path}`;
+
 /** The logo of a streaming service or store. */
 export const logoUrl = (path: string) => `${TMDB_IMAGES}${LOGO_SIZE}${path}`;

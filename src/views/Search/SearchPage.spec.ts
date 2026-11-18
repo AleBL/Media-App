@@ -6,7 +6,7 @@ import i18n from '@/plugins/i18n';
 import router from '@/router';
 import SearchPage from '@/views/Search/SearchPage.vue';
 import { useCredentialsStore } from '@/stores/credentials';
-import { useSearchStore } from '@/stores/search';
+import { SEARCH_DEBOUNCE_MS, useSearchStore } from '@/stores/search';
 import { installFakeApi } from '@/test/fakeApi';
 
 function movie(id: number): MediaItem {
@@ -49,9 +49,11 @@ describe('SearchPage', () => {
     store = useSearchStore();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     wrapper.unmount();
     delete window.api;
+    // The search a test left in the address would set the next one.
+    await router.replace({ path: '/search', query: {} });
   });
 
   it('shows nothing below the search bar before a search', async () => {
@@ -86,7 +88,7 @@ describe('SearchPage', () => {
     expect(wrapper.text()).toContain('No records found');
   });
 
-  it('renders one card per result, with genres, and the right page count', async () => {
+  it('renders one card per result, with genres, and says how many there are', async () => {
     store.results = Array.from({ length: TMDB_PAGE_SIZE }, (_, i) =>
       movie(i + 1),
     );
@@ -97,21 +99,32 @@ describe('SearchPage', () => {
 
     expect(wrapper.findAll('article img')).toHaveLength(TMDB_PAGE_SIZE);
     expect(wrapper.text()).toContain('Action');
-    expect(
-      wrapper.findAll('.paginator-pages button').map((b) => b.text()),
-    ).toEqual(['1', '2', '3']);
+    expect(wrapper.get('[aria-live="polite"]').text()).toBe('20 of 45 results');
+    expect(wrapper.find('.paginator-pages').exists()).toBe(false);
   });
 
-  it('asks for the page chosen in the paginator', async () => {
+  it('adds the next results at the end, from its button too', async () => {
     store.query = 'movie';
     store.results = Array.from({ length: TMDB_PAGE_SIZE }, (_, i) =>
       movie(i + 1),
     );
     store.totalResults = 45;
     store.searched = true;
+    api.tmdb.search.mockResolvedValue({
+      ok: true,
+      data: {
+        page: 2,
+        results: [movie(21), movie(22)],
+        totalPages: 3,
+        totalResults: 45,
+      },
+    });
     await mountPage();
 
-    await wrapper.findAll('.paginator-pages button')[1].trigger('click');
+    const more = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Show more')!;
+    await more.trigger('click');
     await flushPromises();
 
     expect(api.tmdb.search).toHaveBeenCalledWith({
@@ -120,6 +133,39 @@ describe('SearchPage', () => {
       page: 2,
       language: 'en',
     });
+    expect(wrapper.findAll('article')).toHaveLength(22);
+    expect(wrapper.get('[aria-live="polite"]').text()).toBe('22 of 45 results');
+  });
+
+  it('has no button for more once everything is shown', async () => {
+    store.results = [movie(1), movie(2)];
+    store.totalResults = 2;
+    store.searched = true;
+
+    await mountPage();
+
+    expect(wrapper.text()).not.toContain('Show more');
+  });
+
+  it('keeps the search in the address, and takes it from a link', async () => {
+    await router.push('/search?q=alien&type=tv');
+    await mountPage();
+
+    expect(store.query).toBe('alien');
+    expect(store.mediaType).toBe('tv');
+
+    store.query = 'aliens';
+    store.mediaType = 'movie';
+    await flushPromises();
+
+    expect(router.currentRoute.value.query).toEqual({ q: 'aliens' });
+
+    // The search typed goes out after a pause, even once the page is gone:
+    // it should not reach the fake api of the next test.
+    await new Promise((resolve) =>
+      setTimeout(resolve, SEARCH_DEBOUNCE_MS + 20),
+    );
+    await flushPromises();
   });
 
   it('shows people and titles of a search of everything, saying what each is', async () => {
@@ -261,5 +307,50 @@ describe('SearchPage', () => {
     expect(alert.text()).toContain('The search failed.');
     expect(alert.find('a').exists()).toBe(false);
     expect(api.tmdb.search).not.toHaveBeenCalled();
+  });
+
+  it('offers to search again after a failure', async () => {
+    store.query = 'matrix';
+    store.error = { code: 'network' };
+    await mountPage();
+
+    await wrapper.get('[role="alert"] button').trigger('click');
+
+    expect(api.tmdb.search).toHaveBeenCalledWith(
+      expect.objectContaining({ query: 'matrix', page: 1 }),
+    );
+  });
+
+  it('shows the shape of the results while the first ones load', async () => {
+    store.loading = true;
+
+    await mountPage();
+
+    const status = wrapper.get('[role="status"]');
+    expect(status.findAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(status.get('.sr-only').text()).toBe('Searching...');
+  });
+
+  it('keeps the results readable while other ones load', async () => {
+    store.results = [movie(1)];
+    store.totalResults = 1;
+    store.loading = true;
+
+    await mountPage();
+
+    expect(wrapper.find('[aria-busy="true"]').exists()).toBe(true);
+    expect(wrapper.find('.animate-loading-bar').exists()).toBe(true);
+    expect(wrapper.find('.opacity-50').exists()).toBe(false);
+    expect(wrapper.findAll('article')).toHaveLength(1);
+  });
+
+  it('says how to find something when nothing was found', async () => {
+    store.searched = true;
+
+    await mountPage();
+
+    const state = wrapper.get('[role="status"]');
+    expect(state.text()).toContain('No records found');
+    expect(state.text()).toContain('Try other words');
   });
 });

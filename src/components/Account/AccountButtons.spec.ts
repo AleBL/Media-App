@@ -6,6 +6,7 @@ import i18n from '@/plugins/i18n';
 import router from '@/router';
 import AccountButtons from '@/components/Account/AccountButtons.vue';
 import { useSessionStore } from '@/stores/session';
+import { useToastsStore } from '@/stores/toasts';
 import { installFakeApi, SIGNED_IN } from '@/test/fakeApi';
 
 describe('AccountButtons', () => {
@@ -76,8 +77,10 @@ describe('AccountButtons', () => {
 
     expect(api.account.states).toHaveBeenCalledOnce();
     expect(
-      (wrapper.get('select').element as HTMLSelectElement).selectedOptions[0]
-        .text,
+      (
+        wrapper.get('[role="radiogroup"] input:checked')
+          .element as HTMLInputElement
+      ).value,
     ).toBe('7.5');
   });
 
@@ -129,11 +132,39 @@ describe('AccountButtons', () => {
 
     await button('Watched').trigger('click');
 
+    // On at once, with a spinner until TMDB takes it.
     expect(button('Watched').attributes('aria-pressed')).toBe('true');
-    expect(button('Watched').find('.pi-check-circle').exists()).toBe(true);
+    expect(button('Watched').attributes('aria-busy')).toBe('true');
     expect(api.watched.mark).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'movie', id: 603, value: true }),
     );
+
+    await flushPromises();
+
+    expect(button('Watched').attributes('aria-busy')).toBeUndefined();
+    expect(button('Watched').find('.pi-check-circle').exists()).toBe(true);
+  });
+
+  it('tells in a notice what changed, with a way to undo it', async () => {
+    useSessionStore().state = SIGNED_IN;
+    await mountButtons();
+
+    await button('My list').trigger('click');
+    await flushPromises();
+
+    const toasts = useToastsStore();
+    expect(toasts.toasts.map((toast) => toast.message)).toEqual([
+      'Added to My list.',
+    ]);
+
+    toasts.toasts[0].action!.run();
+    await flushPromises();
+
+    expect(api.account.mark).toHaveBeenLastCalledWith(
+      expect.objectContaining({ list: 'watchlist', value: false }),
+    );
+    expect(button('My list').attributes('aria-pressed')).toBe('false');
+    expect(toasts.toasts.at(-1)?.message).toBe('Removed from My list.');
   });
 
   it('asks to sign in again to mark what was watched, and leaves the rest as it is', async () => {

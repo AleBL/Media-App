@@ -68,6 +68,8 @@
 </script>
 
 <template>
+  <h1 class="page-title mt-8 text-center">{{ t('menu.about') }}</h1>
+
   <!-- One column on a phone, two from a tablet up -->
   <div
     class="grid grid-cols-[max-content] items-center justify-center gap-5 px-4 pt-[5%] sm:grid-cols-[repeat(2,minmax(0,16rem))]"

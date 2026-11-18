@@ -47,6 +47,31 @@ test.describe('watchlist and favorites', () => {
     );
   });
 
+  test('tells what changed in a notice, which can undo it', async ({
+    running,
+    tmdb,
+  }) => {
+    const { page } = running;
+    await openPage(page, 'account');
+    await signIn(running, tmdb);
+    await openMovie(page);
+
+    await toggle(page, 'My list').click();
+
+    const notices = page.getByRole('region', { name: /Notifications/ });
+    await expect(notices).toContainText('Added to My list.');
+    await expect.poll(() => tmdb.listed('watchlist')).toEqual(['movie:1']);
+
+    await notices.getByRole('button', { name: 'Undo' }).click();
+
+    await expect(toggle(page, 'My list')).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    await expect(notices).toContainText('Removed from My list.');
+    await expect.poll(() => tmdb.listed('watchlist')).toEqual([]);
+  });
+
   test('keeps titles in the lists, and shows them in pages of their own', async ({
     running,
     tmdb,
@@ -117,7 +142,7 @@ test.describe('watchlist and favorites', () => {
     await expect(myList).toHaveAttribute('aria-pressed', 'true');
     await expect.poll(() => tmdb.listed('watchlist')).toEqual(['movie:2']);
     // the button is above the link of the card, not part of it
-    await expect(page).toHaveURL(/#\/search$/);
+    await expect(page).toHaveURL(/#\/search\?q=/);
 
     // The page of the title, and the home page, agree.
     await cards(page).nth(1).getByRole('link').click();

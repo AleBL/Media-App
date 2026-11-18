@@ -1,6 +1,7 @@
 import { MISSING_MOVIE, TRAILER_KEY } from './support/fake-tmdb';
 import {
   cards,
+  chooseLanguage,
   expect,
   heading,
   openPage,
@@ -75,21 +76,22 @@ test.describe('page of a title', () => {
   });
 
   test('goes back to the results it came from', async ({ page, tmdb }) => {
-    await page.locator('.paginator-pages button').nth(1).click();
-    await expect(cards(page).first()).toContainText('Movie 21');
+    await page.getByRole('button', { name: 'Show more' }).click();
+    await expect(cards(page)).toHaveCount(40);
 
-    await cards(page).first().getByRole('link').click();
+    await cards(page).nth(20).getByRole('link').click();
     await expect(heading(page)).toHaveText('Movie 21 [en] (2020)');
     await page.getByRole('button', { name: 'Back' }).click();
 
-    await expect(page).toHaveURL(/#\/search$/);
-    await expect(cards(page).first()).toContainText('Movie 21');
+    await expect(page).toHaveURL(/#\/search\?q=matrix$/);
+    await expect(cards(page)).toHaveCount(40);
+    await expect(cards(page).nth(20)).toBeInViewport();
     // the results were kept, not asked for again
     expect(tmdb.searches()).toHaveLength(2);
   });
 
   test('opens a tv show', async ({ page }) => {
-    await page.getByText('TV Show', { exact: true }).click();
+    await page.getByRole('radio', { name: 'TV Show' }).check();
     await expect(cards(page).first()).toContainText('Show 1');
 
     await cards(page).first().getByRole('link').click();
@@ -104,8 +106,7 @@ test.describe('page of a title', () => {
     await cards(page).first().getByRole('link').click();
     await expect(heading(page)).toHaveText('Movie 1 [en] (2020)');
 
-    await page.locator('header button:has(.pi-language)').click();
-    await page.getByText('pt-BR', { exact: true }).click();
+    await chooseLanguage(page, 'Português (Brasil)');
 
     await expect(heading(page)).toHaveText('Movie 1 [pt-BR] (2020)');
     await expect(page.getByText('Onde assistir: Estados Unidos')).toBeVisible();

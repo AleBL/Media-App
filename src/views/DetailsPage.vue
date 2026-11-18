@@ -5,11 +5,17 @@
   import type { MediaType, WatchProvider } from '@shared/api';
   import AccountButtons from '@/components/Account/AccountButtons.vue';
   import AppButton from '@/components/ui/AppButton.vue';
+  import AppImage from '@/components/ui/AppImage.vue';
+  import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
+  import AppScrollRow from '@/components/ui/AppScrollRow.vue';
+  import AppSkeleton from '@/components/ui/AppSkeleton.vue';
+  import AppState from '@/components/ui/AppState.vue';
+  import AppTooltip from '@/components/ui/AppTooltip.vue';
   import { isDesktop } from '@/services/api';
   import { useCredentialsStore } from '@/stores/credentials';
   import { useDetailsStore } from '@/stores/details';
   import { accessProblem } from '@/util/access';
-  import { logoUrl, posterUrl, profileUrl } from '@/util/images';
+  import { backdropUrl, logoUrl, posterUrl, profileUrl } from '@/util/images';
 
   const props = defineProps<{ type: MediaType; id: number }>();
 
@@ -184,44 +190,93 @@
       <AppButton
         :label="t('details.back')"
         icon="pi pi-arrow-left"
-        severity="secondary"
+        severity="ghost"
+        class="-ml-3"
         @click="back"
       />
     </div>
 
-    <div
+    <AppState
       v-if="error"
-      role="alert"
-      class="p-5 text-center text-red-600 dark:text-red-400"
+      tone="error"
+      :icon="
+        error.code === 'not-found'
+          ? 'pi pi-question-circle'
+          : 'pi pi-exclamation-triangle'
+      "
     >
-      <p>{{ t(errorMessage) }}</p>
-      <RouterLink v-if="problem && desktop" :to="{ name: 'settings' }">
-        {{ t('access.openSettings') }}
-      </RouterLink>
-      <AppButton
-        v-else-if="canRetry"
-        class="mt-4"
-        :label="t('details.tryAgain')"
-        icon="pi pi-refresh"
-        @click="store.load(type, id)"
+      {{ t(errorMessage) }}
+      <template #actions>
+        <RouterLink v-if="problem && desktop" :to="{ name: 'settings' }">
+          {{ t('access.openSettings') }}
+        </RouterLink>
+        <AppButton
+          v-else-if="canRetry"
+          :label="t('details.tryAgain')"
+          icon="pi pi-refresh"
+          @click="store.load(type, id)"
+        />
+      </template>
+    </AppState>
+
+    <!-- The shape of the page until it comes; the text is for screen
+         readers. -->
+    <div
+      v-else-if="!details"
+      role="status"
+      class="flex flex-col gap-6 sm:flex-row"
+    >
+      <span class="sr-only">{{ t('details.loading') }}</span>
+      <AppSkeleton
+        class="aspect-[2/3] w-48 self-center sm:w-64 sm:self-start"
       />
+      <div class="flex-1">
+        <AppSkeleton class="h-9 w-2/3" />
+        <AppSkeleton class="mt-3 h-5 w-1/2" />
+        <AppSkeleton class="mt-3 h-4 w-3/4" />
+        <AppSkeleton class="mt-6 h-4 w-full" />
+        <AppSkeleton class="mt-3 h-4 w-full" />
+        <AppSkeleton class="mt-3 h-4 w-5/6" />
+      </div>
     </div>
 
-    <div v-else-if="!details" role="status" class="p-5 text-center">
-      {{ t('details.loading') }}
-    </div>
+    <article v-else :aria-busy="loading" aria-labelledby="details-title">
+      <!-- In another language, on its way: the page stays readable. -->
+      <AppLoadingBar v-if="loading" class="mb-3" />
 
-    <article
-      v-else
-      :class="{ 'opacity-50': loading }"
-      :aria-busy="loading"
-      aria-labelledby="details-title"
-    >
-      <div class="flex flex-col gap-6 sm:flex-row">
+      <!-- A wide still of the title, fading into the page, with the poster
+           over its lower edge. Only a picture: the text stays on the page
+           itself, readable in both themes. -->
+      <div
+        v-if="details.backdropPath"
+        class="relative -mx-4 h-48 overflow-hidden sm:mx-0 sm:h-72 sm:rounded-lg"
+        aria-hidden="true"
+      >
         <img
-          :src="posterUrl(details.posterPath)"
+          :src="backdropUrl(details.backdropPath)"
           alt=""
-          class="w-48 self-center rounded-md shadow-md sm:w-64 sm:self-start"
+          class="h-full w-full object-cover"
+        />
+        <div
+          class="absolute inset-0 bg-gradient-to-t from-white via-white/30 to-transparent dark:from-slate-800 dark:via-slate-800/30"
+        />
+      </div>
+
+      <!-- Only the poster rises over the still; the text starts below it,
+           on the page, readable in both themes. -->
+      <div
+        :class="[
+          'relative flex flex-col gap-6 sm:flex-row',
+          details.backdropPath && 'sm:px-6',
+        ]"
+      >
+        <AppImage
+          :src="posterUrl(details.posterPath)"
+          eager
+          :class="[
+            'w-48 shrink-0 self-center rounded-md shadow-lg ring-1 ring-black/5 sm:w-64 sm:self-start',
+            details.backdropPath && '-mt-24 sm:-mt-40',
+          ]"
         />
 
         <div class="flex-1">
@@ -303,14 +358,20 @@
             </h3>
             <ul class="mt-2 flex list-none flex-wrap gap-3 p-0">
               <li v-for="provider in group.providers" :key="provider.id">
-                <img
+                <!-- The name of the service shows on hover; screen readers
+                     read it from the logo. -->
+                <AppTooltip
                   v-if="provider.logoPath"
-                  :src="logoUrl(provider.logoPath)"
-                  :alt="provider.name"
-                  :title="provider.name"
-                  class="h-12 w-12 rounded-lg"
-                  loading="lazy"
-                />
+                  :text="provider.name"
+                  side="top"
+                >
+                  <AppImage
+                    :src="logoUrl(provider.logoPath)"
+                    :alt="provider.name"
+                    shape="square"
+                    class="h-12 w-12 rounded-lg"
+                  />
+                </AppTooltip>
                 <span
                   v-else
                   class="flex h-12 items-center rounded-lg bg-surface-100 px-3 text-sm dark:bg-surface-700"
@@ -347,28 +408,22 @@
         <h2 id="cast-title" class="text-xl font-semibold">
           {{ t('details.cast') }}
         </h2>
-        <ul
-          class="mt-4 grid list-none grid-cols-2 gap-4 p-0 sm:grid-cols-4 lg:grid-cols-6"
+        <!-- A row that scrolls sideways, like the lists of the home page:
+             the rest of the page is not pushed down. -->
+        <AppScrollRow
+          :previous-label="t('details.castPrevious')"
+          :next-label="t('details.castNext')"
         >
           <li
             v-for="person in details.cast"
             :key="person.id"
-            class="text-center"
+            class="w-28 shrink-0 snap-start text-center sm:w-32"
           >
-            <img
-              v-if="person.profilePath"
-              :src="profileUrl(person.profilePath)"
-              alt=""
-              loading="lazy"
-              class="mx-auto aspect-[2/3] w-full max-w-36 rounded-md object-cover"
+            <AppImage
+              :src="person.profilePath ? profileUrl(person.profilePath) : null"
+              icon="pi pi-user"
+              class="w-full rounded-md"
             />
-            <div
-              v-else
-              class="mx-auto flex aspect-[2/3] w-full max-w-36 items-center justify-center rounded-md bg-surface-100 dark:bg-surface-700"
-              aria-hidden="true"
-            >
-              <span class="pi pi-user text-3xl text-surface-400" />
-            </div>
             <p class="mt-2 text-sm font-medium">{{ person.name }}</p>
             <p
               v-if="person.character"
@@ -377,7 +432,7 @@
               {{ person.character }}
             </p>
           </li>
-        </ul>
+        </AppScrollRow>
       </section>
     </article>
   </div>

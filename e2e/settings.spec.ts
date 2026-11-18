@@ -1,5 +1,6 @@
 import {
   cards,
+  chooseCountry,
   expect,
   heading,
   openPage,
@@ -13,7 +14,7 @@ test.describe('settings', () => {
   });
 
   test('shows where to watch in the country chosen', async ({ page }) => {
-    await page.getByLabel('Country').selectOption({ label: 'Brazil' });
+    await chooseCountry(page, 'Brazil');
 
     await openPage(page, 'search');
     await searchBox(page).fill('matrix');
@@ -37,9 +38,8 @@ test.describe('settings', () => {
       .poll(() => app.evaluate(({ nativeTheme }) => nativeTheme.themeSource))
       .toBe('dark');
 
-    await page
-      .getByLabel('Language')
-      .selectOption({ label: 'Português (Brasil)' });
+    // The choice of the page, not the menu of the bar.
+    await page.getByRole('radio', { name: 'Português (Brasil)' }).check();
 
     await expect(heading(page)).toHaveText('Configurações');
   });

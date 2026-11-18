@@ -6,7 +6,7 @@ import { expect, type RunningApp } from './fixtures';
  * signed in, on the button of their own menu.
  */
 export const accountLink =
-  'header nav > ul > li > :is(a[href$="#/account"], button[aria-controls="account-menu"])';
+  'header nav :is(a[href$="#/account"], [data-account-menu])';
 
 /**
  * Presses the button and takes apart the page the app asked the browser to

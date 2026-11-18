@@ -9,7 +9,10 @@
 </script>
 
 <template>
-  <div style="align-items: center; display: flex">
+  <!-- A tool of the app, as a card: its logo and its version. -->
+  <div
+    class="flex items-center gap-3 rounded-lg border border-surface-200 bg-surface-0 px-4 py-3 shadow-sm dark:border-surface-700 dark:bg-surface-900"
+  >
     <LogoViewLink
       :href="item.href"
       :img-src="item.imgSrc"

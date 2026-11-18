@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { computed, ref, watch } from 'vue';
-  import { RATINGS, type MediaType } from '@shared/api';
+  import type { MediaType } from '@shared/api';
+  import AppButton from '@/components/ui/AppButton.vue';
   import { useAccountStore } from '@/stores/account';
 
   const props = defineProps<{ type: MediaType; id: number }>();
@@ -12,6 +13,7 @@
   // What TMDB said when the page of the title asked (AccountButtons).
   const rating = computed(() => account.ratingOf(title.value));
   const failed = ref(false);
+  const name = computed(() => `rating-${props.type}-${props.id}`);
 
   const number = computed(
     () =>
@@ -23,10 +25,19 @@
 
   // A choice shows at once and is saved; the store undoes it if TMDB does
   // not take it.
-  const choice = computed({
-    get: () => rating.value ?? null,
-    set: (value: number | null) => void choose(value),
-  });
+  const choice = computed(() => rating.value ?? null);
+
+  // The stars follow the pointer before a click, then the rating.
+  const hovered = ref<number | null>(null);
+  const shown = computed(() => hovered.value ?? choice.value ?? 0);
+
+  function starIcon(star: number) {
+    if (star <= shown.value) {
+      return 'pi-star-fill';
+    }
+
+    return star - 0.5 === shown.value ? 'pi-star-half-fill' : 'pi-star';
+  }
 
   watch(title, () => {
     failed.value = false;
@@ -44,29 +55,72 @@
 </script>
 
 <template>
-  <!-- A native select: the keyboard, screen readers and phones already know
-       it, and choosing "Not rated" takes the rating away. It waits for TMDB
-       to say what the rating is. -->
+  <!-- Ten stars, each in two halves: the 20 ratings TMDB takes, from 0.5
+       to 10. Each half is a radio button, so the arrows of the keyboard
+       move along them and a screen reader reads the number. It waits for
+       TMDB to say what the rating is. -->
   <div>
     <div class="flex flex-wrap items-center gap-3">
-      <label :for="`rating-${type}-${id}`" class="text-sm font-medium">
+      <span :id="`${name}-label`" class="text-sm font-medium">
         {{ t('lists.yourRating') }}
-      </label>
-      <select
-        :id="`rating-${type}-${id}`"
-        v-model="choice"
-        :disabled="rating === undefined"
-        class="rounded-md border border-surface-300 bg-surface-0 px-3 py-2 text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 disabled:opacity-60 dark:border-surface-600 dark:bg-surface-900 dark:[color-scheme:dark] dark:focus-visible:ring-primary-400"
+      </span>
+      <div
+        role="radiogroup"
+        :aria-labelledby="`${name}-label`"
+        class="flex items-center"
+        @mouseleave="hovered = null"
       >
-        <option :value="null">{{ t('lists.notRated') }}</option>
-        <option v-for="value in RATINGS" :key="value" :value="value">
-          {{ number.format(value) }}
-        </option>
-      </select>
-      <i
-        v-if="rating"
-        class="pi pi-star-fill text-yellow-500"
+        <span
+          v-for="star in 10"
+          :key="star"
+          class="relative h-7 w-7 rounded-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-500"
+        >
+          <span
+            :class="[
+              'pi pointer-events-none absolute inset-0 flex items-center justify-center text-lg',
+              starIcon(star),
+              shown >= star - 0.5
+                ? 'text-yellow-500'
+                : 'text-surface-300 dark:text-surface-600',
+            ]"
+            aria-hidden="true"
+          />
+          <label
+            v-for="value in [star - 0.5, star]"
+            :key="value"
+            :class="[
+              'absolute inset-y-0 w-1/2',
+              value % 1 ? 'left-0' : 'right-0',
+              rating === undefined ? 'cursor-default' : 'cursor-pointer',
+            ]"
+            @mouseenter="rating !== undefined && (hovered = value)"
+          >
+            <input
+              type="radio"
+              class="sr-only"
+              :name="name"
+              :value="value"
+              :checked="choice === value"
+              :disabled="rating === undefined"
+              @change="choose(value)"
+            />
+            <span class="sr-only">{{ number.format(value) }}</span>
+          </label>
+        </span>
+      </div>
+      <span
+        class="min-w-14 text-sm tabular-nums text-surface-600 dark:text-surface-300"
         aria-hidden="true"
+      >
+        {{ choice ? number.format(choice) : t('lists.notRated') }}
+      </span>
+      <AppButton
+        v-if="choice !== null"
+        severity="ghost"
+        size="sm"
+        icon="pi pi-times"
+        :label="t('lists.removeRating')"
+        @click="choose(null)"
       />
     </div>
     <p

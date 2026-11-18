@@ -1,5 +1,13 @@
+import type { Page } from '@playwright/test';
 import { APP_TOKEN, TRAILER_KEY } from '../support/fake-tmdb';
-import { cards, heading, openPage, searchBox } from '../support/fixtures';
+import {
+  cards,
+  chooseCountry,
+  chooseLanguage,
+  heading,
+  openPage,
+  searchBox,
+} from '../support/fixtures';
 import { expect, test } from './fixtures';
 
 // The same interface as a web page, in a browser: no Electron, no preload
@@ -12,8 +20,10 @@ test.describe('web version', () => {
     received,
   }) => {
     await page.goto(site.url);
-    await page.getByRole('link', { name: 'Start searching' }).click();
+    // From the top of the home page, straight to the results.
     await searchBox(page).fill('tom & jerry');
+    await searchBox(page).press('Enter');
+    await expect(page).toHaveURL(/#\/search\?q=tom/);
 
     await expect(cards(page)).toHaveCount(20);
     await expect(cards(page).first()).toContainText('Movie 1 [en] (2020)');
@@ -43,13 +53,12 @@ test.describe('web version', () => {
     await searchBox(page).fill('matrix');
     await expect(cards(page)).toHaveCount(20);
 
-    await page.locator('.paginator-pages button').nth(2).click();
+    await page.getByRole('button', { name: 'Show more' }).click();
 
-    await expect(cards(page)).toHaveCount(5);
-    expect(tmdb.lastSearch()?.page).toBe('3');
+    await expect(cards(page)).toHaveCount(40);
+    expect(tmdb.lastSearch()?.page).toBe('2');
 
-    await page.locator('header button:has(.pi-language)').click();
-    await page.getByText('pt-BR', { exact: true }).click();
+    await chooseLanguage(page, 'Português (Brasil)');
 
     await expect(cards(page).first()).toContainText('[pt-BR]');
     await expect(cards(page).first()).toContainText('Ação');
@@ -252,18 +261,24 @@ test.describe('web version', () => {
     await page.goto(site.url);
 
     const toggle = page.getByRole('button', { name: 'Menú' });
-    const menu = page.locator('#main-menu');
+    const homeInTheBar = page.locator('header nav a[href$="#/home"]');
+    const drawer = page.getByRole('dialog', { name: 'Media App' });
 
     await expect(toggle).toBeVisible();
-    await expect(menu).toBeHidden();
+    await expect(homeInTheBar).toBeHidden();
 
+    // The drawer has the pages, and closes once one is chosen.
     await toggle.click();
-    await expect(menu).toBeVisible();
+    await expect(drawer).toBeVisible();
+    await drawer.getByRole('link', { name: 'Buscar' }).click();
+    await expect(page).toHaveURL(/#\/search$/);
+    await expect(drawer).toBeHidden();
 
     await page.setViewportSize({ width: 1024, height: 800 });
 
     // The bar keeps its height: its items did not wrap to a second row.
     await expect(toggle).toBeHidden();
+    await expect(homeInTheBar).toBeVisible();
     expect((await page.locator('header nav').boundingBox())?.height).toBe(64);
   });
 
@@ -293,7 +308,7 @@ test.describe('web version', () => {
   }) => {
     await page.goto(site.url);
     await openPage(page, 'settings');
-    await page.getByLabel('Country').selectOption({ label: 'Brazil' });
+    await chooseCountry(page, 'Brazil');
 
     await openPage(page, 'search');
     await searchBox(page).fill('matrix');
@@ -324,6 +339,144 @@ test.describe('web version', () => {
 
     await expect(cards(page)).toHaveCount(20);
     expect(tmdb.lastSearch()?.credential).toBe('app');
+  });
+
+  test('shows the shape of the lists while TMDB answers', async ({
+    page,
+    site,
+  }) => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    await page.route('**/api/tmdb**', async (route) => {
+      await held;
+      await route.continue();
+    });
+    await page.goto(site.url);
+
+    const trending = page.getByRole('region', { name: 'Trending this week' });
+
+    await expect(trending.getByRole('status')).toHaveText('Loading...');
+    await expect(trending.locator('.animate-pulse').first()).toBeVisible();
+
+    release();
+
+    await expect(trending.getByRole('article').first()).toBeVisible();
+    await expect(trending.getByRole('status')).toHaveCount(0);
+  });
+
+  test.describe('the loading screen', () => {
+    // Holds the code of the app, to see what shows before it starts.
+    async function holdTheApp(page: Page) {
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+
+      await page.route('**/assets/index-*.js', async (route) => {
+        await held;
+        await route.continue();
+      });
+
+      return release;
+    }
+
+    const background = (page: Page) =>
+      page
+        .locator('#app')
+        .evaluate((app) => getComputedStyle(app).backgroundColor);
+
+    test('shows until the app starts, in the dark theme from the start', async ({
+      page,
+      site,
+    }) => {
+      await page.emulateMedia({ colorScheme: 'dark' });
+      const release = await holdTheApp(page);
+
+      await page.goto(site.url, { waitUntil: 'commit' });
+
+      await expect(page.getByRole('status')).toContainText('Loading Media App');
+      await expect(page.locator('html')).toHaveClass(/dark/);
+      // Neither white nor transparent once the stylesheet applies.
+      await expect
+        .poll(() => background(page))
+        .not.toMatch(/^rgba?\((255, 255, 255|0, 0, 0, 0)\)$/);
+      const dark = await background(page);
+
+      release();
+
+      await expect(
+        page.getByRole('navigation', { name: 'Main menu' }),
+      ).toBeVisible();
+      await expect(page.getByText('Loading Media App')).toHaveCount(0);
+      expect(await background(page)).toBe(dark);
+    });
+
+    test('follows the theme chosen in the app over the one of the system', async ({
+      page,
+      site,
+    }) => {
+      await page.emulateMedia({ colorScheme: 'dark' });
+      await page.addInitScript(() =>
+        localStorage.setItem('vueuse-color-scheme', 'light'),
+      );
+      const release = await holdTheApp(page);
+
+      await page.goto(site.url, { waitUntil: 'commit' });
+
+      await expect(page.getByRole('status')).toContainText('Loading Media App');
+      await expect(page.locator('html')).not.toHaveClass(/dark/);
+
+      release();
+    });
+  });
+
+  test('keeps to the Content-Security-Policy on every page', async ({
+    page,
+    site,
+  }) => {
+    // Before the page, so nothing it does is missed.
+    await page.addInitScript(() => {
+      const refused: string[] = [];
+
+      Object.assign(window, { refusedByPolicy: refused });
+      document.addEventListener('securitypolicyviolation', (event) => {
+        refused.push(`${event.violatedDirective} ${event.blockedURI}`);
+      });
+    });
+
+    await page.goto(site.url);
+    await expect(cards(page).first()).toBeVisible();
+    await openPage(page, 'search');
+    await searchBox(page).fill('matrix');
+    await cards(page).first().getByRole('link').click();
+    await expect(heading(page)).toBeVisible();
+    for (const name of ['settings', 'about', 'account'] as const) {
+      await openPage(page, name);
+    }
+    // Changing the theme too, which once added a <style> element.
+    await page
+      .getByRole('button', { name: 'Switch to the dark theme' })
+      .click();
+    // And opening a hint, a menu and the drawer, which float over the page
+    // where they are placed: a choice in the menu can be clicked.
+    await page.getByRole('link', { name: 'Settings' }).hover();
+    await expect(page.getByRole('tooltip')).toHaveText('Settings');
+    await chooseLanguage(page, 'English');
+    await expect(page.getByRole('menu')).toBeHidden();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('button', { name: 'Menu' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.locator('html')).toHaveClass(/dark/);
+
+    expect(
+      await page.evaluate(
+        () =>
+          (window as unknown as { refusedByPolicy: string[] }).refusedByPolicy,
+      ),
+    ).toEqual([]);
   });
 
   test.describe('on a site without a credential', () => {

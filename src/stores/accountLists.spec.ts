@@ -83,7 +83,7 @@ describe('lists of the account', () => {
     await store.load('watchlist');
     api.account.list.mockReturnValue(new Promise(() => {}));
 
-    void store.load('watchlist', 1, 'tv');
+    void store.load('watchlist', 'tv');
 
     expect(store.views.watchlist).toMatchObject({
       type: 'tv',
@@ -98,25 +98,72 @@ describe('lists of the account', () => {
       .mockReturnValueOnce(new Promise((resolve) => (older = resolve)))
       .mockResolvedValueOnce(found([SHOW]));
 
-    const first = store.load('watchlist', 1, 'movie');
-    await store.load('watchlist', 1, 'tv');
+    const first = store.load('watchlist', 'movie');
+    await store.load('watchlist', 'tv');
     older(found([MATRIX]));
     await first;
 
     expect(store.views.watchlist.results).toEqual([SHOW]);
   });
 
-  it('goes to the last page when the titles of the one it was on are gone', async () => {
-    api.account.list
-      .mockResolvedValueOnce(found([], 3, 21))
-      .mockResolvedValueOnce(found([MATRIX], 2, 21));
-
-    await store.load('watchlist', 3);
-
-    expect(api.account.list).toHaveBeenLastCalledWith(
-      expect.objectContaining({ page: 2 }),
+  it('asks again for every page shown, fewer when titles are gone', async () => {
+    store.views.watchlist.page = 3;
+    // Two pages of titles now, on the TMDB website.
+    api.account.list.mockImplementation(async ({ page }) =>
+      found(page === 1 ? [MATRIX] : page === 2 ? [SHOW] : [], page, 21),
     );
-    expect(store.views.watchlist).toMatchObject({ page: 2, results: [MATRIX] });
+
+    await store.load('watchlist');
+
+    expect(api.account.list).toHaveBeenCalledTimes(3);
+    expect(store.views.watchlist).toMatchObject({
+      page: 2,
+      results: [MATRIX, SHOW],
+    });
+  });
+
+  describe('more at the end', () => {
+    beforeEach(async () => {
+      api.account.list.mockResolvedValueOnce(found([MATRIX], 1, 21));
+      await store.load('watchlist');
+    });
+
+    it('adds the next page after the ones shown', async () => {
+      api.account.list.mockResolvedValueOnce(found([SHOW], 2, 21));
+
+      await store.loadMore('watchlist');
+
+      expect(api.account.list).toHaveBeenLastCalledWith(
+        expect.objectContaining({ list: 'watchlist', page: 2 }),
+      );
+      expect(store.views.watchlist).toMatchObject({
+        page: 2,
+        results: [MATRIX, SHOW],
+      });
+    });
+
+    it('stops at the last page', async () => {
+      store.views.watchlist.page = 2;
+
+      await store.loadMore('watchlist');
+
+      expect(api.account.list).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps what was shown when the next page fails', async () => {
+      api.account.list.mockResolvedValueOnce({
+        ok: false,
+        error: { code: 'network' },
+      });
+
+      await store.loadMore('watchlist');
+
+      expect(store.views.watchlist).toMatchObject({
+        moreFailed: true,
+        error: null,
+        results: [MATRIX],
+      });
+    });
   });
 
   it('asks who is signed in when TMDB says nobody is', async () => {

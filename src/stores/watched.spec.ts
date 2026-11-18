@@ -107,25 +107,25 @@ describe('watched store', () => {
     expect(store.stateOf(MATRIX)).toBeUndefined();
   });
 
-  it('reads a page of the watched titles', async () => {
+  it('reads the first page of the watched titles', async () => {
     api.watched.list.mockResolvedValue({
       ok: true,
       data: {
-        page: 2,
+        page: 1,
         results: [{ id: 603, media_type: 'movie', watchedAt: '2026-11-16' }],
         totalPages: 2,
         totalResults: 21,
       },
     });
 
-    await store.loadPage(2);
+    await store.loadPage();
 
     expect(api.watched.list).toHaveBeenCalledWith({
-      page: 2,
+      page: 1,
       language: 'pt-BR',
     });
     expect(store.view).toMatchObject({
-      page: 2,
+      page: 1,
       totalResults: 21,
       loaded: true,
       loading: false,
@@ -133,7 +133,32 @@ describe('watched store', () => {
     });
   });
 
-  it('goes back a page when the last one emptied', async () => {
+  it('adds the next page at the end, and asks again for all of them later', async () => {
+    api.watched.list.mockImplementation(async ({ page }) => ({
+      ok: true,
+      data: {
+        page,
+        results: [{ id: page, media_type: 'movie' }],
+        totalPages: 2,
+        totalResults: 21,
+      },
+    }));
+    await store.loadPage();
+
+    await store.loadMore();
+
+    expect(store.view.results.map((item) => item.id)).toEqual([1, 2]);
+    expect(store.view.page).toBe(2);
+
+    api.watched.list.mockClear();
+    await store.loadPage();
+
+    expect(api.watched.list).toHaveBeenCalledTimes(2);
+    expect(store.view.results.map((item) => item.id)).toEqual([1, 2]);
+  });
+
+  it('shows fewer pages when titles were unmarked elsewhere', async () => {
+    store.view.page = 2;
     api.watched.list.mockImplementation(async ({ page }) => ({
       ok: true,
       data: {
@@ -144,12 +169,10 @@ describe('watched store', () => {
       },
     }));
 
-    await store.loadPage(2);
+    await store.loadPage();
 
-    expect(api.watched.list).toHaveBeenLastCalledWith(
-      expect.objectContaining({ page: 1 }),
-    );
     expect(store.view.page).toBe(1);
+    expect(store.view.results).toHaveLength(1);
   });
 
   it('forgets everything when the user signs out', async () => {

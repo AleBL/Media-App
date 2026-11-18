@@ -1,6 +1,6 @@
 {
   "name": "media-app",
-  "version": "0.3.3",
+  "version": "0.5.0",
   "description": "Search movies and TV shows on TMDB and keep your watchlist, favorites, ratings and watched titles",
   "homepage": "https://github.com/AleBL/Media-App",
   "desktopName": "media-app.desktop",
@@ -70,6 +70,7 @@
     "pinia": "^4.1.0",
     "prettier": "^3.10.1",
     "primeicons": "^7.0.0",
+    "reka-ui": "^2.11.0",
     "tailwindcss": "^4.3.5",
     "taze": "^21.3.0",
     "typescript": "^5.9.3",

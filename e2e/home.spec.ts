@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, heading, test } from './support/fixtures';
+import { chooseLanguage, expect, heading, test } from './support/fixtures';
 
 /** A list of the home page, by its title. */
 const list = (page: Page, title: string) =>
@@ -64,8 +64,7 @@ test.describe('home page', () => {
       'Movie 1 [en]',
     );
 
-    await page.locator('header button:has(.pi-language)').click();
-    await page.getByText('pt-BR', { exact: true }).click();
+    await chooseLanguage(page, 'Português (Brasil)');
 
     await expect(list(page, 'Em alta na semana')).toContainText(
       'Movie 1 [pt-BR]',

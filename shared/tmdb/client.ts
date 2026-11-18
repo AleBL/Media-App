@@ -123,6 +123,7 @@ type DetailsBody = {
   number_of_episodes?: unknown;
   genres?: unknown;
   poster_path?: unknown;
+  backdrop_path?: unknown;
   vote_average?: unknown;
   vote_count?: unknown;
   imdb_id?: unknown;
@@ -452,6 +453,7 @@ function toDetails(body: DetailsBody, request: DetailsRequest): MediaDetails {
         : [],
     ),
     posterPath: nonEmptyText(body.poster_path),
+    backdropPath: nonEmptyText(body.backdrop_path),
     voteAverage: voteCount ? positiveNumber(body.vote_average) : undefined,
     voteCount,
     // Movies have it in the page itself, tv shows only in external_ids.

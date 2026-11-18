@@ -144,6 +144,11 @@ test.describe('search', () => {
 
     await expect(page).toHaveURL(/#\/tv\/9002$/);
     await expect(heading(page)).toHaveText('Show 2 [en] (2008)');
+
+    // and their name to their page
+    await page.goBack();
+    await person.getByRole('link', { name: 'Person 3' }).click();
+    await expect(page).toHaveURL(/#\/person\/1$/);
   });
 
   test('follows the language chosen in the menu', async ({ page, tmdb }) => {

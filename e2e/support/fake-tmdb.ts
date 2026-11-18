@@ -867,7 +867,12 @@ export async function startFakeTmdb() {
       const id = Number(person[1]);
       const language = query.language;
       const name = PEOPLE[id] ?? `Person ${id}`;
-      const biography = `${name} was born in Lisbon and plays heroes.`;
+      // Long enough to show only its start.
+      const biography = Array.from(
+        { length: 8 },
+        (_, index) =>
+          `${name} was born in Lisbon and plays heroes (${index + 1}).`,
+      ).join('\n\n');
 
       if (id === MISSING_MOVIE) {
         return send(404, {

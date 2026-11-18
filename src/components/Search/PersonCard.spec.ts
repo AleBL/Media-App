@@ -56,17 +56,31 @@ describe('PersonCard', () => {
     expect(img.attributes('alt')).toBe('');
   });
 
-  it('links each title they are known for to its page', () => {
+  it('leads to the page of the person by their name, and to each title they are known for', () => {
     const links = mountCard(keanu).findAll('a');
 
     expect(links.map((link) => link.text())).toEqual([
+      'Keanu Reeves',
       'The Matrix (1999)',
       'Breaking Bad',
     ]);
     expect(links.map((link) => link.attributes('href'))).toEqual([
+      '#/person/6384',
       '#/movie/603',
       '#/tv/1396',
     ]);
+    // the name is the heading of the card, and its link covers it
+    expect(links[0].element.parentElement!.tagName).toBe('H3');
+  });
+
+  it('leads to the page of the person from a line of the list too', () => {
+    wrapper = mount(PersonCard, {
+      props: { person: keanu, list: true },
+      global: { plugins: [i18n, router] },
+    });
+
+    expect(wrapper.get('h3 a').attributes('href')).toBe('#/person/6384');
+    expect(wrapper.findAll('a')).toHaveLength(3);
   });
 
   it('has a placeholder for someone without a picture or known titles', () => {
@@ -79,7 +93,7 @@ describe('PersonCard', () => {
     expect(card.find('img').exists()).toBe(false);
     expect(card.find('.pi-user').exists()).toBe(true);
     expect(card.text()).not.toContain('Known for');
-    expect(card.find('a').exists()).toBe(false);
+    expect(card.findAll('a')).toHaveLength(1);
   });
 
   it('is in the language of the app', () => {

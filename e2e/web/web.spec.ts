@@ -282,6 +282,37 @@ test.describe('web version', () => {
     expect((await page.locator('header nav').boundingBox())?.height).toBe(64);
   });
 
+  test('takes the width of a big screen, a little bigger, in line with the bar', async ({
+    page,
+    site,
+  }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto(site.url);
+    await expect(
+      page.getByRole('region').first().getByRole('article').first(),
+    ).toBeVisible();
+
+    // Where the bar and the rows start and end, inside their margins.
+    const [bar, row] = await page.evaluate(() =>
+      [
+        document.querySelector('header nav')!,
+        document.querySelector('section[aria-labelledby]')!.parentElement!,
+      ].map((element) => {
+        const box = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+
+        return {
+          start: box.left + parseFloat(style.paddingLeft),
+          width: box.width,
+        };
+      }),
+    );
+
+    expect(Math.round(bar.start)).toBe(Math.round(row.start));
+    expect(row.width).toBe(1920);
+    expect(bar.start).toBeLessThan(60);
+  });
+
   test('keeps the dark theme down to the end of a long page', async ({
     page,
     site,

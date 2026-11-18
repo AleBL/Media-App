@@ -122,9 +122,7 @@
       <!-- Asked again, in another language: the list stays readable. -->
       <AppLoadingBar v-if="view.loading" class="my-1" />
 
-      <ul
-        class="m-0 grid list-none grid-cols-2 gap-4 p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-      >
+      <ul class="page card-grid list-none py-4">
         <li v-for="item in view.results" :key="item.id">
           <PosterCard :item="item" grid />
         </li>
@@ -144,11 +142,7 @@
 
     <!-- The shape of the list until it comes; the text is for screen
          readers. -->
-    <div
-      v-else
-      role="status"
-      class="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-    >
+    <div v-else role="status" class="page card-grid py-4">
       <span class="sr-only">{{ t('lists.loading') }}</span>
       <PosterCardSkeleton v-for="index in 12" :key="index" />
     </div>

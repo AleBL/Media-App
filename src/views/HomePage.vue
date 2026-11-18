@@ -85,7 +85,7 @@
     </form>
   </div>
 
-  <div class="mx-auto max-w-6xl px-4 pb-10">
+  <div class="page pb-10">
     <AppState v-if="problem" tone="error" icon="pi pi-exclamation-triangle">
       {{
         t(

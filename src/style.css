@@ -61,9 +61,23 @@
   }
 }
 
-/* The column of a page, and the titles in it, the same on every page. */
+/* The column of a page, and the titles in it, the same on every page and in
+   the bar at the top. It takes a big screen up to about 1920 px, with wider
+   margins as the screen grows. */
 @utility page {
-  @apply mx-auto w-full max-w-6xl px-4;
+  @apply mx-auto w-full max-w-[120rem] px-4 sm:px-6 lg:px-8 2xl:px-12;
+}
+
+/* A grid of cards with as many columns as fit (two at least, on a phone):
+   --card-width is the narrowest a card gets. A few cards keep that size
+   instead of stretching over the page. */
+@utility card-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(var(--card-width, 13rem), calc((100% - 1rem) / 2)), 1fr)
+  );
 }
 
 @utility page-title {

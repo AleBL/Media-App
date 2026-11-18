@@ -2,6 +2,7 @@
   import { computed } from 'vue';
   import type { MediaItem } from '@shared/api';
   import CardButtons from '@/components/Account/CardButtons.vue';
+  import AppImage from '@/components/ui/AppImage.vue';
   import { posterUrl } from '@/util/images';
   import { mediaPage, mediaTitle, mediaType, mediaYear } from '@/util/media';
 
@@ -23,11 +24,9 @@
        and the link covers the whole card; the buttons of the lists of the
        account sit above it, on the poster. -->
   <article class="group relative w-36 sm:w-40">
-    <img
+    <AppImage
       :src="posterUrl(item.poster_path, 'w342')"
-      alt=""
-      loading="lazy"
-      class="aspect-[2/3] w-full rounded-md bg-surface-100 object-cover shadow-sm transition-shadow duration-200 group-hover:shadow-md group-has-[a:focus-visible]:ring-2 group-has-[a:focus-visible]:ring-primary-500 dark:bg-surface-800 dark:group-has-[a:focus-visible]:ring-primary-400"
+      class="w-full rounded-md shadow-sm transition-shadow duration-200 group-hover:shadow-md group-has-[a:focus-visible]:ring-2 group-has-[a:focus-visible]:ring-primary-500 dark:group-has-[a:focus-visible]:ring-primary-400"
     />
     <h3 class="mt-2 line-clamp-2 text-sm font-medium">
       <RouterLink

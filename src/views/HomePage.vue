@@ -3,7 +3,10 @@
   import { storeToRefs } from 'pinia';
   import type { MediaList } from '@shared/api';
   import AppButton from '@/components/ui/AppButton.vue';
+  import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
+  import AppState from '@/components/ui/AppState.vue';
   import PosterCard from '@/components/Home/PosterCard.vue';
+  import PosterCardSkeleton from '@/components/Home/PosterCardSkeleton.vue';
   import { isDesktop } from '@/services/api';
   import { useCredentialsStore } from '@/stores/credentials';
   import { HOME_LISTS, useHomeStore } from '@/stores/home';
@@ -54,24 +57,20 @@
   </div>
 
   <div class="mx-auto max-w-6xl px-4 pb-10">
-    <div
-      v-if="problem"
-      role="alert"
-      class="p-5 text-center text-red-600 dark:text-red-400"
-    >
-      <p>
-        {{
-          t(
-            problem === 'webUnavailable'
-              ? 'homePage.listsUnavailable'
-              : `access.${problem}`,
-          )
-        }}
-      </p>
-      <RouterLink v-if="desktop" :to="{ name: 'settings' }">
-        {{ t('access.openSettings') }}
-      </RouterLink>
-    </div>
+    <AppState v-if="problem" tone="error" icon="pi pi-exclamation-triangle">
+      {{
+        t(
+          problem === 'webUnavailable'
+            ? 'homePage.listsUnavailable'
+            : `access.${problem}`,
+        )
+      }}
+      <template v-if="desktop" #actions>
+        <RouterLink :to="{ name: 'settings' }">
+          {{ t('access.openSettings') }}
+        </RouterLink>
+      </template>
+    </AppState>
 
     <template v-else>
       <section
@@ -98,29 +97,39 @@
           />
         </div>
 
-        <p
+        <!-- The shape of the row until it comes; the text is for screen
+             readers. -->
+        <div
           v-else-if="!lists[list].items.length && lists[list].loading"
           role="status"
-          class="mt-3 text-surface-500 dark:text-surface-400"
+          class="mt-4 flex gap-4 overflow-hidden pb-3"
         >
-          {{ t('homePage.loading') }}
-        </p>
+          <span class="sr-only">{{ t('homePage.loading') }}</span>
+          <PosterCardSkeleton
+            v-for="index in 8"
+            :key="index"
+            class="w-36 shrink-0 sm:w-40"
+          />
+        </div>
 
-        <!-- Scrolls sideways; the cards snap into place. -->
-        <ul
-          v-else
-          class="mt-4 flex snap-x list-none gap-4 overflow-x-auto p-0 pb-3"
-          :class="{ 'opacity-50': lists[list].loading }"
-          :aria-busy="lists[list].loading"
-        >
-          <li
-            v-for="item in lists[list].items"
-            :key="`${item.media_type}-${item.id}`"
-            class="shrink-0 snap-start"
+        <template v-else>
+          <!-- Loading again, in another language: the row stays. -->
+          <AppLoadingBar v-if="lists[list].loading" class="mt-3" />
+
+          <!-- Scrolls sideways; the cards snap into place. -->
+          <ul
+            class="mt-4 flex snap-x list-none gap-4 overflow-x-auto p-0 pb-3"
+            :aria-busy="lists[list].loading"
           >
-            <PosterCard :item="item" />
-          </li>
-        </ul>
+            <li
+              v-for="item in lists[list].items"
+              :key="`${item.media_type}-${item.id}`"
+              class="shrink-0 snap-start"
+            >
+              <PosterCard :item="item" />
+            </li>
+          </ul>
+        </template>
       </section>
     </template>
   </div>

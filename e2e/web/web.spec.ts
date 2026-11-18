@@ -327,6 +327,32 @@ test.describe('web version', () => {
     expect(tmdb.lastSearch()?.credential).toBe('app');
   });
 
+  test('shows the shape of the lists while TMDB answers', async ({
+    page,
+    site,
+  }) => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    await page.route('**/api/tmdb**', async (route) => {
+      await held;
+      await route.continue();
+    });
+    await page.goto(site.url);
+
+    const trending = page.getByRole('region', { name: 'Trending this week' });
+
+    await expect(trending.getByRole('status')).toHaveText('Loading...');
+    await expect(trending.locator('.animate-pulse').first()).toBeVisible();
+
+    release();
+
+    await expect(trending.getByRole('article').first()).toBeVisible();
+    await expect(trending.getByRole('status')).toHaveCount(0);
+  });
+
   test.describe('the loading screen', () => {
     // Holds the code of the app, to see what shows before it starts.
     async function holdTheApp(page: Page) {

@@ -262,4 +262,50 @@ describe('SearchPage', () => {
     expect(alert.find('a').exists()).toBe(false);
     expect(api.tmdb.search).not.toHaveBeenCalled();
   });
+
+  it('offers to search again after a failure, on the same page', async () => {
+    store.query = 'matrix';
+    store.currentPage = 3;
+    store.error = { code: 'network' };
+    await mountPage();
+
+    await wrapper.get('[role="alert"] button').trigger('click');
+
+    expect(api.tmdb.search).toHaveBeenCalledWith(
+      expect.objectContaining({ query: 'matrix', page: 3 }),
+    );
+  });
+
+  it('shows the shape of the results while the first ones load', async () => {
+    store.loading = true;
+
+    await mountPage();
+
+    const status = wrapper.get('[role="status"]');
+    expect(status.findAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(status.get('.sr-only').text()).toBe('Searching...');
+  });
+
+  it('keeps the results readable while other ones load', async () => {
+    store.results = [movie(1)];
+    store.totalResults = 1;
+    store.loading = true;
+
+    await mountPage();
+
+    expect(wrapper.find('[aria-busy="true"]').exists()).toBe(true);
+    expect(wrapper.find('.animate-loading-bar').exists()).toBe(true);
+    expect(wrapper.find('.opacity-50').exists()).toBe(false);
+    expect(wrapper.findAll('article')).toHaveLength(1);
+  });
+
+  it('says how to find something when nothing was found', async () => {
+    store.searched = true;
+
+    await mountPage();
+
+    const state = wrapper.get('[role="status"]');
+    expect(state.text()).toContain('No records found');
+    expect(state.text()).toContain('Try other words');
+  });
 });

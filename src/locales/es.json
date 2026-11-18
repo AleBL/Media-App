@@ -92,7 +92,9 @@
     "errorWebUnavailable": "La búsqueda no está disponible en este momento. Inténtalo de nuevo más tarde.",
     "all": "Todo",
     "person": "Persona",
-    "knownFor": "Conocido(a) por"
+    "knownFor": "Conocido(a) por",
+    "notFoundHint": "Prueba con otras palabras, o busca en todo a la vez.",
+    "tryAgain": "Intentar de nuevo"
   },
 
   "access": {

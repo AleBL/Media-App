@@ -92,7 +92,9 @@
     "errorWebUnavailable": "The search is unavailable at the moment. Please try again later.",
     "all": "All",
     "person": "Person",
-    "knownFor": "Known for"
+    "knownFor": "Known for",
+    "notFoundHint": "Try other words, or search everything at once.",
+    "tryAgain": "Try again"
   },
 
   "access": {

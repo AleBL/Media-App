@@ -7,6 +7,7 @@ import {
   parseLanguage,
   parseListRequest,
   parseMarkRequest,
+  parsePersonRequest,
   parseRateRequest,
   parseRegion,
   parseSearchRequest,
@@ -245,6 +246,24 @@ describe('parseDetailsRequest', () => {
     ['a region that is not a country', { ...valid, region: 'Brazil' }],
   ])('rejects %s', (_case, request) => {
     expect(parseDetailsRequest(request)).toBeNull();
+  });
+});
+
+describe('parsePersonRequest', () => {
+  const valid = { id: 6384, language: 'pt-BR' };
+
+  it('accepts the page of a person and drops fields it does not know', () => {
+    expect(parsePersonRequest({ ...valid, path: '/account' })).toEqual(valid);
+  });
+
+  it.each([
+    ['a missing request', undefined],
+    ['an id sent as text', { ...valid, id: '6384' }],
+    ['id zero', { ...valid, id: 0 }],
+    ['a huge id', { ...valid, id: 2 ** 40 }],
+    ['a language that is not a locale', { ...valid, language: 'pt_BR' }],
+  ])('rejects %s', (_case, request) => {
+    expect(parsePersonRequest(request)).toBeNull();
   });
 });
 

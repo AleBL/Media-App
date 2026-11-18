@@ -10,6 +10,8 @@ import {
   type MediaItem,
   type NativeTheme,
   type Paged,
+  type PersonDetails,
+  type PersonRequest,
   type RateRequest,
   type Result,
   type SearchItem,
@@ -31,6 +33,7 @@ import {
   parseLanguage,
   parseListRequest,
   parseMarkRequest,
+  parsePersonRequest,
   parseRateRequest,
   parseSearchRequest,
   parseTitleRequest,
@@ -64,6 +67,7 @@ export interface IpcServices {
   tmdb: {
     search(request: SearchRequest): Promise<Paged<SearchItem>>;
     details(request: DetailsRequest): Promise<MediaDetails>;
+    person(request: PersonRequest): Promise<PersonDetails>;
     list(request: ListRequest): Promise<MediaItem[]>;
     regions(): Promise<string[]>;
   };
@@ -170,6 +174,14 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
 
     return request
       ? toResult(() => services.tmdb.details(request))
+      : invalidRequest();
+  });
+
+  ipc.handle(IPC.tmdbPerson, (event, value) => {
+    const request = isTrusted(event) ? parsePersonRequest(value) : null;
+
+    return request
+      ? toResult(() => services.tmdb.person(request))
       : invalidRequest();
   });
 

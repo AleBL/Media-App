@@ -275,6 +275,18 @@ describe('web api', () => {
     );
   });
 
+  it('asks the site for the page of a person', async () => {
+    const person = { id: 6384, name: 'Keanu Reeves', cast: [], crew: [] };
+    const fetch = answering({ ok: true, data: person });
+
+    await expect(
+      createWebApi(fetch).tmdb.person({ id: 6384, language: 'es' }),
+    ).resolves.toEqual({ ok: true, data: person });
+    expect(fetch.mock.calls[0][0]).toBe(
+      '/api/tmdb?resource=person&id=6384&language=es',
+    );
+  });
+
   describe('lists of the account', () => {
     it('asks the site for the countries, and has no cache of its own to clear', async () => {
       const fetch = answering({ ok: true, data: ['BR'] });

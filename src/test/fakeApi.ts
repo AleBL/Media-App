@@ -6,6 +6,7 @@ import type {
   MediaDetails,
   MediaItem,
   Paged,
+  PersonDetails,
   SearchItem,
   SessionPersistence,
   SessionState,
@@ -85,6 +86,55 @@ export const MATRIX: MediaDetails = {
   certification: { country: 'US', code: 'R' },
 };
 
+/** The page of a person with everything filled in. */
+export const KEANU: PersonDetails = {
+  id: 6384,
+  name: 'Keanu Reeves',
+  department: 'Acting',
+  biography:
+    'Keanu Charles Reeves is a Canadian actor.\n\nHe is known for The Matrix and John Wick.',
+  birthday: '1964-09-02',
+  placeOfBirth: 'Beirut, Lebanon',
+  profilePath: '/keanu.jpg',
+  links: { imdb: 'nm0000206', instagram: 'keanu.example' },
+  cast: [
+    {
+      id: 603,
+      media_type: 'movie',
+      title: 'The Matrix',
+      release_date: '1999-03-31',
+      poster_path: '/matrix.jpg',
+      vote_average: 8.2,
+      character: 'Neo',
+    },
+    {
+      id: 245891,
+      media_type: 'movie',
+      title: 'John Wick',
+      release_date: '2014-10-22',
+      vote_average: 7.4,
+      character: 'John Wick',
+    },
+    {
+      id: 1100,
+      media_type: 'tv',
+      name: 'Swedish Dicks',
+      first_air_date: '2016-08-11',
+      vote_average: 6,
+      character: 'Tex',
+    },
+  ],
+  crew: [
+    {
+      id: 186759,
+      media_type: 'movie',
+      title: 'Man of Tai Chi',
+      release_date: '2013-07-04',
+      departments: ['Directing'],
+    },
+  ],
+};
+
 export function pageOf(
   results: SearchItem[] = [],
   overrides: Partial<Paged<SearchItem>> = {},
@@ -124,6 +174,10 @@ export function installFakeApi() {
       details: vi.fn<MediaAppApi['tmdb']['details']>(async ({ type, id }) => ({
         ok: true,
         data: { ...MATRIX, type, id },
+      })),
+      person: vi.fn<MediaAppApi['tmdb']['person']>(async ({ id }) => ({
+        ok: true,
+        data: { ...KEANU, id },
       })),
       list: vi.fn<MediaAppApi['tmdb']['list']>(async () => ({
         ok: true,

@@ -7,6 +7,7 @@ import {
   type MarkRequest,
   type MediaList,
   type MediaType,
+  type PersonRequest,
   type RateRequest,
   type SearchRequest,
   type SearchType,
@@ -140,6 +141,18 @@ export function parseTitleRequest(value: unknown): TitleRequest | null {
   const { type, id } = value as Record<string, unknown>;
 
   return isMediaType(type) && isId(id) ? { type, id } : null;
+}
+
+/** A person, by their id. */
+export function parsePersonRequest(value: unknown): PersonRequest | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const { id, language } = value as Record<string, unknown>;
+  const locale = parseLanguage(language);
+
+  return isId(id) && locale !== null ? { id, language: locale } : null;
 }
 
 export function parseMarkRequest(value: unknown): MarkRequest | null {

@@ -824,6 +824,267 @@ describe('details', () => {
   });
 });
 
+describe('person', () => {
+  const keanu = {
+    id: 6384,
+    adult: false,
+    name: 'Keanu Reeves',
+    known_for_department: 'Acting',
+    biography: 'Keanu Charles Reeves é um ator canadense.',
+    birthday: '1964-09-02',
+    deathday: null,
+    place_of_birth: 'Beirut, Lebanon',
+    profile_path: '/keanu.jpg',
+    homepage: null,
+    imdb_id: 'nm0000206',
+    popularity: 50,
+    external_ids: {
+      imdb_id: 'nm0000206',
+      instagram_id: null,
+      twitter_id: 'keanu_x',
+      facebook_id: 'Keanu.Page',
+      tiktok_id: 'not a handle!',
+    },
+    translations: { translations: [] },
+    combined_credits: {
+      cast: [
+        {
+          id: 2001,
+          media_type: 'tv',
+          name: 'A Talk Show',
+          genre_ids: [10767, 35],
+          vote_count: 9000,
+          character: 'Self',
+        },
+        {
+          id: 245891,
+          media_type: 'movie',
+          title: 'John Wick',
+          release_date: '2014-10-22',
+          overview: 'Um assassino aposentado.',
+          vote_count: 18000,
+          popularity: 99,
+          character: 'John Wick',
+        },
+        {
+          id: 603,
+          media_type: 'movie',
+          title: 'Matrix',
+          release_date: '1999-03-31',
+          poster_path: '/matrix.jpg',
+          genre_ids: [28, 878],
+          vote_average: 8.2,
+          vote_count: 26000,
+          character: 'Neo',
+        },
+        {
+          id: 603,
+          media_type: 'movie',
+          title: 'Matrix',
+          vote_count: 26000,
+          character: 'Thomas Anderson ',
+        },
+        {
+          id: 1100,
+          media_type: 'tv',
+          name: 'Swedish Dicks',
+          vote_count: 40,
+          character: '',
+        },
+        { id: 9999, media_type: 'movie', title: 'Adult', adult: true },
+        { id: 7, media_type: 'person', name: 'Not a title' },
+      ],
+      crew: [
+        {
+          id: 186759,
+          media_type: 'movie',
+          title: 'Man of Tai Chi',
+          department: 'Production',
+          job: 'Producer',
+        },
+        {
+          id: 186759,
+          media_type: 'movie',
+          title: 'Man of Tai Chi',
+          department: 'Directing',
+          job: 'Director',
+        },
+        {
+          id: 186759,
+          media_type: 'movie',
+          title: 'Man of Tai Chi',
+          department: 'Directing',
+          job: 'Second Unit Director',
+        },
+      ],
+    },
+  };
+
+  const inPortuguese = { id: 6384, language: 'pt-BR' };
+
+  it('asks for the person with their credits, links and biographies in one request', async () => {
+    const { client, requestedUrl } = setup([answer(200, keanu)]);
+
+    await client.person(inPortuguese);
+
+    const url = requestedUrl();
+    expect(url.pathname).toBe('/3/person/6384');
+    expect(url.searchParams.get('language')).toBe('pt-BR');
+    expect(url.searchParams.get('append_to_response')).toBe(
+      'combined_credits,external_ids,translations',
+    );
+  });
+
+  it('keeps what the page shows, each title once, the best known first', async () => {
+    const { client } = setup([answer(200, keanu)]);
+
+    await expect(client.person(inPortuguese)).resolves.toEqual({
+      id: 6384,
+      name: 'Keanu Reeves',
+      department: 'Acting',
+      biography: 'Keanu Charles Reeves é um ator canadense.',
+      birthday: '1964-09-02',
+      placeOfBirth: 'Beirut, Lebanon',
+      profilePath: '/keanu.jpg',
+      // a handle that is not one is left out
+      links: { imdb: 'nm0000206', x: 'keanu_x', facebook: 'Keanu.Page' },
+      cast: [
+        {
+          id: 603,
+          media_type: 'movie',
+          title: 'Matrix',
+          release_date: '1999-03-31',
+          poster_path: '/matrix.jpg',
+          genre_ids: [28, 878],
+          vote_average: 8.2,
+          // two roles in the same title
+          character: 'Neo / Thomas Anderson',
+        },
+        {
+          id: 245891,
+          media_type: 'movie',
+          title: 'John Wick',
+          release_date: '2014-10-22',
+          overview: 'Um assassino aposentado.',
+          character: 'John Wick',
+        },
+        { id: 1100, media_type: 'tv', name: 'Swedish Dicks' },
+        // more votes, but a talk show: last
+        {
+          id: 2001,
+          media_type: 'tv',
+          name: 'A Talk Show',
+          genre_ids: [10767, 35],
+          character: 'Self',
+        },
+      ],
+      crew: [
+        {
+          id: 186759,
+          media_type: 'movie',
+          title: 'Man of Tai Chi',
+          departments: ['Directing', 'Production'],
+        },
+      ],
+    });
+  });
+
+  it.each([
+    [
+      'from another country, in the same language',
+      [
+        { iso_639_1: 'en', iso_3166_1: 'US', data: { biography: 'An actor.' } },
+        { iso_639_1: 'pt', iso_3166_1: 'PT', data: { biography: 'Um actor.' } },
+      ],
+      { biography: 'Um actor.' },
+    ],
+    [
+      'in English, saying so, when none is in the language',
+      [
+        {
+          iso_639_1: 'fr',
+          iso_3166_1: 'FR',
+          data: { biography: 'Un acteur.' },
+        },
+        { iso_639_1: 'en', iso_3166_1: 'US', data: { biography: 'An actor.' } },
+      ],
+      { biography: 'An actor.', biographyLanguage: 'en' },
+    ],
+    [
+      'nowhere, when neither has one',
+      [
+        {
+          iso_639_1: 'fr',
+          iso_3166_1: 'FR',
+          data: { biography: 'Un acteur.' },
+        },
+        { iso_639_1: 'en', iso_3166_1: 'US', data: { biography: ' ' } },
+        { iso_639_1: 'en', iso_3166_1: 'GB', data: null },
+      ],
+      {},
+    ],
+  ])(
+    'finds a biography %s',
+    async (
+      _case,
+      translations,
+      expected: { biography?: string; biographyLanguage?: string },
+    ) => {
+      const { client } = setup([
+        answer(200, {
+          ...keanu,
+          biography: '',
+          translations: { translations },
+        }),
+      ]);
+
+      const person = await client.person(inPortuguese);
+
+      expect(person.biography).toBe(expected.biography);
+      expect(person.biographyLanguage).toBe(expected.biographyLanguage);
+    },
+  );
+
+  it('keeps only a site that opens safely, and an IMDb id of a person', async () => {
+    const { client } = setup([
+      answer(200, { ...keanu, homepage: 'https://keanu.example/' }),
+      answer(200, {
+        ...keanu,
+        homepage: 'http://keanu.example/',
+        imdb_id: 'tt0133093',
+        external_ids: { imdb_id: 'javascript:alert(1)' },
+      }),
+    ]);
+
+    await expect(client.person(inPortuguese)).resolves.toMatchObject({
+      links: { homepage: 'https://keanu.example/' },
+    });
+    await expect(client.person(inPortuguese)).resolves.toMatchObject({
+      links: {
+        homepage: undefined,
+        imdb: undefined,
+        x: undefined,
+      },
+    });
+  });
+
+  it('does not show an adult, whom no search would list', async () => {
+    const { client } = setup([answer(200, { ...keanu, adult: true })]);
+
+    await expect(client.person(inPortuguese)).rejects.toMatchObject({
+      code: 'not-found',
+    });
+  });
+
+  it('reports an answer without a name as unreadable', async () => {
+    const { client } = setup([answer(200, { ...keanu, name: ' ' })]);
+
+    await expect(client.person(inPortuguese)).rejects.toMatchObject({
+      code: 'server',
+    });
+  });
+});
+
 describe('lists of the account', () => {
   const SESSION = 'the-session-id-works-as-a-password';
 

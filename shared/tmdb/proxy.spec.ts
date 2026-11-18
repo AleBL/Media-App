@@ -316,6 +316,56 @@ describe('tmdb proxy', () => {
     });
   });
 
+  describe('person', () => {
+    const PERSON = '?resource=person&id=6384&language=pt-BR';
+
+    it('answers with the page of the person, kept as long as a title', async () => {
+      const fetch = tmdbAnswers(200, {
+        id: 6384,
+        name: 'Keanu Reeves',
+        popularity: 50,
+        combined_credits: {
+          cast: [
+            { id: 603, media_type: 'movie', title: 'Matrix', character: 'Neo' },
+          ],
+        },
+      });
+
+      const { response, body } = await ask(PERSON, fetch);
+
+      expect(response.status).toBe(200);
+      expect(body).toEqual({
+        ok: true,
+        data: {
+          id: 6384,
+          name: 'Keanu Reeves',
+          links: {},
+          cast: [
+            { id: 603, media_type: 'movie', title: 'Matrix', character: 'Neo' },
+          ],
+          crew: [],
+        },
+      });
+      const url = new URL(fetch.mock.calls[0][0]);
+      expect(url.pathname).toBe('/3/person/6384');
+      expect(url.searchParams.get('language')).toBe('pt-BR');
+      expect(response.headers.get('Cache-Control')).toBe(
+        'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400',
+      );
+    });
+
+    it.each([
+      ['no id', '?resource=person&language=pt-BR'],
+      ['an id that is a path', PERSON.replace('6384', '6384%2Fimages')],
+      ['no language', '?resource=person&id=6384'],
+    ])('refuses %s without asking TMDB', async (_case, query) => {
+      const { response, fetch } = await ask(query, tmdbAnswers(200, {}));
+
+      expect(response.status).toBe(400);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  });
+
   it.each([
     ['nothing', ''],
     ['an unknown resource', '?resource=account'],

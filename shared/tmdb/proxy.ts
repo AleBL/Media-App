@@ -4,6 +4,7 @@ export { TMDB_PROXY_PATH } from '../api';
 import { createTmdbClient, TmdbError, type FetchLike } from './client';
 import {
   parseDetailsRequest,
+  parsePersonRequest,
   parseLanguage,
   parseListRequest,
   parseSearchRequest,
@@ -93,6 +94,7 @@ export function toFailure(error: unknown): TmdbFailure {
  *   GET ?resource=genres&language=en
  *   GET ?resource=regions
  *   GET ?resource=details&type=movie&id=603&language=en&region=US
+ *   GET ?resource=person&id=6384&language=en
  *   GET ?resource=list&list=trending&language=en
  */
 export function createTmdbProxy(options: TmdbProxyOptions) {
@@ -163,6 +165,21 @@ export function createTmdbProxy(options: TmdbProxyOptions) {
             ? jsonResponse(
                 200,
                 { ok: true, data: await client.details(details) },
+                DETAILS_CACHE,
+              )
+            : errorResponse({ code: 'invalid-request' });
+        }
+
+        case 'person': {
+          const person = parsePersonRequest({
+            id: Number(params.get('id')),
+            language: params.get('language'),
+          });
+
+          return person
+            ? jsonResponse(
+                200,
+                { ok: true, data: await client.person(person) },
                 DETAILS_CACHE,
               )
             : errorResponse({ code: 'invalid-request' });

@@ -20,8 +20,10 @@ test.describe('web version', () => {
     received,
   }) => {
     await page.goto(site.url);
-    await page.getByRole('link', { name: 'Start searching' }).click();
+    // From the top of the home page, straight to the results.
     await searchBox(page).fill('tom & jerry');
+    await searchBox(page).press('Enter');
+    await expect(page).toHaveURL(/#\/search\?q=tom/);
 
     await expect(cards(page)).toHaveCount(20);
     await expect(cards(page).first()).toContainText('Movie 1 [en] (2020)');

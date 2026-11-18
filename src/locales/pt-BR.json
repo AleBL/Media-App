@@ -40,6 +40,10 @@
   },
 
   "homePage": {
+    "title": "O que você quer assistir?",
+    "searchPlaceholder": "Um filme, uma série, alguém",
+    "previous": "Títulos anteriores",
+    "next": "Próximos títulos",
     "intro": "Encontre filmes e séries, com pôsteres, gêneros e notas do TMDB.",
     "startSearching": "Começar a procurar",
     "trending": "Em alta na semana",

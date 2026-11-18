@@ -40,6 +40,10 @@
   },
 
   "homePage": {
+    "title": "¿Qué quieres ver?",
+    "searchPlaceholder": "Una película, una serie, alguien",
+    "previous": "Títulos anteriores",
+    "next": "Siguientes títulos",
     "intro": "Encuentra películas y series, con carteles, géneros y notas de TMDB.",
     "startSearching": "Empezar a buscar",
     "trending": "Tendencias de la semana",

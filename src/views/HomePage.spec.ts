@@ -62,11 +62,19 @@ describe('HomePage', () => {
     delete window.api;
   });
 
-  it('still leads to the search', async () => {
+  it('searches from its top, straight to the results', async () => {
     await mountPage();
 
-    expect(wrapper.get('h1').text()).toBe('Home Page');
-    expect(wrapper.get('a[href="#/search"]').text()).toBe('Start searching');
+    expect(wrapper.get('h1').text()).toBe('What do you want to watch?');
+
+    const form = wrapper.get('form[role="search"]');
+    await form.get('input[type="search"]').setValue('  matrix ');
+    await form.trigger('submit');
+    await flushPromises();
+
+    expect(router.currentRoute.value.name).toBe('search');
+    expect(router.currentRoute.value.query).toEqual({ q: 'matrix' });
+    await router.push('/home');
   });
 
   it('has the buttons of the lists of the account on each poster, for whoever signed in', async () => {

@@ -60,6 +60,20 @@
   // without one, the search already here goes into the address.
   const SEARCH_TYPES: SearchType[] = ['movie', 'tv', 'multi'];
 
+  function toAddress() {
+    const text = query.value.trim();
+    const next = {
+      ...(text && { q: text }),
+      ...(mediaType.value !== 'movie' && { type: mediaType.value }),
+    };
+
+    if (route.query.q !== next.q || route.query.type !== next.type) {
+      void router.replace({ query: next });
+    }
+  }
+
+  // First from the address, then into it: the other way round, an empty
+  // search here would wipe the one of the link before it is read.
   onMounted(() => {
     const { q, type } = route.query;
 
@@ -68,23 +82,12 @@
       mediaType.value = SEARCH_TYPES.includes(type as SearchType)
         ? (type as SearchType)
         : 'movie';
+    } else {
+      toAddress();
     }
   });
 
-  watch(
-    [query, mediaType],
-    ([text, type]) => {
-      const next = {
-        ...(text.trim() && { q: text.trim() }),
-        ...(type !== 'movie' && { type }),
-      };
-
-      if (route.query.q !== next.q || route.query.type !== next.type) {
-        void router.replace({ query: next });
-      }
-    },
-    { immediate: true },
-  );
+  watch([query, mediaType], toAddress);
 
   // The user may be coming back from the settings, where the credential
   // changed: ask again instead of showing the old failure.

@@ -18,9 +18,10 @@ async function search(page: Page) {
 
 test.describe('TMDB credential', () => {
   test('a clean install searches without any setup', async ({ page, tmdb }) => {
-    await page.getByRole('link', { name: 'Start searching' }).click();
-    await expect(page).toHaveURL(/#\/search$/);
+    // From the top of the home page, straight to the results.
     await searchBox(page).fill('matrix');
+    await searchBox(page).press('Enter');
+    await expect(page).toHaveURL(/#\/search\?q=matrix$/);
 
     await expect(cards(page)).toHaveCount(20);
     expect(tmdb.lastSearch()?.credential).toBe('app');

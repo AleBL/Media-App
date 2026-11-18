@@ -536,6 +536,22 @@ describe('details', () => {
       },
     },
     external_ids: { imdb_id: 'tt0133093', facebook_id: null },
+    release_dates: {
+      results: [
+        {
+          iso_3166_1: 'BR',
+          release_dates: [
+            { type: 1, certification: '', note: 'Festival do Rio' },
+            { type: 5, certification: '14', note: 'Blu-ray' },
+            { type: 3, certification: '12', note: '' },
+          ],
+        },
+        {
+          iso_3166_1: 'US',
+          release_dates: [{ type: 3, certification: 'R', note: '' }],
+        },
+      ],
+    },
   };
 
   const show = {
@@ -555,6 +571,12 @@ describe('details', () => {
     credits: { cast: [] },
     videos: { results: [] },
     'watch/providers': { results: {} },
+    content_ratings: {
+      results: [
+        { iso_3166_1: 'BR', rating: '16', descriptors: [] },
+        { iso_3166_1: 'US', rating: 'TV-MA', descriptors: [] },
+      ],
+    },
   };
 
   const inBrazil = {
@@ -581,7 +603,7 @@ describe('details', () => {
     );
     expect(url.searchParams.get('language')).toBe('pt-BR');
     expect(url.searchParams.get('append_to_response')).toBe(
-      'credits,videos,watch/providers,external_ids',
+      'credits,videos,watch/providers,external_ids,release_dates',
     );
     // pt-BR and pt are not the same to TMDB: videos in either, then English
     expect(url.searchParams.get('include_video_language')).toBe(
@@ -629,6 +651,8 @@ describe('details', () => {
         rent: [{ id: 2, name: 'Apple TV' }],
         buy: [{ id: 2, name: 'Apple TV' }],
       },
+      // the rating of the release in theaters, not of the disc
+      certification: { country: 'BR', code: '12' },
     });
   });
 
@@ -651,8 +675,13 @@ describe('details', () => {
       voteCount: 15000,
       imdbId: 'tt0903747',
       cast: [],
+      certification: { country: 'US', code: 'TV-MA' },
     });
     expect(requestedUrl().pathname).toBe('/3/tv/1396');
+    // a tv show is rated once per country, not per release
+    expect(requestedUrl().searchParams.get('append_to_response')).toBe(
+      'credits,videos,watch/providers,external_ids,content_ratings',
+    );
     expect(requestedUrl().searchParams.get('include_video_language')).toBe(
       'en,en-US,null',
     );
@@ -696,6 +725,62 @@ describe('details', () => {
     const details = await client.details(inBrazil);
 
     expect(details.watch).toBeUndefined();
+  });
+
+  it('rates a title as the United States do when the region has no rating', async () => {
+    const { client } = setup([answer(200, movie), answer(200, show)]);
+
+    await expect(
+      client.details({ ...inBrazil, region: 'PT' }),
+    ).resolves.toMatchObject({ certification: { country: 'US', code: 'R' } });
+    await expect(
+      client.details({ type: 'tv', id: 1396, language: 'pt', region: 'PT' }),
+    ).resolves.toMatchObject({
+      certification: { country: 'US', code: 'TV-MA' },
+    });
+  });
+
+  it('takes any rating of a movie never released in theaters', async () => {
+    const { client } = setup([
+      answer(200, {
+        ...movie,
+        release_dates: {
+          results: [
+            {
+              iso_3166_1: 'BR',
+              release_dates: [
+                { type: 4, certification: ' ', note: 'Netflix' },
+                { type: 4, certification: 'L', note: 'Disney+' },
+              ],
+            },
+          ],
+        },
+      }),
+    ]);
+
+    await expect(client.details(inBrazil)).resolves.toMatchObject({
+      certification: { country: 'BR', code: 'L' },
+    });
+  });
+
+  it.each([
+    ['not rated', [{ iso_3166_1: 'US', rating: 'NR' }]],
+    ['rated without a code', [{ iso_3166_1: 'BR', rating: '' }]],
+    ['rated in other countries only', [{ iso_3166_1: 'DE', rating: '16' }]],
+    ['given something else', [{ iso_3166_1: 'BR', rating: 14 }]],
+  ])('has no rating for a title %s', async (_case, results) => {
+    const { client } = setup([
+      answer(200, { ...show, content_ratings: { results } }),
+    ]);
+
+    const details = await client.details({
+      type: 'tv',
+      id: 1396,
+      language: 'pt-BR',
+      region: 'BR',
+    });
+
+    expect(details.certification).toBeUndefined();
   });
 
   it(`shows the first ${CAST_SIZE} of the cast`, async () => {

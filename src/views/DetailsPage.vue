@@ -182,6 +182,13 @@
 
     return groups.filter((group) => group.providers.length > 0);
   });
+
+  // The page of TMDB with the links to the title on each service.
+  const watchLink = computed(() => details.value?.watch?.link);
+
+  /** What makes a link open in the browser, when there is one. */
+  const outside = (href: string | undefined) =>
+    href ? { href, target: '_blank', rel: 'noopener noreferrer' } : {};
 </script>
 
 <template>
@@ -365,26 +372,37 @@
               </h3>
               <ul class="mt-2 flex list-none flex-wrap gap-3 p-0">
                 <li v-for="provider in group.providers" :key="provider.id">
-                  <!-- The name of the service shows on hover; screen readers
-                     read it from the logo. -->
+                  <!-- Each service leads to the page of TMDB, which links
+                       straight to the title on each one: TMDB gives no link
+                       of its own per service. The name of the service shows
+                       on hover and on focus; screen readers read it from
+                       the logo. -->
                   <AppTooltip
                     v-if="provider.logoPath"
                     :text="provider.name"
                     side="top"
                   >
-                    <AppImage
-                      :src="logoUrl(provider.logoPath)"
-                      :alt="provider.name"
-                      shape="square"
-                      class="h-12 w-12 rounded-lg"
-                    />
+                    <component
+                      :is="watchLink ? 'a' : 'span'"
+                      v-bind="outside(watchLink)"
+                      class="block rounded-lg transition-shadow hover:shadow-md hover:ring-2 hover:ring-primary-500/60"
+                    >
+                      <AppImage
+                        :src="logoUrl(provider.logoPath)"
+                        :alt="provider.name"
+                        shape="square"
+                        class="h-12 w-12 rounded-lg"
+                      />
+                    </component>
                   </AppTooltip>
-                  <span
+                  <component
+                    :is="watchLink ? 'a' : 'span'"
                     v-else
-                    class="flex h-12 items-center rounded-lg bg-surface-100 px-3 text-sm dark:bg-surface-700"
+                    v-bind="outside(watchLink)"
+                    class="flex h-12 items-center rounded-lg bg-surface-100 px-3 text-sm text-surface-800 no-underline hover:ring-2 hover:ring-primary-500/60 dark:bg-surface-700 dark:text-surface-100"
                   >
                     {{ provider.name }}
-                  </span>
+                  </component>
                 </li>
               </ul>
             </div>

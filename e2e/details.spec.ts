@@ -55,7 +55,7 @@ test.describe('page of a title', () => {
     ).toBeVisible();
   });
 
-  test('opens the trailer and IMDb in the browser of the system', async ({
+  test('opens the trailer, IMDb and where to watch in the browser of the system', async ({
     page,
     running,
   }) => {
@@ -64,12 +64,15 @@ test.describe('page of a title', () => {
 
     await page.getByRole('link', { name: 'Watch the trailer' }).click();
     await page.getByRole('link', { name: 'See on IMDb' }).click();
+    // A service leads to the page of TMDB with the links to each one.
+    await page.getByRole('link', { name: 'Stream US' }).click();
 
     await expect
       .poll(running.openedInBrowser)
       .toEqual([
         `https://www.youtube.com/watch?v=${TRAILER_KEY}`,
         'https://www.imdb.com/title/tt0133093/',
+        'https://www.themoviedb.org/movie/1/watch?locale=US',
       ]);
     // The window still shows the app.
     await expect(page).toHaveURL(/#\/movie\/1$/);

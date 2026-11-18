@@ -183,4 +183,82 @@ describe('search store', () => {
 
     expect(store.error).toBeNull();
   });
+
+  describe('more results at the end', () => {
+    const movie = (id: number): MediaItem => ({ id, title: `Movie ${id}` });
+    const page = (ids: number[], number: number) =>
+      found(ids.map(movie), { page: number, totalResults: 45 });
+
+    beforeEach(async () => {
+      api.tmdb.search.mockResolvedValueOnce(page([1, 2], 1));
+      await store.search();
+    });
+
+    it('adds the next page after the ones shown', async () => {
+      api.tmdb.search.mockResolvedValueOnce(page([3, 4], 2));
+
+      await store.loadMore();
+
+      expect(api.tmdb.search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ query: 'matrix', page: 2 }),
+      );
+      expect(store.results.map((item) => item.id)).toEqual([1, 2, 3, 4]);
+      expect(store.currentPage).toBe(2);
+      expect(store.hasMore).toBe(true);
+    });
+
+    it('shows a title that moved to the next page once', async () => {
+      api.tmdb.search.mockResolvedValueOnce(page([2, 3], 2));
+
+      await store.loadMore();
+
+      expect(store.results.map((item) => item.id)).toEqual([1, 2, 3]);
+    });
+
+    it('stops at the last page', async () => {
+      store.currentPage = 3;
+
+      await store.loadMore();
+
+      expect(store.hasMore).toBe(false);
+      expect(api.tmdb.search).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps what was shown when the next page fails, to try again', async () => {
+      api.tmdb.search.mockResolvedValueOnce({
+        ok: false,
+        error: { code: 'network' },
+      });
+
+      await store.loadMore();
+
+      expect(store.moreFailed).toBe(true);
+      expect(store.error).toBeNull();
+      expect(store.results.map((item) => item.id)).toEqual([1, 2]);
+    });
+
+    it('drops a next page that comes after a new search', async () => {
+      let answer!: (result: Result<Paged<SearchItem>>) => void;
+      api.tmdb.search.mockReturnValueOnce(
+        new Promise((resolve) => (answer = resolve)),
+      );
+      const more = store.loadMore();
+
+      api.tmdb.search.mockResolvedValueOnce(page([9], 1));
+      await store.search();
+      answer(page([3, 4], 2));
+      await more;
+
+      expect(store.results.map((item) => item.id)).toEqual([9]);
+      expect(store.loadingMore).toBe(false);
+    });
+
+    it('asks for one next page at a time', async () => {
+      api.tmdb.search.mockResolvedValue(page([3, 4], 2));
+
+      await Promise.all([store.loadMore(), store.loadMore()]);
+
+      expect(api.tmdb.search).toHaveBeenCalledTimes(2);
+    });
+  });
 });

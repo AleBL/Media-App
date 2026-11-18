@@ -76,15 +76,16 @@ test.describe('page of a title', () => {
   });
 
   test('goes back to the results it came from', async ({ page, tmdb }) => {
-    await page.locator('.paginator-pages button').nth(1).click();
-    await expect(cards(page).first()).toContainText('Movie 21');
+    await page.getByRole('button', { name: 'Show more' }).click();
+    await expect(cards(page)).toHaveCount(40);
 
-    await cards(page).first().getByRole('link').click();
+    await cards(page).nth(20).getByRole('link').click();
     await expect(heading(page)).toHaveText('Movie 21 [en] (2020)');
     await page.getByRole('button', { name: 'Back' }).click();
 
-    await expect(page).toHaveURL(/#\/search$/);
-    await expect(cards(page).first()).toContainText('Movie 21');
+    await expect(page).toHaveURL(/#\/search\?q=matrix$/);
+    await expect(cards(page)).toHaveCount(40);
+    await expect(cards(page).nth(20)).toBeInViewport();
     // the results were kept, not asked for again
     expect(tmdb.searches()).toHaveLength(2);
   });

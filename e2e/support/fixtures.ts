@@ -191,7 +191,8 @@ export async function openPage(
     await page.locator(`header nav a[href$="#/${name}"]`).click();
   }
 
-  await expect(page).toHaveURL(new RegExp(`#/${name}$`));
+  // The search keeps what it looks for in the address.
+  await expect(page).toHaveURL(new RegExp(`#/${name}(\\?.*)?$`));
 }
 
 /** Picks the country of where to watch on the settings page, by typing it. */

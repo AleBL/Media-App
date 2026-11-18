@@ -107,6 +107,9 @@
     "person": "Pessoa",
     "knownFor": "Conhecido(a) por",
     "kind": "O que procurar",
+    "loadMore": "Mostrar mais",
+    "moreFailed": "Não foi possível carregar os próximos resultados.",
+    "showing": "{shown} de {total} resultados",
     "notFoundHint": "Tente outras palavras, ou procure em tudo de uma vez.",
     "tryAgain": "Tentar de novo"
   },

@@ -107,6 +107,9 @@
     "person": "Person",
     "knownFor": "Known for",
     "kind": "What to search",
+    "loadMore": "Show more",
+    "moreFailed": "The next results could not be loaded.",
+    "showing": "{shown} of {total} results",
     "notFoundHint": "Try other words, or search everything at once.",
     "tryAgain": "Try again"
   },

@@ -51,10 +51,10 @@ test.describe('web version', () => {
     await searchBox(page).fill('matrix');
     await expect(cards(page)).toHaveCount(20);
 
-    await page.locator('.paginator-pages button').nth(2).click();
+    await page.getByRole('button', { name: 'Show more' }).click();
 
-    await expect(cards(page)).toHaveCount(5);
-    expect(tmdb.lastSearch()?.page).toBe('3');
+    await expect(cards(page)).toHaveCount(40);
+    expect(tmdb.lastSearch()?.page).toBe('2');
 
     await chooseLanguage(page, 'Português (Brasil)');
 

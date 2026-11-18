@@ -48,7 +48,7 @@ describe('AccountListPage', () => {
     delete window.api;
   });
 
-  it('shows the movies of the list, a page at a time', async () => {
+  it('shows the movies of the list, more of them at the end', async () => {
     api.account.list.mockResolvedValue({
       ok: true,
       data: {
@@ -70,11 +70,11 @@ describe('AccountListPage', () => {
     });
     expect(wrapper.findAll('article')).toHaveLength(20);
     expect(wrapper.get('article a').attributes('href')).toBe('#/movie/1');
-    expect(
-      wrapper.findAll('.paginator-pages button').map((page) => page.text()),
-    ).toEqual(['1', '2']);
 
-    await wrapper.findAll('.paginator-pages button')[1].trigger('click');
+    const more = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Show more')!;
+    await more.trigger('click');
 
     expect(api.account.list).toHaveBeenLastCalledWith(
       expect.objectContaining({ page: 2 }),

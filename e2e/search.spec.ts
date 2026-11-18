@@ -21,7 +21,7 @@ test.describe('search', () => {
     await expect(cards(page)).toHaveCount(20);
     await expect(cards(page).first()).toContainText('Movie 1 [en] (2020)');
     await expect(cards(page).first()).toContainText('Action');
-    await expect(cards(page).first()).toContainText('7.50');
+    await expect(cards(page).first()).toContainText('7.5');
     expect(tmdb.lastSearch()).toEqual({
       path: '/3/search/movie',
       credential: 'app',
@@ -40,18 +40,39 @@ test.describe('search', () => {
     expect(tmdb.lastSearch()?.query).toBe('matrix');
   });
 
-  test('walks through the pages of a result', async ({ page, tmdb }) => {
+  test('adds more results at the end, up to the last', async ({
+    page,
+    tmdb,
+  }) => {
     await searchBox(page).fill('matrix');
     await expect(cards(page)).toHaveCount(20);
 
-    const pages = page.locator('.paginator-pages button');
-    await expect(pages).toHaveText(['1', '2', '3']);
+    // Getting near the end asks for the next page by itself.
+    await cards(page).last().scrollIntoViewIfNeeded();
+    await expect(cards(page)).toHaveCount(40);
+    expect(tmdb.lastSearch()?.page).toBe('2');
 
-    await pages.nth(2).click();
-
-    await expect(cards(page)).toHaveCount(5);
-    await expect(cards(page).first()).toContainText('Movie 41');
+    // The button does the same.
+    await page.getByRole('button', { name: 'Show more' }).click();
+    await expect(cards(page)).toHaveCount(45);
     expect(tmdb.lastSearch()?.page).toBe('3');
+    await expect(cards(page).last()).toContainText('Movie 45');
+    await expect(page.getByRole('button', { name: 'Show more' })).toHaveCount(
+      0,
+    );
+  });
+
+  test('keeps the search in the address', async ({ page }) => {
+    await searchBox(page).fill('matrix');
+    await page.getByRole('radio', { name: 'TV Show' }).check();
+
+    await expect(page).toHaveURL(/#\/search\?q=matrix&type=tv$/);
+
+    await page.reload();
+
+    await expect(searchBox(page)).toHaveValue('matrix');
+    await expect(page.getByRole('radio', { name: 'TV Show' })).toBeChecked();
+    await expect(cards(page).first()).toContainText('Show 1');
   });
 
   test('searches tv shows', async ({ page, tmdb }) => {

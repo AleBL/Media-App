@@ -93,7 +93,7 @@ describe('SearchBar', () => {
     });
   });
 
-  it('asks for the same page again when the language changes', async () => {
+  it('starts the results again when the language changes', async () => {
     store.query = 'matrix';
     await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
     api.tmdb.search.mockResolvedValue({
@@ -107,10 +107,11 @@ describe('SearchBar', () => {
     await nextTick();
 
     expect(api.tmdb.search).toHaveBeenCalledTimes(1);
+    // From the first page: the ones after it come again as the user scrolls.
     expect(api.tmdb.search).toHaveBeenCalledWith({
       type: 'movie',
       query: 'matrix',
-      page: 3,
+      page: 1,
       language: 'pt-BR',
     });
   });

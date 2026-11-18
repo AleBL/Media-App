@@ -43,8 +43,9 @@
 
   watch(mediaType, () => store.search());
 
-  // TMDB translates titles: ask for the same page again in the new language.
-  watch(locale, () => store.search(store.currentPage));
+  // TMDB translates titles: the results start again in the new language,
+  // and more come at the end as before.
+  watch(locale, () => store.search());
 </script>
 
 <template>

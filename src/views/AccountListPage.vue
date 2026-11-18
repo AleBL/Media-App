@@ -4,11 +4,11 @@
   import { TMDB_PAGE_SIZE, type TitleList } from '@shared/api';
   import AppButton from '@/components/ui/AppButton.vue';
   import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
-  import AppPaginator from '@/components/ui/AppPaginator.vue';
+  import AppLoadMore from '@/components/ui/AppLoadMore.vue';
   import AppSegmented from '@/components/ui/AppSegmented.vue';
   import AppState from '@/components/ui/AppState.vue';
   import PosterCardSkeleton from '@/components/Home/PosterCardSkeleton.vue';
-  import SearchItemCard from '@/components/Search/SearchItemCard.vue';
+  import PosterCard from '@/components/Home/PosterCard.vue';
   import { useAccountListsStore } from '@/stores/accountLists';
   import { useGenresStore } from '@/stores/genres';
   import { useSessionStore } from '@/stores/session';
@@ -24,8 +24,8 @@
   const session = useSessionStore();
 
   const view = computed(() => lists.views[props.list]);
-  const totalPages = computed(() =>
-    Math.ceil(view.value.totalResults / TMDB_PAGE_SIZE),
+  const hasMore = computed(
+    () => view.value.page * TMDB_PAGE_SIZE < view.value.totalResults,
   );
   const TEXTS: Record<
     TitleList,
@@ -63,7 +63,7 @@
   const kind = computed({
     get: () => view.value.type,
     set: (value: string) =>
-      void lists.load(props.list, 1, value as (typeof TYPES)[number]['value']),
+      void lists.load(props.list, value as (typeof TYPES)[number]['value']),
   });
 
   // Asked again on every visit: the lists change on the page of a title,
@@ -119,25 +119,23 @@
     </AppState>
 
     <div v-else-if="view.results.length" :aria-busy="view.loading">
-      <!-- Another page or kind on its way: the list stays readable. -->
+      <!-- Asked again, in another language: the list stays readable. -->
       <AppLoadingBar v-if="view.loading" class="my-1" />
 
-      <AppPaginator
-        class="my-4"
-        :page="view.page"
-        :total-pages="totalPages"
-        @change="(page) => lists.load(list, page)"
-      />
-
-      <ul class="m-0 flex list-none flex-wrap p-0">
-        <li
-          v-for="item in view.results"
-          :key="item.id"
-          class="w-full p-2 sm:w-2/6 md:w-2/6 xl:w-1/4 2xl:w-1/5"
-        >
-          <SearchItemCard :item="item" />
+      <ul
+        class="m-0 grid list-none grid-cols-2 gap-4 p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+      >
+        <li v-for="item in view.results" :key="item.id">
+          <PosterCard :item="item" grid />
         </li>
       </ul>
+
+      <AppLoadMore
+        :loading="view.loadingMore"
+        :failed="view.moreFailed"
+        :has-more="hasMore"
+        @more="lists.loadMore(list)"
+      />
     </div>
 
     <AppState v-else-if="view.loaded && !view.loading" :icon="icon">

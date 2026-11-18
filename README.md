@@ -243,7 +243,7 @@ Keep `primeicons` on 7: version 8, like the other PrimeTek libraries since mid 2
 📦src
  ┣ 📦assets
  ┣ 📦components
- ┃ ┗ 📦ui # buttons and the paginator of the app, in Tailwind CSS
+ ┃ ┗ 📦ui # the pieces of the interface (buttons, images, menus, notices), in Tailwind CSS and Reka UI
  ┣ 📦locales # i18n messages (en, es, pt-BR)
  ┣ 📦plugins
  ┣ 📦router

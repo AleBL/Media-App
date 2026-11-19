@@ -12,6 +12,8 @@
     items: SearchItem[];
     /** Says on each title whether it is a movie or a tv show. */
     showType?: boolean;
+    /** Already in the column of a page, such as beside the filters. */
+    bare?: boolean;
   }>();
 
   const settings = useSettingsStore();
@@ -23,7 +25,7 @@
        shows and people, and two of them can have the same id. -->
   <ul
     v-if="settings.view === 'list'"
-    class="page flex list-none flex-col gap-3 py-4"
+    :class="[!bare && 'page', 'flex list-none flex-col gap-3 py-4']"
   >
     <li v-for="item in items" :key="searchKey(item)">
       <PersonCard v-if="isPerson(item)" :person="item" list />
@@ -32,7 +34,11 @@
   </ul>
   <ul
     v-else
-    :class="['page card-grid list-none py-4', GRID_SIZE[settings.view]]"
+    :class="[
+      !bare && 'page',
+      'card-grid list-none py-4',
+      GRID_SIZE[settings.view],
+    ]"
   >
     <li v-for="item in items" :key="searchKey(item)">
       <PersonCard v-if="isPerson(item)" :person="item" />

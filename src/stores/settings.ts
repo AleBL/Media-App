@@ -23,6 +23,12 @@ export type CardView = (typeof CARD_VIEWS)[number];
 const isCardView = (value: string): value is CardView =>
   (CARD_VIEWS as readonly string[]).includes(value);
 
+const isServiceId = (value: unknown): value is number =>
+  typeof value === 'number' &&
+  Number.isInteger(value) &&
+  value > 0 &&
+  value <= 2_147_483_647;
+
 /**
  * What the user chose on the settings page that the language and the theme
  * (kept where the menu keeps them) do not cover: the country of where to
@@ -62,5 +68,29 @@ export const useSettingsStore = defineStore('settings', () => {
     isCardView(cardView.value) ? cardView.value : 'medium',
   );
 
-  return { region, regionFor, uiSize, cardView, view };
+  /**
+   * The streaming services the user has, by their TMDB ids, for the
+   * Explore page to show only what is on them. Ids are the same in every
+   * country (Netflix is 8).
+   */
+  const myServicesKept = useStorage<unknown>('my-services', []);
+  const myServices = computed<number[]>(() =>
+    Array.isArray(myServicesKept.value)
+      ? [...new Set(myServicesKept.value.filter(isServiceId))]
+      : [],
+  );
+
+  function setMyServices(ids: number[]) {
+    myServicesKept.value = [...new Set(ids.filter(isServiceId))];
+  }
+
+  return {
+    region,
+    regionFor,
+    uiSize,
+    cardView,
+    view,
+    myServices,
+    setMyServices,
+  };
 });

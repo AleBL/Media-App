@@ -495,6 +495,46 @@ test.describe('web version', () => {
     });
   });
 
+  test('explores through the site, with the filters in a drawer on a phone', async ({
+    page,
+    site,
+    tmdb,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${site.url}#/discover`);
+
+    await expect(cards(page)).toHaveCount(20);
+    await expect(cards(page).first()).toContainText('Movie 1 [en] (2020)');
+    await expect(
+      page.getByRole('complementary', { name: 'Filters' }),
+    ).toBeHidden();
+
+    await page.getByRole('button', { name: 'Filters' }).click();
+    const drawer = page.getByRole('dialog', { name: 'Filters' });
+    await drawer.getByRole('radio', { name: 'Newest' }).check();
+    await drawer.getByRole('checkbox', { name: 'Comedy' }).check();
+    await drawer.getByRole('radio', { name: '7+' }).check();
+
+    await expect(
+      drawer.getByRole('heading', { name: 'Filters (2)' }),
+    ).toBeVisible();
+    await drawer.getByRole('button', { name: 'Show 45 titles' }).click();
+    await expect(drawer).toBeHidden();
+    await expect(page).toHaveURL(
+      /#\/discover\?sort=newest&genres=35&rating=7$/,
+    );
+    await expect
+      .poll(() => tmdb.lastDiscovery())
+      .toMatchObject({
+        path: '/3/discover/movie',
+        credential: 'app',
+        sort_by: 'primary_release_date.desc',
+        with_genres: '35',
+        'vote_average.gte': '7',
+        'vote_count.gte': '300',
+      });
+  });
+
   test('keeps to the Content-Security-Policy on every page', async ({
     page,
     site,
@@ -535,6 +575,14 @@ test.describe('web version', () => {
     await expect(
       page.getByRole('region', { name: 'Filmography' }).getByRole('article'),
     ).toHaveCount(3);
+    // Explore, with the filters of the page.
+    await openPage(page, 'discover');
+    await expect(cards(page)).toHaveCount(20);
+    await page
+      .getByRole('complementary', { name: 'Filters' })
+      .getByRole('checkbox', { name: 'Comedy' })
+      .check();
+    await expect(page).toHaveURL(/genres=35/);
     for (const name of ['settings', 'about', 'account'] as const) {
       await openPage(page, name);
     }

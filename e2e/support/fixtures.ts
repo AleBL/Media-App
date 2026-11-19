@@ -169,6 +169,7 @@ export async function openPage(
   name:
     | 'home'
     | 'search'
+    | 'discover'
     | 'settings'
     | 'about'
     | 'account'
@@ -191,7 +192,7 @@ export async function openPage(
     await page.locator(`header nav a[href$="#/${name}"]`).click();
   }
 
-  // The search keeps what it looks for in the address.
+  // The search and Explore keep what they look for in the address.
   await expect(page).toHaveURL(new RegExp(`#/${name}(\\?.*)?$`));
 }
 

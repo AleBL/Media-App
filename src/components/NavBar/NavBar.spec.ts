@@ -56,7 +56,7 @@ describe('NavBar', () => {
     delete window.api;
   });
 
-  it('leads home and to the search, with the tools as named icons', async () => {
+  it('leads home, to the search and to Explore, with the tools as named icons', async () => {
     await mountNavBar();
 
     expect(wrapper.get('nav').attributes('aria-label')).toBe('Main menu');
@@ -64,6 +64,7 @@ describe('NavBar', () => {
       { href: '/', name: 'Media App' },
       { href: '/home', name: 'Home' },
       { href: '/search', name: 'Search' },
+      { href: '/discover', name: 'Explore' },
       { href: '/settings', name: 'Settings' },
       { href: '/about', name: 'About' },
       { href: '/account', name: 'Sign in' },
@@ -175,7 +176,14 @@ describe('NavBar', () => {
       Array.from(drawer.querySelectorAll('nav a')).map((link) =>
         link.getAttribute('href'),
       ),
-    ).toEqual(['/home', '/search', '/settings', '/about', '/account']);
+    ).toEqual([
+      '/home',
+      '/search',
+      '/discover',
+      '/settings',
+      '/about',
+      '/account',
+    ]);
 
     await router.push('/about');
     await flushPromises();

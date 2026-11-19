@@ -77,7 +77,7 @@ function appCredential(mode: string) {
 
   if (!token) {
     console.warn(
-      '[media-app] TMDB_READ_TOKEN is not set: this build has no access to ' +
+      '[moviledger] TMDB_READ_TOKEN is not set: this build has no access to ' +
         'TMDB of its own and will ask each user for a key. See .env.example.',
     );
   }

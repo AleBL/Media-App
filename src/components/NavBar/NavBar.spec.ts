@@ -61,7 +61,7 @@ describe('NavBar', () => {
 
     expect(wrapper.get('nav').attributes('aria-label')).toBe('Main menu');
     expect(links()).toEqual([
-      { href: '/', name: 'Media App' },
+      { href: '/', name: 'MoviLedger' },
       { href: '/home', name: 'Home' },
       { href: '/search', name: 'Search' },
       { href: '/discover', name: 'Explore' },
@@ -171,7 +171,7 @@ describe('NavBar', () => {
 
     const drawer = layer('[role="dialog"]')!;
     expect(toggle.attributes('aria-expanded')).toBe('true');
-    expect(drawer.textContent).toContain('Media App');
+    expect(drawer.textContent).toContain('MoviLedger');
     expect(
       Array.from(drawer.querySelectorAll('nav a')).map((link) =>
         link.getAttribute('href'),

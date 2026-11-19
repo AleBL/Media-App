@@ -260,7 +260,7 @@ test.describe('web version', () => {
 
     const toggle = page.getByRole('button', { name: 'Menú' });
     const homeInTheBar = page.locator('header nav a[href$="#/home"]');
-    const drawer = page.getByRole('dialog', { name: 'Media App' });
+    const drawer = page.getByRole('dialog', { name: 'MoviLedger' });
 
     await expect(toggle).toBeVisible();
     await expect(homeInTheBar).toBeHidden();
@@ -459,7 +459,9 @@ test.describe('web version', () => {
 
       await page.goto(site.url, { waitUntil: 'commit' });
 
-      await expect(page.getByRole('status')).toContainText('Loading Media App');
+      await expect(page.getByRole('status')).toContainText(
+        'Loading MoviLedger',
+      );
       await expect(page.locator('html')).toHaveClass(/dark/);
       // Neither white nor transparent once the stylesheet applies.
       await expect
@@ -472,7 +474,7 @@ test.describe('web version', () => {
       await expect(
         page.getByRole('navigation', { name: 'Main menu' }),
       ).toBeVisible();
-      await expect(page.getByText('Loading Media App')).toHaveCount(0);
+      await expect(page.getByText('Loading MoviLedger')).toHaveCount(0);
       expect(await background(page)).toBe(dark);
     });
 
@@ -488,7 +490,9 @@ test.describe('web version', () => {
 
       await page.goto(site.url, { waitUntil: 'commit' });
 
-      await expect(page.getByRole('status')).toContainText('Loading Media App');
+      await expect(page.getByRole('status')).toContainText(
+        'Loading MoviLedger',
+      );
       await expect(page.locator('html')).not.toHaveClass(/dark/);
 
       release();

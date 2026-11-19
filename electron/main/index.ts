@@ -68,7 +68,7 @@ const appLocation: AppLocation = {
 
 function createWindow() {
   win = new BrowserWindow({
-    title: 'Media App',
+    title: 'MoviLedger',
     icon: join(
       process.env.PUBLIC,
       process.platform === 'win32' ? 'favicon.ico' : 'favicon.png',

@@ -1,5 +1,5 @@
 <div align="center">
-<h1>Media App (TMDB)</h1>
+<h1>MoviLedger</h1>
 
 An application that organizes and manages watched series and movies through [TMDB](https://www.themoviedb.org/). This application is built with **TypeScript**, utilizing **Vue3**, **Electron**, **ViteJS**, and **Electron Builder**.
 </div>

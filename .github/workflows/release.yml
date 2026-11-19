@@ -149,4 +149,4 @@ jobs:
           gh release create "$GITHUB_REF_NAME" "${files[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --generate-notes \
-            --title "Media App ${GITHUB_REF_NAME#v}"
+            --title "MoviLedger ${GITHUB_REF_NAME#v}"

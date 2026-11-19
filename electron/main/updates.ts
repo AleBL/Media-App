@@ -6,7 +6,7 @@ export const RELEASES_URL = 'https://github.com/AleBL/Media-App/releases';
 export const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
 /** The NSIS installer leaves it next to the app; the .zip does not. */
-const WINDOWS_UNINSTALLER = 'Uninstall Media App.exe';
+const WINDOWS_UNINSTALLER = 'Uninstall MoviLedger.exe';
 
 /** The part of electron-updater's autoUpdater that the app uses. */
 export interface Updater {

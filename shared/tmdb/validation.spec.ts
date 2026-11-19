@@ -311,15 +311,19 @@ describe('parseRegion', () => {
 });
 
 describe('parseListRequest', () => {
-  it.each(['trending', 'popular-movies', 'popular-tv'])(
-    'accepts the list %s',
-    (list) => {
-      expect(parseListRequest({ list, language: 'es', extra: 1 })).toEqual({
-        list,
-        language: 'es',
-      });
-    },
-  );
+  it.each([
+    'trending',
+    'trending-movies',
+    'trending-tv',
+    'popular-movies',
+    'popular-tv',
+    'now-playing',
+  ])('accepts the list %s', (list) => {
+    expect(parseListRequest({ list, language: 'es', extra: 1 })).toEqual({
+      list,
+      language: 'es',
+    });
+  });
 
   it.each([
     ['a missing request', undefined],
@@ -327,8 +331,18 @@ describe('parseListRequest', () => {
     ['a path', { list: '/trending/all/week', language: 'en' }],
     ['a name of the prototype', { list: 'constructor', language: 'en' }],
     ['a language that is not a locale', { list: 'trending', language: 'x' }],
+    [
+      'a region that is not a country',
+      { list: 'now-playing', language: 'en', region: 'Brazil' },
+    ],
   ])('rejects %s', (_case, request) => {
     expect(parseListRequest(request)).toBeNull();
+  });
+
+  it('keeps the country of the theaters', () => {
+    expect(
+      parseListRequest({ list: 'now-playing', language: 'en', region: 'BR' }),
+    ).toEqual({ list: 'now-playing', language: 'en', region: 'BR' });
   });
 });
 

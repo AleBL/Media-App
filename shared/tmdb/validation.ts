@@ -57,8 +57,11 @@ export function parseRegion(value: unknown): string | null {
 
 const LISTS: readonly MediaList[] = [
   'trending',
+  'trending-movies',
+  'trending-tv',
   'popular-movies',
   'popular-tv',
+  'now-playing',
 ];
 
 export function parseListRequest(value: unknown): ListRequest | null {
@@ -66,11 +69,18 @@ export function parseListRequest(value: unknown): ListRequest | null {
     return null;
   }
 
-  const { list, language } = value as Record<string, unknown>;
+  const { list, language, region } = value as Record<string, unknown>;
   const locale = parseLanguage(language);
+  const country = region === undefined ? undefined : parseRegion(region);
 
-  return LISTS.includes(list as MediaList) && locale !== null
-    ? { list: list as MediaList, language: locale }
+  return LISTS.includes(list as MediaList) &&
+    locale !== null &&
+    country !== null
+    ? {
+        list: list as MediaList,
+        language: locale,
+        ...(country !== undefined && { region: country }),
+      }
     : null;
 }
 

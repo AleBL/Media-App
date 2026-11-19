@@ -52,7 +52,43 @@
     "loading": "Loading...",
     "listError": "This list could not be loaded.",
     "tryAgain": "Try again",
-    "listsUnavailable": "The lists are unavailable at the moment. Please try again later."
+    "listsUnavailable": "The lists are unavailable at the moment. Please try again later.",
+    "nowPlaying": "Now playing in theaters",
+    "popularity": {
+      "movie": "Popular movies",
+      "tv": "Popular TV shows"
+    },
+    "rating": {
+      "movie": "Best rated movies",
+      "tv": "Best rated TV shows"
+    },
+    "newest": {
+      "movie": "Newest movies",
+      "tv": "Newest TV shows"
+    },
+    "withGenres": "{title}: {genres}",
+    "years": "{from} to {to}",
+    "since": "Since {year}",
+    "until": "Until {year}",
+    "ratingAtLeast": "Rating {n}+",
+    "ageUpTo": "Rated up to {code}",
+    "seeAll": "See all",
+    "seeAllOf": "See all: {title}",
+    "emptyRow": "No titles in this row.",
+    "kind": "What to show",
+    "customize": "Customize the home page",
+    "done": "Done",
+    "rows": "Rows of the home page",
+    "moveUp": "Move up: {title}",
+    "moveDown": "Move down: {title}",
+    "removeRow": "Remove: {title}",
+    "rowRemoved": "{title} left the home page.",
+    "restoreRows": "Restore the default rows",
+    "rowsRestored": "The home page is back to its default rows.",
+    "addRowHint": "To add a row, choose its filters in Explore and press “On the home page”.",
+    "openExplore": "Open Explore",
+    "noRows": "No rows here",
+    "noRowsHint": "Add rows from Explore, or restore the default ones."
   },
 
   "cards": {
@@ -183,7 +219,10 @@
     "nothingHint": "Try taking a filter away.",
     "allAges": "All",
     "showCount": "Show {n} title | Show {n} titles",
-    "showMany": "Show more than {n} titles"
+    "showMany": "Show more than {n} titles",
+    "onHome": "On the home page",
+    "addedToHome": "Row added to the home page.",
+    "removedFromHome": "Row removed from the home page."
   },
 
   "access": {

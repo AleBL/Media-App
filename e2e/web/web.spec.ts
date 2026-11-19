@@ -106,7 +106,7 @@ test.describe('web version', () => {
       'Movie 2 [en]',
     ]);
     await expect(
-      page.getByRole('region', { name: 'Popular TV shows' }),
+      page.getByRole('region', { name: 'Popular TV shows', exact: true }),
     ).toContainText('Show 11 [en]');
     expect(tmdb.lists().every(({ credential }) => credential === 'app')).toBe(
       true,

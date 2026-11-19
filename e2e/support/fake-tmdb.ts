@@ -525,6 +525,7 @@ export async function startFakeTmdb() {
         genres: [
           { id: 28, name: query.language === 'pt-BR' ? 'Ação' : 'Action' },
           { id: 35, name: 'Comedy' },
+          { id: 16, name: 'Animation' },
           { id: GENRE_WITHOUT_TITLES, name: 'Documentary' },
         ],
       });
@@ -755,12 +756,28 @@ export async function startFakeTmdb() {
       });
     }
 
+    if (url.pathname === '/3/trending/movie/week') {
+      return send(200, { page: 1, results: [1, 2, 3, 4].map(movie) });
+    }
+
+    if (url.pathname === '/3/trending/tv/week') {
+      return send(200, { page: 1, results: [1, 2, 3, 4].map(show) });
+    }
+
     if (url.pathname === '/3/movie/popular') {
       return send(200, { page: 1, results: [11, 12, 13].map(movie) });
     }
 
     if (url.pathname === '/3/tv/popular') {
       return send(200, { page: 1, results: [11, 12, 13].map(show) });
+    }
+
+    // In the theaters of a country: TMDB needs it to tell.
+    if (url.pathname === '/3/movie/now_playing') {
+      return send(200, {
+        page: 1,
+        results: query.region ? [21, 22, 23].map(movie) : [],
+      });
     }
 
     // The lists of the account, which only a session that is open reaches,
@@ -1101,7 +1118,7 @@ export async function startFakeTmdb() {
     requests.filter((request) => /^\/3\/(movie|tv)\/\d+$/.test(request.path));
   const lists = () =>
     requests.filter((request) =>
-      /^\/3\/(trending\/all\/week|movie\/popular|tv\/popular)$/.test(
+      /^\/3\/(trending\/all\/week|movie\/popular|tv\/popular|movie\/now_playing|trending\/(movie|tv)\/week)$/.test(
         request.path,
       ),
     );

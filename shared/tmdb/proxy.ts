@@ -111,6 +111,7 @@ const optionalIds = (value: string | null) =>
  *   GET ?resource=details&type=movie&id=603&language=en&region=US
  *   GET ?resource=person&id=6384&language=en
  *   GET ?resource=list&list=trending&language=en
+ *   GET ?resource=list&list=now-playing&language=pt-BR&region=BR
  */
 export function createTmdbProxy(options: TmdbProxyOptions) {
   const credential = options.credential?.trim() || null;
@@ -247,6 +248,7 @@ export function createTmdbProxy(options: TmdbProxyOptions) {
           const list = parseListRequest({
             list: params.get('list'),
             language: params.get('language'),
+            region: params.get('region') ?? undefined,
           });
 
           return list

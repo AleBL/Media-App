@@ -50,8 +50,11 @@ const TMDB_WEBSITE = 'https://www.themoviedb.org/';
 const LISTS: Record<MediaList, { path: string; type?: MediaType }> = {
   // Each item says its own type.
   trending: { path: '/trending/all/week' },
+  'trending-movies': { path: '/trending/movie/week', type: 'movie' },
+  'trending-tv': { path: '/trending/tv/week', type: 'tv' },
   'popular-movies': { path: '/movie/popular', type: 'movie' },
   'popular-tv': { path: '/tv/popular', type: 'tv' },
+  'now-playing': { path: '/movie/now_playing', type: 'movie' },
 };
 
 /** The field of the day a title came out, as the discovery names it. */
@@ -1138,10 +1141,10 @@ export function createTmdbClient(options: TmdbClientOptions) {
     },
 
     /** The first page of a home page list, movies and tv shows only. */
-    async list({ list, language }: ListRequest): Promise<MediaItem[]> {
+    async list({ list, language, region }: ListRequest): Promise<MediaItem[]> {
       const { path, type } = LISTS[list];
       const body = await request<{ results?: JsonObject[] }>(path, {
-        params: { language },
+        params: { language, ...(region && { region }) },
       });
 
       return (body.results ?? []).flatMap((item) =>

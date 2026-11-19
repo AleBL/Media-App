@@ -52,7 +52,43 @@
     "loading": "Carregando...",
     "listError": "Não foi possível carregar esta lista.",
     "tryAgain": "Tentar de novo",
-    "listsUnavailable": "As listas estão indisponíveis no momento. Tente de novo mais tarde."
+    "listsUnavailable": "As listas estão indisponíveis no momento. Tente de novo mais tarde.",
+    "nowPlaying": "Em cartaz nos cinemas",
+    "popularity": {
+      "movie": "Filmes populares",
+      "tv": "Séries populares"
+    },
+    "rating": {
+      "movie": "Filmes mais bem avaliados",
+      "tv": "Séries mais bem avaliadas"
+    },
+    "newest": {
+      "movie": "Filmes mais recentes",
+      "tv": "Séries mais recentes"
+    },
+    "withGenres": "{title}: {genres}",
+    "years": "{from} a {to}",
+    "since": "Desde {year}",
+    "until": "Até {year}",
+    "ratingAtLeast": "Nota {n}+",
+    "ageUpTo": "Classificação até {code}",
+    "seeAll": "Ver tudo",
+    "seeAllOf": "Ver tudo: {title}",
+    "emptyRow": "Nenhum título nesta fileira.",
+    "kind": "O que mostrar",
+    "customize": "Personalizar a página inicial",
+    "done": "Pronto",
+    "rows": "Fileiras da página inicial",
+    "moveUp": "Subir: {title}",
+    "moveDown": "Descer: {title}",
+    "removeRow": "Tirar: {title}",
+    "rowRemoved": "{title} saiu da página inicial.",
+    "restoreRows": "Restaurar as fileiras do padrão",
+    "rowsRestored": "A página inicial voltou às fileiras do padrão.",
+    "addRowHint": "Para acrescentar uma fileira, escolha os filtros dela no Explorar e toque em “Na página inicial”.",
+    "openExplore": "Abrir o Explorar",
+    "noRows": "Nenhuma fileira aqui",
+    "noRowsHint": "Acrescente fileiras pelo Explorar, ou restaure as do padrão."
   },
 
   "cards": {
@@ -183,7 +219,10 @@
     "nothingHint": "Tente tirar algum filtro.",
     "allAges": "Todas",
     "showCount": "Ver {n} título | Ver {n} títulos",
-    "showMany": "Ver mais de {n} títulos"
+    "showMany": "Ver mais de {n} títulos",
+    "onHome": "Na página inicial",
+    "addedToHome": "Fileira acrescentada à página inicial.",
+    "removedFromHome": "Fileira tirada da página inicial."
   },
 
   "access": {

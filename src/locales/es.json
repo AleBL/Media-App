@@ -52,7 +52,43 @@
     "loading": "Cargando...",
     "listError": "No se pudo cargar esta lista.",
     "tryAgain": "Intentar de nuevo",
-    "listsUnavailable": "Las listas no están disponibles en este momento. Inténtalo de nuevo más tarde."
+    "listsUnavailable": "Las listas no están disponibles en este momento. Inténtalo de nuevo más tarde.",
+    "nowPlaying": "En cartelera en los cines",
+    "popularity": {
+      "movie": "Películas populares",
+      "tv": "Series populares"
+    },
+    "rating": {
+      "movie": "Películas mejor valoradas",
+      "tv": "Series mejor valoradas"
+    },
+    "newest": {
+      "movie": "Películas más recientes",
+      "tv": "Series más recientes"
+    },
+    "withGenres": "{title}: {genres}",
+    "years": "{from} a {to}",
+    "since": "Desde {year}",
+    "until": "Hasta {year}",
+    "ratingAtLeast": "Puntuación {n}+",
+    "ageUpTo": "Clasificación hasta {code}",
+    "seeAll": "Ver todo",
+    "seeAllOf": "Ver todo: {title}",
+    "emptyRow": "Ningún título en esta fila.",
+    "kind": "Qué mostrar",
+    "customize": "Personalizar la página de inicio",
+    "done": "Listo",
+    "rows": "Filas de la página de inicio",
+    "moveUp": "Subir: {title}",
+    "moveDown": "Bajar: {title}",
+    "removeRow": "Quitar: {title}",
+    "rowRemoved": "{title} salió de la página de inicio.",
+    "restoreRows": "Restaurar las filas predeterminadas",
+    "rowsRestored": "La página de inicio volvió a las filas predeterminadas.",
+    "addRowHint": "Para añadir una fila, elige sus filtros en Explorar y toca “En la página de inicio”.",
+    "openExplore": "Abrir Explorar",
+    "noRows": "Ninguna fila aquí",
+    "noRowsHint": "Añade filas desde Explorar, o restaura las predeterminadas."
   },
 
   "cards": {
@@ -183,7 +219,10 @@
     "nothingHint": "Prueba a quitar algún filtro.",
     "allAges": "Todas",
     "showCount": "Ver {n} título | Ver {n} títulos",
-    "showMany": "Ver más de {n} títulos"
+    "showMany": "Ver más de {n} títulos",
+    "onHome": "En la página de inicio",
+    "addedToHome": "Fila añadida a la página de inicio.",
+    "removedFromHome": "Fila quitada de la página de inicio."
   },
 
   "access": {

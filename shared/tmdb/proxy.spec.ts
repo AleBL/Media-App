@@ -232,8 +232,25 @@ describe('tmdb proxy', () => {
       );
     });
 
+    it('asks for the movies in the theaters of a country', async () => {
+      const fetch = tmdbAnswers(200, { results: [] });
+
+      await ask(
+        '?resource=list&list=now-playing&language=pt-BR&region=BR',
+        fetch,
+      );
+
+      const url = new URL(fetch.mock.calls[0][0]);
+      expect(url.pathname).toBe('/3/movie/now_playing');
+      expect(url.searchParams.get('region')).toBe('BR');
+    });
+
     it.each([
       ['no list', '?resource=list&language=en'],
+      [
+        'a region that is not a country',
+        '?resource=list&list=now-playing&language=en&region=brazil',
+      ],
       [
         'a list the app does not show',
         '?resource=list&list=upcoming&language=en',

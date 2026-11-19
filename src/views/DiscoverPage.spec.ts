@@ -6,6 +6,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 import type { MediaItem, Paged } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import appRouter from '@/router';
+import { useToastsStore } from '@/stores/toasts';
 import { installFakeApi } from '@/test/fakeApi';
 import DiscoverPage from '@/views/DiscoverPage.vue';
 
@@ -329,5 +330,41 @@ describe('DiscoverPage', () => {
     await flushPromises();
 
     expect(lastDiscovery()).toMatchObject({ page: 2 });
+  });
+
+  it('puts its filters on the home page as a row, which the notice can undo', async () => {
+    await open('?type=tv&genres=18&mine=1');
+    const toggle = () =>
+      wrapper
+        .findAll('button')
+        .find((one) => one.text() === 'On the home page')!;
+
+    expect(toggle().attributes('aria-pressed')).toBe('false');
+
+    await toggle().trigger('click');
+
+    expect(toggle().attributes('aria-pressed')).toBe('true');
+    expect(JSON.parse(localStorage.getItem('home-rows')!)[0]).toEqual({
+      query: { type: 'tv', genres: '18', mine: '1' },
+    });
+    const toasts = useToastsStore();
+    expect(toasts.toasts.at(-1)!.message).toBe('Row added to the home page.');
+
+    toasts.toasts.at(-1)!.action!.run();
+    await nextTick();
+
+    expect(toggle().attributes('aria-pressed')).toBe('false');
+    expect(localStorage.getItem('home-rows')).toBeNull();
+  });
+
+  it('knows the filters the home page has as one of its lists', async () => {
+    await open('?type=tv');
+
+    expect(
+      wrapper
+        .findAll('button')
+        .find((one) => one.text() === 'On the home page')!
+        .attributes('aria-pressed'),
+    ).toBe('true');
   });
 });

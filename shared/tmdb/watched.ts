@@ -11,6 +11,8 @@ import { TmdbError, type Access, type TmdbClient } from './client';
 // created on the first mark and found again by its description. The date
 // goes in each title's comment.
 
+// From the name the app had before (Media App): the lists already made at
+// TMDB carry it, and a new marker would start an empty list beside them.
 export const WATCHED_MARKER = 'media-app:watched';
 
 const LIST_NAMES: Record<string, string> = {
@@ -84,7 +86,7 @@ type ListClient = Pick<
 
 const listInfo = (language: string) => ({
   name: LIST_NAMES[language.slice(0, 2)] ?? LIST_NAMES.en,
-  description: `Media App (${WATCHED_MARKER})`,
+  description: `MoviLedger (${WATCHED_MARKER})`,
 });
 
 interface WithListOptions<T> {

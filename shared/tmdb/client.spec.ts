@@ -1624,7 +1624,7 @@ describe('lists of the user (v4)', () => {
     await expect(
       client.createList(USER, {
         name: 'Assistidos',
-        description: 'Media App',
+        description: 'MoviLedger',
         language: 'pt-BR',
       }),
     ).resolves.toBe(88);
@@ -1634,7 +1634,7 @@ describe('lists of the user (v4)', () => {
       method: 'POST',
       body: {
         name: 'Assistidos',
-        description: 'Media App',
+        description: 'MoviLedger',
         iso_639_1: 'pt',
         iso_3166_1: 'BR',
         public: false,
@@ -1651,14 +1651,14 @@ describe('lists of the user (v4)', () => {
 
     await client.updateList(USER, 88, {
       name: 'Assistidos',
-      description: 'Media App',
+      description: 'MoviLedger',
     });
 
     expect(asked(fetch)).toMatchObject({
       method: 'PUT',
       body: {
         name: 'Assistidos',
-        description: 'Media App',
+        description: 'MoviLedger',
         public: false,
         sort_by: 'original_order.desc',
       },

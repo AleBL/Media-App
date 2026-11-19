@@ -63,7 +63,7 @@
         class="mr-3 flex shrink-0 items-center gap-2 rounded-md font-semibold text-surface-900 no-underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-surface-0"
       >
         <img :src="appIcon" alt="" class="h-8 w-8 rounded-lg" />
-        <span>Media App</span>
+        <span>MoviLedger</span>
       </RouterLink>
 
       <ul class="m-0 hidden list-none gap-1 p-0 lg:flex">

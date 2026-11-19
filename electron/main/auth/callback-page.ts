@@ -8,31 +8,31 @@ const TEXT: Record<string, Record<CallbackOutcome, Text>> = {
   en: {
     done: {
       title: 'You are signed in',
-      body: 'You can close this tab and go back to Media App.',
+      body: 'You can close this tab and go back to MoviLedger.',
     },
     failed: {
       title: 'The sign-in was not completed',
-      body: 'Go back to Media App to see what happened and try again.',
+      body: 'Go back to MoviLedger to see what happened and try again.',
     },
   },
   es: {
     done: {
       title: 'Sesión iniciada',
-      body: 'Puedes cerrar esta pestaña y volver a Media App.',
+      body: 'Puedes cerrar esta pestaña y volver a MoviLedger.',
     },
     failed: {
       title: 'No se completó el inicio de sesión',
-      body: 'Vuelve a Media App para ver qué pasó e intentarlo de nuevo.',
+      body: 'Vuelve a MoviLedger para ver qué pasó e intentarlo de nuevo.',
     },
   },
   'pt-BR': {
     done: {
       title: 'Login concluído',
-      body: 'Pode fechar esta aba e voltar para o Media App.',
+      body: 'Pode fechar esta aba e voltar para o MoviLedger.',
     },
     failed: {
       title: 'O login não foi concluído',
-      body: 'Volte para o Media App para ver o que aconteceu e tentar de novo.',
+      body: 'Volte para o MoviLedger para ver o que aconteceu e tentar de novo.',
     },
   },
 };
@@ -50,7 +50,7 @@ export function callbackPage(language: string, outcome: CallbackOutcome) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Media App</title>
+    <title>MoviLedger</title>
     <style>
       :root { color-scheme: light dark; }
       body {

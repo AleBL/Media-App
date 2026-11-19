@@ -58,11 +58,11 @@ test.describe('about', () => {
   test('the window has the name of the app alone', async ({ running }) => {
     const { app, page } = running;
 
-    await expect(page).toHaveTitle('Media App');
+    await expect(page).toHaveTitle('MoviLedger');
     expect(
       await app.evaluate(({ BrowserWindow }) =>
         BrowserWindow.getAllWindows()[0].getTitle(),
       ),
-    ).toBe('Media App');
+    ).toBe('MoviLedger');
   });
 });

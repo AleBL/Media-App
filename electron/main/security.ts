@@ -46,7 +46,7 @@ export const TRAILER_ORIGIN = 'https://www.youtube-nocookie.com';
  * nothing; YouTube asks an app for https:// and its app id, the appId of
  * electron-builder.json5.
  */
-export const APP_REFERER = 'https://io.github.alebl.mediaapp';
+export const APP_REFERER = 'https://io.github.alebl.moviledger';
 
 /** The headers of a request for the player, saying who the app is. */
 export function withAppReferer(

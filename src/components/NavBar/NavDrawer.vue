@@ -52,7 +52,7 @@
             class="flex items-center gap-2 text-base font-semibold text-surface-900 dark:text-surface-0"
           >
             <img :src="appIcon" alt="" class="h-7 w-7 rounded-md" />
-            Media App
+            MoviLedger
           </DialogTitle>
           <DialogClose as-child>
             <AppButton

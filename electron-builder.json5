@@ -2,10 +2,10 @@
  * @see https://www.electron.build/configuration
  */
 {
-  appId: 'io.github.alebl.mediaapp',
+  appId: 'io.github.alebl.moviledger',
   // Installers, menus and the macOS bundle only: app.getName() stays the
   // package.json name, so the data folder is the same as in development.
-  productName: 'Media App',
+  productName: 'MoviLedger',
   icon: 'build/icon.png',
   asar: true,
   directories: {
@@ -68,7 +68,7 @@
     // AudioVideo needs Audio or Video next to it.
     category: 'AudioVideo;Video',
     synopsis: 'Movies and TV shows from TMDB',
-    executableName: 'media-app',
+    executableName: 'moviledger',
     // Names the .desktop file after package.json desktopName, which Electron
     // uses as the window's app_id, so the running window matches its entry.
     syncDesktopName: true,

@@ -18,6 +18,9 @@ export const QUERY_WITHOUT_RESULTS = 'nothing like this';
 /** The one movie that TMDB does not have. */
 export const MISSING_MOVIE = 404404;
 
+/** A genre of movies that the discovery has no titles of (Documentary). */
+export const GENRE_WITHOUT_TITLES = 99;
+
 /** The people of the cast of every title, by id. */
 const PEOPLE: Record<number, string> = { 1: 'Ada Actor', 2: 'Bob Actor' };
 /** The trailer of every title, on YouTube. */
@@ -521,12 +524,129 @@ export async function startFakeTmdb() {
       return send(200, {
         genres: [
           { id: 28, name: query.language === 'pt-BR' ? 'Ação' : 'Action' },
+          { id: 35, name: 'Comedy' },
+          { id: GENRE_WITHOUT_TITLES, name: 'Documentary' },
         ],
       });
     }
 
     if (url.pathname === '/3/genre/tv/list') {
-      return send(200, { genres: [{ id: 18, name: 'Drama' }] });
+      return send(200, {
+        genres: [
+          { id: 18, name: 'Drama' },
+          { id: 10759, name: 'Action & Adventure' },
+        ],
+      });
+    }
+
+    // The services of a country, which TMDB sends in no order, each with
+    // its place in every country. Apple TV Store only sells movies.
+    const services = /^\/3\/watch\/providers\/(movie|tv)$/.exec(url.pathname);
+
+    if (services) {
+      const provider = (id: number, name: string, inBrazil: number) => ({
+        provider_id: id,
+        provider_name: name,
+        logo_path: null,
+        display_priority: id,
+        display_priorities: { BR: inBrazil, US: id },
+      });
+
+      return send(200, {
+        results: [
+          provider(307, 'Globoplay', 12),
+          provider(8, 'Netflix', 0),
+          ...(services[1] === 'movie'
+            ? [provider(2, 'Apple TV Store', 11)]
+            : []),
+          provider(119, 'Amazon Prime Video', 3),
+        ],
+      });
+    }
+
+    // The age ratings of two countries, in no order, as TMDB sends them.
+    const ratingLists = /^\/3\/certification\/(movie|tv)\/list$/.exec(
+      url.pathname,
+    );
+
+    if (ratingLists) {
+      const rated = (codes: string[]) =>
+        codes.map((certification, order) => ({
+          certification,
+          meaning: `Rated ${certification}`,
+          order,
+        }));
+
+      return send(200, {
+        certifications: {
+          BR: rated(['L', '10', '12', '14', '16', '18']).reverse(),
+          US:
+            ratingLists[1] === 'movie'
+              ? rated(['NR', 'G', 'PG', 'PG-13', 'R', 'NC-17'])
+              : rated([
+                  'NR',
+                  'TV-Y',
+                  'TV-Y7',
+                  'TV-G',
+                  'TV-PG',
+                  'TV-14',
+                  'TV-MA',
+                ]),
+        },
+      });
+    }
+
+    if (url.pathname === '/3/configuration/languages') {
+      return send(200, [
+        { iso_639_1: 'ko', english_name: 'Korean', name: '한국어/조선말' },
+        { iso_639_1: 'en', english_name: 'English', name: 'English' },
+        { iso_639_1: 'xx', english_name: 'No Language', name: 'No Language' },
+        { iso_639_1: 'pt', english_name: 'Portuguese', name: 'Português' },
+      ]);
+    }
+
+    // A discovery has 45 titles, like a search, named the same way, except
+    // with GENRE_WITHOUT_TITLES, which has none.
+    const discovered = /^\/3\/discover\/(movie|tv)$/.exec(url.pathname);
+
+    if (discovered) {
+      const page = Number(query.page);
+      const total = (query.with_genres ?? '')
+        .split(',')
+        .includes(String(GENRE_WITHOUT_TITLES))
+        ? 0
+        : TOTAL_RESULTS;
+      const first = (page - 1) * PAGE_SIZE + 1;
+      const count = Math.max(0, Math.min(PAGE_SIZE, total - first + 1));
+      const title = (number: number) =>
+        discovered[1] === 'movie'
+          ? {
+              id: number,
+              title: `Movie ${number} [${query.language}]`,
+              release_date: '2020-01-01',
+              poster_path: null,
+              genre_ids: [28],
+              vote_average: 7.5,
+              vote_count: 900,
+            }
+          : {
+              id: 9000 + number,
+              name: `Show ${number} [${query.language}]`,
+              first_air_date: '2008-01-20',
+              poster_path: null,
+              genre_ids: [18],
+              vote_average: 8.9,
+              vote_count: 900,
+            };
+
+      return send(200, {
+        page,
+        results: Array.from({ length: count }, (_, index) =>
+          title(first + index),
+        ),
+        total_pages: Math.ceil(total / PAGE_SIZE),
+        total_results: total,
+      });
     }
 
     const searched = /^\/3\/search\/(movie|tv|multi)$/.exec(url.pathname);
@@ -975,6 +1095,8 @@ export async function startFakeTmdb() {
   const { port } = server.address() as AddressInfo;
   const searches = () =>
     requests.filter((request) => request.path.startsWith('/3/search/'));
+  const discoveries = () =>
+    requests.filter((request) => request.path.startsWith('/3/discover/'));
   const pages = () =>
     requests.filter((request) => /^\/3\/(movie|tv)\/\d+$/.test(request.path));
   const lists = () =>
@@ -998,6 +1120,9 @@ export async function startFakeTmdb() {
     requests,
     searches,
     lastSearch: () => searches().at(-1),
+    /** The discoveries the app asked for, with every filter. */
+    discoveries,
+    lastDiscovery: () => discoveries().at(-1),
     /** The pages of titles the app asked for. */
     pages,
     /** The lists of the home page the app asked for. */

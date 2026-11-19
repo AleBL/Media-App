@@ -77,6 +77,70 @@ export interface SearchRequest {
   query: string;
   page: number;
   language: string;
+  /** Of release, or of the first episode. Movies and tv shows only. */
+  year?: number;
+}
+
+/** How the titles of a discovery come in order. */
+export type DiscoverSort = 'popularity' | 'rating' | 'newest';
+
+export const DISCOVER_SORTS: readonly DiscoverSort[] = [
+  'popularity',
+  'rating',
+  'newest',
+];
+
+/**
+ * The votes a title needs for its average to count, wherever the average
+ * matters in a discovery (a minimum rating, the best rated first): with
+ * fewer, a title two people gave 10 comes first. Tried on TMDB on
+ * 2026-11-18, the best rated with fewer votes were mostly music videos and
+ * specials.
+ */
+export const MIN_VOTES: Record<MediaType, number> = { movie: 300, tv: 200 };
+
+/**
+ * Movies or tv shows that match every filter given: TMDB's own discovery,
+ * not a search by name.
+ */
+export interface DiscoverRequest {
+  type: MediaType;
+  page: number;
+  language: string;
+  /** Country code such as `BR`: of the services and of the age rating. */
+  region: string;
+  sort: DiscoverSort;
+  /** Titles with all of these genres. */
+  genres?: number[];
+  /** First and last year of release (or of the first episode), inclusive. */
+  fromYear?: number;
+  toYear?: number;
+  /** An average of at least this, from 1 to 9, out of enough votes. */
+  minRating?: number;
+  /** Such as `ko`. */
+  originalLanguage?: string;
+  /** An age rating of `region`: titles rated this or milder. */
+  ageRating?: string;
+  /** On any of these services in `region`. */
+  providers?: number[];
+}
+
+export interface DiscoverFiltersRequest {
+  type: MediaType;
+  language: string;
+  region: string;
+}
+
+/** What the filters of a discovery offer, for one type in one country. */
+export interface DiscoverFilters {
+  /** The genres of the type, in the language asked for. */
+  genres: Genre[];
+  /** The services of the country, the most watched first. */
+  providers: WatchProvider[];
+  /** The age ratings of the country, the mildest first; none for some. */
+  ageRatings: string[];
+  /** The original languages TMDB knows, such as `ko`. */
+  languages: string[];
 }
 
 /** The lists of the home page. */
@@ -361,6 +425,10 @@ export interface MediaAppApi {
     genres(language: string): Promise<Result<Genre[]>>;
     details(request: DetailsRequest): Promise<Result<MediaDetails>>;
     person(request: PersonRequest): Promise<Result<PersonDetails>>;
+    discover(request: DiscoverRequest): Promise<Result<Paged<MediaItem>>>;
+    discoverFilters(
+      request: DiscoverFiltersRequest,
+    ): Promise<Result<DiscoverFilters>>;
     /** The first page of a list, each title tagged with its type. */
     list(request: ListRequest): Promise<Result<MediaItem[]>>;
     /** Country codes with watch providers, such as `BR`, sorted. */
@@ -424,6 +492,8 @@ export const IPC = {
   tmdbGenres: 'tmdb:genres',
   tmdbDetails: 'tmdb:details',
   tmdbPerson: 'tmdb:person',
+  tmdbDiscover: 'tmdb:discover',
+  tmdbDiscoverFilters: 'tmdb:discover-filters',
   tmdbList: 'tmdb:list',
   tmdbRegions: 'tmdb:regions',
   clearCache: 'app:clear-cache',

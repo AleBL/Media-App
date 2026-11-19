@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 import type {
   Account,
   CredentialStatus,
+  DiscoverFilters,
   MediaAppApi,
   MediaDetails,
   MediaItem,
@@ -10,6 +11,7 @@ import type {
   SearchItem,
   SessionPersistence,
   SessionState,
+  WatchProvider,
 } from '@shared/api';
 
 /** The usual case: the app has its own credential and the user saved no key. */
@@ -135,6 +137,34 @@ export const KEANU: PersonDetails = {
   ],
 };
 
+const SERVICES: WatchProvider[] = [
+  { id: 8, name: 'Netflix', logoPath: '/netflix.png' },
+  { id: 119, name: 'Amazon Prime Video', logoPath: '/prime.png' },
+  { id: 337, name: 'Disney Plus', logoPath: '/disney.png' },
+  { id: 307, name: 'Globoplay' },
+];
+
+/** What the filters of the Explore page offer for movies in Brazil. */
+export const MOVIE_FILTERS: DiscoverFilters = {
+  genres: [
+    { id: 28, name: 'Action' },
+    { id: 35, name: 'Comedy' },
+    { id: 18, name: 'Drama' },
+  ],
+  providers: SERVICES,
+  ageRatings: ['L', '10', '12', '14', '16', '18'],
+  languages: ['en', 'ja', 'ko', 'pt'],
+};
+
+/** The same for tv shows, which have genres of their own. */
+export const TV_FILTERS: DiscoverFilters = {
+  ...MOVIE_FILTERS,
+  genres: [
+    { id: 10759, name: 'Action & Adventure' },
+    { id: 18, name: 'Drama' },
+  ],
+};
+
 export function pageOf(
   results: SearchItem[] = [],
   overrides: Partial<Paged<SearchItem>> = {},
@@ -179,6 +209,16 @@ export function installFakeApi() {
         ok: true,
         data: { ...KEANU, id },
       })),
+      discover: vi.fn<MediaAppApi['tmdb']['discover']>(async () => ({
+        ok: true,
+        data: pageOf() as Paged<MediaItem>,
+      })),
+      discoverFilters: vi.fn<MediaAppApi['tmdb']['discoverFilters']>(
+        async ({ type }) => ({
+          ok: true,
+          data: type === 'movie' ? MOVIE_FILTERS : TV_FILTERS,
+        }),
+      ),
       list: vi.fn<MediaAppApi['tmdb']['list']>(async () => ({
         ok: true,
         data: [],

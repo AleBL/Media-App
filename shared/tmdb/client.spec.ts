@@ -178,6 +178,276 @@ describe('search', () => {
       results: [{ id: 603, media_type: 'movie', title: 'The Matrix' }],
     });
   });
+
+  it('asks for the year a movie came out, or a tv show began', async () => {
+    const { client, requestedUrl } = setup([
+      answer(200, page),
+      answer(200, page),
+    ]);
+
+    await client.search({ ...search, year: 1999 });
+    await client.search({ ...search, type: 'tv', year: 2005 });
+
+    expect(requestedUrl(0).searchParams.get('primary_release_year')).toBe(
+      '1999',
+    );
+    expect(requestedUrl(0).searchParams.has('year')).toBe(false);
+    expect(requestedUrl(1).searchParams.get('first_air_date_year')).toBe(
+      '2005',
+    );
+  });
+});
+
+/** A client whose TMDB answers by path, such as `/discover/movie`. */
+function setupByPath(bodies: Record<string, unknown>) {
+  const fetch = vi.fn<FetchLike>(async (url) => {
+    const path = new URL(url).pathname.replace(/^\/3/, '');
+
+    if (!Object.hasOwn(bodies, path)) {
+      throw new Error(`unexpected request to ${path}`);
+    }
+
+    return answer(200, bodies[path]);
+  });
+  const client = createTmdbClient({ getCredential: () => V3_KEY, fetch });
+  const asked = (path: string) =>
+    fetch.mock.calls
+      .map(([url]) => new URL(url))
+      .filter((url) => url.pathname === `/3${path}`);
+
+  return { client, fetch, asked };
+}
+
+/** The query of a url, without the key. */
+const paramsOf = (url: URL) => {
+  const params = Object.fromEntries(url.searchParams);
+
+  delete params.api_key;
+  return params;
+};
+
+describe('discovery', () => {
+  const discover = {
+    type: 'movie',
+    page: 1,
+    language: 'pt-BR',
+    region: 'BR',
+    sort: 'popularity',
+  } as const;
+  const found = { ...page, results: [{ id: 603, title: 'The Matrix' }] };
+  // Every country's ratings, in no order, as TMDB sends them.
+  const ageRatings = {
+    certifications: {
+      US: [
+        { certification: 'PG-13', order: 3 },
+        { certification: 'NR', order: 0 },
+        { certification: 'G', order: 1 },
+        { certification: 'R', order: 4 },
+        { certification: 'PG', order: 2 },
+      ],
+      BR: [
+        { certification: '12', order: 3 },
+        { certification: 'L', order: 1 },
+        { certification: '10', order: 2 },
+      ],
+    },
+  };
+
+  it('asks for the popular titles of a type, leaving adult ones out', async () => {
+    const { client, asked } = setupByPath({ '/discover/movie': found });
+
+    await expect(client.discover(discover)).resolves.toEqual({
+      page: 1,
+      results: [{ id: 603, media_type: 'movie', title: 'The Matrix' }],
+      totalPages: 3,
+      totalResults: 45,
+    });
+    expect(paramsOf(asked('/discover/movie')[0])).toEqual({
+      page: '1',
+      language: 'pt-BR',
+      include_adult: 'false',
+      sort_by: 'popularity.desc',
+    });
+  });
+
+  it('asks for every filter given, all of the genres and any of the services', async () => {
+    const { client, asked } = setupByPath({ '/discover/tv': found });
+
+    const { results } = await client.discover({
+      ...discover,
+      type: 'tv',
+      page: 2,
+      genres: [18, 80],
+      fromYear: 1990,
+      toYear: 1999,
+      minRating: 7,
+      originalLanguage: 'ko',
+      providers: [8, 119],
+    });
+
+    expect(results[0].media_type).toBe('tv');
+    expect(paramsOf(asked('/discover/tv')[0])).toEqual({
+      page: '2',
+      language: 'pt-BR',
+      include_adult: 'false',
+      sort_by: 'popularity.desc',
+      with_genres: '18,80',
+      'first_air_date.gte': '1990-01-01',
+      'first_air_date.lte': '1999-12-31',
+      'vote_average.gte': '7',
+      // with fewer votes, the average does not tell much
+      'vote_count.gte': '200',
+      with_original_language: 'ko',
+      watch_region: 'BR',
+      with_watch_providers: '8|119',
+    });
+  });
+
+  it('puts the best rated first only among titles with enough votes', async () => {
+    const { client, asked } = setupByPath({ '/discover/movie': found });
+
+    await client.discover({ ...discover, sort: 'rating' });
+
+    expect(paramsOf(asked('/discover/movie')[0])).toMatchObject({
+      sort_by: 'vote_average.desc',
+      'vote_count.gte': '300',
+    });
+  });
+
+  it('puts the newest first among those already out that some people saw', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-18T12:00:00Z'));
+
+    try {
+      const { client, asked } = setupByPath({ '/discover/movie': found });
+
+      await client.discover({ ...discover, sort: 'newest' });
+      await client.discover({ ...discover, sort: 'newest', toYear: 1999 });
+
+      const [now, nineties] = asked('/discover/movie').map(paramsOf);
+      expect(now).toMatchObject({
+        sort_by: 'primary_release_date.desc',
+        'primary_release_date.lte': '2026-11-18',
+        'vote_count.gte': '10',
+      });
+      expect(nineties['primary_release_date.lte']).toBe('1999-12-31');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('asks for an age rating and the milder ones by name, never "NR"', async () => {
+    const { client, asked } = setupByPath({
+      '/discover/movie': found,
+      '/certification/movie/list': ageRatings,
+    });
+
+    await client.discover({ ...discover, region: 'US', ageRating: 'PG-13' });
+    await client.discover({ ...discover, region: 'BR', ageRating: '10' });
+
+    const [american, brazilian] = asked('/discover/movie').map(paramsOf);
+    expect(american).toMatchObject({
+      certification_country: 'US',
+      certification: 'G|PG|PG-13',
+    });
+    expect(brazilian).toMatchObject({
+      certification_country: 'BR',
+      certification: 'L|10',
+    });
+    // kept for the next pages
+    expect(asked('/certification/movie/list')).toHaveLength(1);
+  });
+
+  it('leaves out an age rating the country does not have', async () => {
+    const { client, asked } = setupByPath({
+      '/discover/movie': found,
+      '/certification/movie/list': ageRatings,
+    });
+
+    await client.discover({ ...discover, ageRating: 'PG-13' });
+
+    expect(asked('/discover/movie')[0].searchParams.has('certification')).toBe(
+      false,
+    );
+  });
+});
+
+describe('filters of a discovery', () => {
+  it('brings the genres, services, age ratings and languages of a type in a country', async () => {
+    const service = (id: number, name: string, inBrazil?: number) => ({
+      provider_id: id,
+      provider_name: name,
+      logo_path: `/${id}.png`,
+      display_priority: id,
+      display_priorities: inBrazil === undefined ? { US: 1 } : { BR: inBrazil },
+    });
+    const { client, asked } = setupByPath({
+      '/genre/tv/list': {
+        genres: [
+          { id: 18, name: 'Drama' },
+          { id: 18, name: 'Drama again' },
+          { name: 'Without an id' },
+        ],
+      },
+      '/watch/providers/tv': {
+        results: [
+          service(307, 'Globoplay', 12),
+          service(1, 'Elsewhere'),
+          service(8, 'Netflix', 0),
+          service(8, 'Netflix', 0),
+          { provider_id: 9, provider_name: '' },
+        ],
+      },
+      '/certification/tv/list': {
+        certifications: {
+          BR: [
+            { certification: '10', order: 1 },
+            { certification: 'L', order: 0 },
+          ],
+        },
+      },
+      '/configuration/languages': [
+        { iso_639_1: 'ko', english_name: 'Korean' },
+        { iso_639_1: 'xx', english_name: 'No Language' },
+        { iso_639_1: 'en', english_name: 'English' },
+        { iso_639_1: 'not a code' },
+      ],
+    });
+
+    await expect(
+      client.discoverFilters({ type: 'tv', language: 'pt-BR', region: 'BR' }),
+    ).resolves.toEqual({
+      genres: [{ id: 18, name: 'Drama' }],
+      providers: [
+        { id: 8, name: 'Netflix', logoPath: '/8.png' },
+        { id: 307, name: 'Globoplay', logoPath: '/307.png' },
+        // without a place in the country: last
+        { id: 1, name: 'Elsewhere', logoPath: '/1.png' },
+      ],
+      ageRatings: ['L', '10'],
+      languages: ['en', 'ko'],
+    });
+    expect(paramsOf(asked('/genre/tv/list')[0])).toEqual({
+      language: 'pt-BR',
+    });
+    expect(paramsOf(asked('/watch/providers/tv')[0])).toEqual({
+      language: 'pt-BR',
+      watch_region: 'BR',
+    });
+  });
+
+  it('has no age ratings for a country without them', async () => {
+    const { client } = setupByPath({
+      '/genre/movie/list': { genres: [] },
+      '/watch/providers/movie': { results: [] },
+      '/certification/movie/list': { certifications: {} },
+      '/configuration/languages': [],
+    });
+
+    await expect(
+      client.discoverFilters({ type: 'movie', language: 'en', region: 'AQ' }),
+    ).resolves.toMatchObject({ ageRatings: [], providers: [] });
+  });
 });
 
 describe('search of everything', () => {

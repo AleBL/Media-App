@@ -1,4 +1,5 @@
 import {
+  MIN_VOTES,
   RATINGS,
   TMDB_PAGE_SIZE,
   type Account,
@@ -6,6 +7,10 @@ import {
   type CastMember,
   type Certification,
   type DetailsRequest,
+  type DiscoverFilters,
+  type DiscoverFiltersRequest,
+  type DiscoverRequest,
+  type DiscoverSort,
   type Genre,
   type ListRequest,
   type MediaDetails,
@@ -48,6 +53,36 @@ const LISTS: Record<MediaList, { path: string; type?: MediaType }> = {
   'popular-movies': { path: '/movie/popular', type: 'movie' },
   'popular-tv': { path: '/tv/popular', type: 'tv' },
 };
+
+/** The field of the day a title came out, as the discovery names it. */
+const RELEASE_FIELD: Record<MediaType, string> = {
+  movie: 'primary_release_date',
+  tv: 'first_air_date',
+};
+
+const DISCOVER_ORDER: Record<DiscoverSort, Record<MediaType, string>> = {
+  popularity: { movie: 'popularity.desc', tv: 'popularity.desc' },
+  rating: { movie: 'vote_average.desc', tv: 'vote_average.desc' },
+  newest: {
+    movie: 'primary_release_date.desc',
+    tv: 'first_air_date.desc',
+  },
+};
+
+/**
+ * The newest first are the ones already out that some people saw: by date
+ * alone, TMDB starts with titles announced for 2099, then with dozens a
+ * day that nobody rated.
+ */
+export const NEWEST_MIN_VOTES = 10;
+
+/** The lists of age ratings change about once a year. */
+const AGE_RATINGS_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+const LANGUAGE_CODE = /^[a-z]{2}$/;
+
+/** "No language", for silent movies and the like: not a language to pick. */
+const NO_LANGUAGE = 'xx';
 
 export class TmdbError extends Error {
   constructor(
@@ -101,6 +136,8 @@ type SearchBody = {
 };
 
 type GenreBody = { genres?: Partial<Genre>[] };
+
+type CertificationsBody = { certifications?: Record<string, unknown> };
 
 type AccountBody = {
   id?: unknown;
@@ -378,13 +415,18 @@ function toCast(cast: unknown): CastMember[] {
     }));
 }
 
+/** The order of JustWatch among every country. */
+const displayPriority = (provider: JsonObject) =>
+  typeof provider.display_priority === 'number'
+    ? provider.display_priority
+    : Number.MAX_SAFE_INTEGER;
+
 /** The providers of the given lists, without repeats, in JustWatch order. */
-function toProviders(...lists: unknown[]): WatchProvider[] {
+function toProviders(
+  lists: unknown[],
+  rank: (provider: JsonObject) => number = displayPriority,
+): WatchProvider[] {
   const seen = new Set<number>();
-  const rank = (provider: JsonObject) =>
-    typeof provider.display_priority === 'number'
-      ? provider.display_priority
-      : Number.MAX_SAFE_INTEGER;
 
   return lists
     .flatMap(objectArray)
@@ -425,10 +467,10 @@ function toWatch(results: unknown, region: string): WatchOptions | undefined {
       typeof link === 'string' && link.startsWith(TMDB_WEBSITE)
         ? link
         : undefined,
-    stream: toProviders(flatrate),
-    free: toProviders(free, ads),
-    rent: toProviders(rent),
-    buy: toProviders(buy),
+    stream: toProviders([flatrate]),
+    free: toProviders([free, ads]),
+    rent: toProviders([rent]),
+    buy: toProviders([buy]),
   };
   const providerCount =
     options.stream.length +
@@ -491,6 +533,67 @@ function toCertification(
 
   return undefined;
 }
+
+/** The genres with an id and a name, each once. */
+function toGenres(genres: Partial<Genre>[]): Genre[] {
+  const byId = new Map<number, Genre>();
+
+  for (const genre of genres) {
+    if (
+      typeof genre.id === 'number' &&
+      typeof genre.name === 'string' &&
+      genre.name &&
+      !byId.has(genre.id)
+    ) {
+      byId.set(genre.id, { id: genre.id, name: genre.name });
+    }
+  }
+
+  return [...byId.values()];
+}
+
+/** The services of a country, in the order JustWatch has them there. */
+function toRegionProviders(results: unknown, region: string) {
+  return toProviders([results], (provider) => {
+    const priorities = provider.display_priorities;
+    const own =
+      typeof priorities === 'object' && priorities !== null
+        ? (priorities as JsonObject)[region]
+        : undefined;
+
+    // Those without an order there go last, in the order of every country.
+    return typeof own === 'number' ? own : 1000 + displayPriority(provider);
+  });
+}
+
+/** The age ratings of a country, the mildest first, without "NR". */
+function toAgeRatings(body: CertificationsBody, region: string): string[] {
+  const list = body.certifications?.[region];
+  const codes = objectArray(list)
+    .filter((rating) => typeof rating.order === 'number')
+    .sort((a, b) => (a.order as number) - (b.order as number))
+    .map((rating) => ratingCode(rating.certification))
+    .filter((code) => code !== undefined);
+
+  return [...new Set(codes)];
+}
+
+/** The codes of the original languages, without "no language". */
+function toLanguages(body: unknown): string[] {
+  const codes = objectArray(body)
+    .map((language) => language.iso_639_1)
+    .filter(
+      (code): code is string =>
+        typeof code === 'string' &&
+        LANGUAGE_CODE.test(code) &&
+        code !== NO_LANGUAGE,
+    );
+
+  return [...new Set(codes)].sort();
+}
+
+/** Today as YYYY-MM-DD, in UTC. */
+const today = () => new Date().toISOString().slice(0, 10);
 
 function toDetails(body: DetailsBody, request: DetailsRequest): MediaDetails {
   const { type, language, region } = request;
@@ -757,6 +860,33 @@ export function createTmdbClient(options: TmdbClientOptions) {
     options.sleep ??
     ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
 
+  // The age ratings of every country, kept for a day: a discovery with
+  // one needs them on every page.
+  const ageRatingLists = new Map<
+    MediaType,
+    { savedAt: number; body: Promise<CertificationsBody> }
+  >();
+
+  function ageRatingList(type: MediaType): Promise<CertificationsBody> {
+    const kept = ageRatingLists.get(type);
+
+    if (kept && Date.now() - kept.savedAt < AGE_RATINGS_MAX_AGE_MS) {
+      return kept.body;
+    }
+
+    const body = request<CertificationsBody>(`/certification/${type}/list`);
+
+    ageRatingLists.set(type, { savedAt: Date.now(), body });
+    // A failure is not kept: the next discovery asks again.
+    body.catch(() => {
+      if (ageRatingLists.get(type)?.body === body) {
+        ageRatingLists.delete(type);
+      }
+    });
+
+    return body;
+  }
+
   async function request<T>(
     path: string,
     { params = {}, method, body, v4 = false, userToken }: RequestOptions = {},
@@ -856,13 +986,25 @@ export function createTmdbClient(options: TmdbClientOptions) {
 
   return {
     async search(search: SearchRequest): Promise<Paged<SearchItem>> {
+      const params: Record<string, string | number> = {
+        query: search.query,
+        page: search.page,
+        language: search.language,
+        include_adult: 'false',
+      };
+
+      // The year it came out: `year` would also take a tv show that had
+      // episodes that year.
+      if (search.year && search.type !== 'multi') {
+        params[
+          search.type === 'movie'
+            ? 'primary_release_year'
+            : 'first_air_date_year'
+        ] = search.year;
+      }
+
       const body = await request<SearchBody>(`/search/${search.type}`, {
-        params: {
-          query: search.query,
-          page: search.page,
-          language: search.language,
-          include_adult: 'false',
-        },
+        params,
       });
 
       return toPaged(body, search.page, (item): SearchItem[] => {
@@ -897,20 +1039,102 @@ export function createTmdbClient(options: TmdbClientOptions) {
         request<GenreBody>('/genre/movie/list', { params: { language } }),
         request<GenreBody>('/genre/tv/list', { params: { language } }),
       ]);
-      const byId = new Map<number, Genre>();
 
-      for (const genre of [...(movie.genres ?? []), ...(tv.genres ?? [])]) {
-        if (
-          typeof genre.id === 'number' &&
-          typeof genre.name === 'string' &&
-          genre.name &&
-          !byId.has(genre.id)
-        ) {
-          byId.set(genre.id, { id: genre.id, name: genre.name });
+      return toGenres([...(movie.genres ?? []), ...(tv.genres ?? [])]);
+    },
+
+    /**
+     * Movies or tv shows that match every filter. Wherever the average
+     * matters, only titles with enough votes for it (MIN_VOTES); the
+     * newest are the ones already out.
+     */
+    async discover(discover: DiscoverRequest): Promise<Paged<MediaItem>> {
+      const { type, page, region, sort, ageRating, providers } = discover;
+      const field = RELEASE_FIELD[type];
+      const params: Record<string, string | number> = {
+        page,
+        language: discover.language,
+        include_adult: 'false',
+        sort_by: DISCOVER_ORDER[sort][type],
+      };
+      const latest = [
+        discover.toYear ? `${discover.toYear}-12-31` : undefined,
+        sort === 'newest' ? today() : undefined,
+      ]
+        .filter((day) => day !== undefined)
+        .sort()[0];
+
+      if (discover.fromYear) {
+        params[`${field}.gte`] = `${discover.fromYear}-01-01`;
+      }
+
+      if (latest) {
+        params[`${field}.lte`] = latest;
+      }
+
+      if (discover.minRating) {
+        params['vote_average.gte'] = discover.minRating;
+      }
+
+      if (discover.minRating || sort === 'rating') {
+        params['vote_count.gte'] = MIN_VOTES[type];
+      } else if (sort === 'newest') {
+        params['vote_count.gte'] = NEWEST_MIN_VOTES;
+      }
+
+      // A comma asks for all the genres, a bar for any of the services.
+      if (discover.genres?.length) {
+        params.with_genres = discover.genres.join(',');
+      }
+
+      if (discover.originalLanguage) {
+        params.with_original_language = discover.originalLanguage;
+      }
+
+      // That rating and the milder ones, by name: "up to" (certification.lte)
+      // would also take the titles rated "NR", most of them in the US.
+      if (ageRating) {
+        const ratings = toAgeRatings(await ageRatingList(type), region);
+        const index = ratings.indexOf(ageRating);
+
+        if (index !== -1) {
+          params.certification_country = region;
+          params.certification = ratings.slice(0, index + 1).join('|');
         }
       }
 
-      return [...byId.values()];
+      // Without the country, TMDB ignores the services.
+      if (providers?.length) {
+        params.watch_region = region;
+        params.with_watch_providers = providers.join('|');
+      }
+
+      const body = await request<SearchBody>(`/discover/${type}`, { params });
+
+      return toPaged(body, page, (item) => toTitles(item, type));
+    },
+
+    /** The genres, services, age ratings and languages to filter by. */
+    async discoverFilters({
+      type,
+      language,
+      region,
+    }: DiscoverFiltersRequest): Promise<DiscoverFilters> {
+      const [genres, providers, ageRatings, languages] = await Promise.all([
+        request<GenreBody>(`/genre/${type}/list`, { params: { language } }),
+        request<{ results?: unknown }>(`/watch/providers/${type}`, {
+          params: { language, watch_region: region },
+        }),
+        ageRatingList(type),
+        request<unknown>('/configuration/languages'),
+      ]);
+
+      return {
+        genres: toGenres(genres.genres ?? []),
+        providers: toRegionProviders(providers.results, region),
+        ageRatings: toAgeRatings(ageRatings, region),
+        languages: toLanguages(languages),
+      };
     },
 
     /** The first page of a home page list, movies and tv shows only. */

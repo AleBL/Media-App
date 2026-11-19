@@ -1,8 +1,12 @@
 import {
+  DISCOVER_SORTS,
   RATINGS,
   type AccountList,
   type AccountListRequest,
   type DetailsRequest,
+  type DiscoverFiltersRequest,
+  type DiscoverRequest,
+  type DiscoverSort,
   type ListRequest,
   type MarkRequest,
   type MediaList,
@@ -28,6 +32,18 @@ const API_KEY = /^[\w.-]{16,1024}$/;
 const MAX_QUERY_LENGTH = 200;
 /** TMDB ids are far below this; anything larger is not one of theirs. */
 const MAX_ID = 2_147_483_647;
+/** The first movies are from the 1870s; TMDB has titles announced to 2099. */
+const MIN_YEAR = 1870;
+const MAX_YEAR = 2100;
+const MAX_GENRES = 10;
+/** Brazil has 90 services. */
+const MAX_PROVIDERS = 100;
+/**
+ * An age rating such as `14`, `PG-13`, `M/12` or `Públicos`: never the bar
+ * or the comma that join them.
+ */
+const AGE_RATING = /^[\p{L}\p{N}+\-/. ]{1,12}$/u;
+const LANGUAGE_CODE = /^[a-z]{2}$/;
 
 /** An app locale such as `en` or `pt-BR`. */
 export function parseLanguage(value: unknown): string | null {
@@ -84,12 +100,25 @@ export function parseDetailsRequest(value: unknown): DetailsRequest | null {
 
 const SEARCH_TYPES: readonly SearchType[] = ['movie', 'tv', 'multi'];
 
+const isYear = (value: unknown): value is number =>
+  typeof value === 'number' &&
+  Number.isInteger(value) &&
+  value >= MIN_YEAR &&
+  value <= MAX_YEAR;
+
+/** Missing, or what `check` takes. */
+const absentOr = <T>(value: unknown, check: (value: unknown) => value is T) =>
+  value === undefined || check(value);
+
 export function parseSearchRequest(value: unknown): SearchRequest | null {
   if (typeof value !== 'object' || value === null) {
     return null;
   }
 
-  const { type, query, page, language } = value as Record<string, unknown>;
+  const { type, query, page, language, year } = value as Record<
+    string,
+    unknown
+  >;
   const text = typeof query === 'string' ? query.trim() : '';
   const locale = parseLanguage(language);
 
@@ -101,12 +130,20 @@ export function parseSearchRequest(value: unknown): SearchRequest | null {
     !Number.isInteger(page) ||
     page < 1 ||
     page > TMDB_MAX_PAGES ||
-    locale === null
+    locale === null ||
+    !absentOr(year, isYear)
   ) {
     return null;
   }
 
-  return { type: type as SearchType, query: text, page, language: locale };
+  // A search of everything has no year: people have none.
+  return {
+    type: type as SearchType,
+    query: text,
+    page,
+    language: locale,
+    ...(year !== undefined && type !== 'multi' && { year }),
+  };
 }
 
 const isMediaType = (value: unknown): value is MediaType =>
@@ -141,6 +178,92 @@ export function parseTitleRequest(value: unknown): TitleRequest | null {
   const { type, id } = value as Record<string, unknown>;
 
   return isMediaType(type) && isId(id) ? { type, id } : null;
+}
+
+/** Ids without repeats, at most `max`; none when missing. */
+function parseIds(value: unknown, max: number): number[] | null {
+  if (value === undefined) {
+    return [];
+  }
+
+  return Array.isArray(value) && value.length <= max && value.every(isId)
+    ? [...new Set(value)]
+    : null;
+}
+
+const isMinRating = (value: unknown): value is number =>
+  typeof value === 'number' &&
+  Number.isInteger(value) &&
+  value >= 1 &&
+  value <= 9;
+
+const isLanguageCode = (value: unknown): value is string =>
+  typeof value === 'string' && LANGUAGE_CODE.test(value);
+
+const isAgeRating = (value: unknown): value is string =>
+  typeof value === 'string' && AGE_RATING.test(value);
+
+export function parseDiscoverRequest(value: unknown): DiscoverRequest | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const fields = value as Record<string, unknown>;
+  const { type, page, sort, fromYear, toYear, minRating } = fields;
+  const { originalLanguage, ageRating } = fields;
+  const language = parseLanguage(fields.language);
+  const region = parseRegion(fields.region);
+  const genres = parseIds(fields.genres, MAX_GENRES);
+  const providers = parseIds(fields.providers, MAX_PROVIDERS);
+
+  if (
+    !isMediaType(type) ||
+    !isPage(page) ||
+    language === null ||
+    region === null ||
+    !DISCOVER_SORTS.includes(sort as DiscoverSort) ||
+    genres === null ||
+    providers === null ||
+    !absentOr(fromYear, isYear) ||
+    !absentOr(toYear, isYear) ||
+    (isYear(fromYear) && isYear(toYear) && fromYear > toYear) ||
+    !absentOr(minRating, isMinRating) ||
+    !absentOr(originalLanguage, isLanguageCode) ||
+    !absentOr(ageRating, isAgeRating)
+  ) {
+    return null;
+  }
+
+  return {
+    type,
+    page,
+    language,
+    region,
+    sort: sort as DiscoverSort,
+    ...(genres.length > 0 && { genres }),
+    ...(isYear(fromYear) && { fromYear }),
+    ...(isYear(toYear) && { toYear }),
+    ...(isMinRating(minRating) && { minRating }),
+    ...(isLanguageCode(originalLanguage) && { originalLanguage }),
+    ...(isAgeRating(ageRating) && { ageRating }),
+    ...(providers.length > 0 && { providers }),
+  };
+}
+
+export function parseDiscoverFiltersRequest(
+  value: unknown,
+): DiscoverFiltersRequest | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const { type, language, region } = value as Record<string, unknown>;
+  const locale = parseLanguage(language);
+  const country = parseRegion(region);
+
+  return isMediaType(type) && locale !== null && country !== null
+    ? { type, language: locale, region: country }
+    : null;
 }
 
 /** A person, by their id. */

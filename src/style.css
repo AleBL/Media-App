@@ -74,7 +74,38 @@
   @apply text-xl font-semibold text-surface-900 dark:text-surface-0;
 }
 
+/* Something that scrolls without a bar, such as a row of cards that has its
+   own arrows. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+}
+
+/* The sides fade out where they are set to (--fade-left, --fade-right), as
+   a row of cards does where there is more to see. */
+@utility fade-x {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--fade-left, 0px),
+    #000 calc(100% - var(--fade-right, 0px)),
+    transparent
+  );
+}
+
 @layer base {
+  /* The bars, fields and menus of the system in the theme of the app: the
+     dark theme would have them light. The bars thin and in its colors. */
+  :root {
+    color-scheme: light;
+    scrollbar-color: var(--color-surface-300) transparent;
+    scrollbar-width: thin;
+  }
+
+  :root.dark {
+    color-scheme: dark;
+    scrollbar-color: var(--color-surface-600) transparent;
+  }
+
   /* The page as it was with Bootstrap, which set these. Dark like #app
      (index.html), for what shows past it, as the last margin of a page. */
   body {

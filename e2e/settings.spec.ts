@@ -34,6 +34,8 @@ test.describe('settings', () => {
     await page.getByRole('radio', { name: 'Dark' }).check();
 
     await expect(page.locator('html')).toHaveClass(/dark/);
+    // the bars and fields of the system too
+    await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
     await expect
       .poll(() => app.evaluate(({ nativeTheme }) => nativeTheme.themeSource))
       .toBe('dark');

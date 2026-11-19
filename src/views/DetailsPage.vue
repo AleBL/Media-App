@@ -182,6 +182,13 @@
 
     return groups.filter((group) => group.providers.length > 0);
   });
+
+  // The page of TMDB with the links to the title on each service.
+  const watchLink = computed(() => details.value?.watch?.link);
+
+  /** What makes a link open in the browser, when there is one. */
+  const outside = (href: string | undefined) =>
+    href ? { href, target: '_blank', rel: 'noopener noreferrer' } : {};
 </script>
 
 <template>
@@ -334,13 +341,17 @@
               :label="t('details.trailer')"
               icon="pi pi-youtube"
             />
-            <AppButton
+            <!-- In the colors of IMDb, where it leads. -->
+            <a
               v-if="imdbUrl"
               :href="imdbUrl"
-              :label="t('details.imdb')"
-              icon="pi pi-external-link"
-              severity="secondary"
-            />
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex h-9 items-center gap-2 rounded-md bg-imdb px-3.5 text-sm font-semibold text-black no-underline shadow-xs transition hover:brightness-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-primary-400 dark:focus-visible:ring-offset-surface-800"
+            >
+              <span class="pi pi-external-link" aria-hidden="true" />
+              {{ t('details.imdb') }}
+            </a>
           </div>
         </div>
 
@@ -361,26 +372,37 @@
               </h3>
               <ul class="mt-2 flex list-none flex-wrap gap-3 p-0">
                 <li v-for="provider in group.providers" :key="provider.id">
-                  <!-- The name of the service shows on hover; screen readers
-                     read it from the logo. -->
+                  <!-- Each service leads to the page of TMDB, which links
+                       straight to the title on each one: TMDB gives no link
+                       of its own per service. The name of the service shows
+                       on hover and on focus; screen readers read it from
+                       the logo. -->
                   <AppTooltip
                     v-if="provider.logoPath"
                     :text="provider.name"
                     side="top"
                   >
-                    <AppImage
-                      :src="logoUrl(provider.logoPath)"
-                      :alt="provider.name"
-                      shape="square"
-                      class="h-12 w-12 rounded-lg"
-                    />
+                    <component
+                      :is="watchLink ? 'a' : 'span'"
+                      v-bind="outside(watchLink)"
+                      class="block rounded-lg transition-shadow hover:shadow-md hover:ring-2 hover:ring-primary-500/60"
+                    >
+                      <AppImage
+                        :src="logoUrl(provider.logoPath)"
+                        :alt="provider.name"
+                        shape="square"
+                        class="h-12 w-12 rounded-lg"
+                      />
+                    </component>
                   </AppTooltip>
-                  <span
+                  <component
+                    :is="watchLink ? 'a' : 'span'"
                     v-else
-                    class="flex h-12 items-center rounded-lg bg-surface-100 px-3 text-sm dark:bg-surface-700"
+                    v-bind="outside(watchLink)"
+                    class="flex h-12 items-center rounded-lg bg-surface-100 px-3 text-sm text-surface-800 no-underline hover:ring-2 hover:ring-primary-500/60 dark:bg-surface-700 dark:text-surface-100"
                   >
                     {{ provider.name }}
-                  </span>
+                  </component>
                 </li>
               </ul>
             </div>

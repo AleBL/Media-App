@@ -109,6 +109,11 @@ describe('DetailsPage', () => {
     expect(imdb.attributes('href')).toBe(
       'https://www.imdb.com/title/tt0133093/',
     );
+    // in the colors of IMDb
+    expect(imdb.text()).toBe('See on IMDb');
+    expect(imdb.classes()).toEqual(
+      expect.arrayContaining(['bg-imdb', 'text-black']),
+    );
     for (const link of [trailer, imdb]) {
       expect(link.attributes('target')).toBe('_blank');
       expect(link.attributes('rel')).toBe('noopener noreferrer');
@@ -128,9 +133,41 @@ describe('DetailsPage', () => {
     expect(wrapper.text()).toContain('Apple TV');
     expect(wrapper.text()).not.toContain('Buy');
     expect(wrapper.text()).toContain('Where to watch: data from JustWatch.');
-    expect(wrapper.get('a[href^="https://www.themoviedb.org/"]').text()).toBe(
-      'See the links on TMDB',
-    );
+    // after the services, which lead there too
+    expect(
+      wrapper.findAll('a[href^="https://www.themoviedb.org/"]').at(-1)!.text(),
+    ).toBe('See the links on TMDB');
+  });
+
+  it('leads from each service to the page of TMDB with the links to the title', async () => {
+    await open();
+
+    const link = MATRIX.watch!.link!;
+    const netflix = wrapper.get('img[alt="Netflix"]').element.closest('a')!;
+    const appleTv = wrapper
+      .findAll('a')
+      .find((found) => found.text() === 'Apple TV')!;
+
+    for (const service of [netflix, appleTv.element]) {
+      expect(service.getAttribute('href')).toBe(link);
+      expect(service.getAttribute('target')).toBe('_blank');
+      expect(service.getAttribute('rel')).toBe('noopener noreferrer');
+    }
+  });
+
+  it('shows the services without links when TMDB gives no page for them', async () => {
+    api.tmdb.details.mockResolvedValue({
+      ok: true,
+      data: { ...MATRIX, watch: { ...MATRIX.watch!, link: undefined } },
+    });
+
+    await open();
+
+    expect(wrapper.get('img[alt="Netflix"]').element.closest('a')).toBeNull();
+    expect(wrapper.text()).toContain('Apple TV');
+    expect(
+      wrapper.find('a[href^="https://www.themoviedb.org/"]').exists(),
+    ).toBe(false);
   });
 
   it('says so when nothing offers the title in the region', async () => {

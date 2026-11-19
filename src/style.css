@@ -39,6 +39,9 @@
   --color-surface-900: rgb(15 23 42);
   --color-surface-950: rgb(3 6 23);
 
+  /* The yellow of IMDb, for the link that leads there. */
+  --color-imdb: rgb(245 197 24);
+
   /* A page coming in fades in (App.vue). */
   --animate-page-in: page-in 150ms ease-out;
 

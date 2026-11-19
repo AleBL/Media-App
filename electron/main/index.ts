@@ -16,7 +16,15 @@ import { startLoopback } from './auth/loopback';
 import { createAuthService } from './auth/service';
 import { createSessionStore } from './auth/session-store';
 import { registerIpc } from './ipc';
-import { isAppUrl, isSafeExternalUrl, type AppLocation } from './security';
+import {
+  allowsPermission,
+  isAppUrl,
+  isSafeExternalUrl,
+  isTrailerUrl,
+  TRAILER_ORIGIN,
+  withAppReferer,
+  type AppLocation,
+} from './security';
 import { createTmdbClient } from '../../shared/tmdb/client';
 import {
   createMemoryListCache,
@@ -128,13 +136,31 @@ app.on('web-contents-created', (_event, contents) => {
     }
   });
 
+  // A frame only shows the player of a trailer; anything else it would go
+  // to opens in the browser.
+  contents.on('will-frame-navigate', (event) => {
+    if (!event.isMainFrame && !isTrailerUrl(event.url)) {
+      event.preventDefault();
+      openInBrowser(event.url);
+    }
+  });
+
   contents.on('will-attach-webview', (event) => event.preventDefault());
 });
 
 app.whenReady().then(async () => {
-  // The app needs no camera, microphone, location or notifications.
+  // The app needs no camera, microphone, location or notifications: only
+  // full screen, for the player of a trailer.
   session.defaultSession.setPermissionRequestHandler(
-    (_contents, _permission, callback) => callback(false),
+    (_contents, permission, callback, details) =>
+      callback(allowsPermission(permission, details.requestingUrl)),
+  );
+
+  // The player of YouTube only plays when it knows who embeds it.
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: [`${TRAILER_ORIGIN}/embed/*`] },
+    (details, callback) =>
+      callback({ requestHeaders: withAppReferer(details.requestHeaders) }),
   );
 
   const userData = app.getPath('userData');

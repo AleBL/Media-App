@@ -4,6 +4,7 @@
   import { storeToRefs } from 'pinia';
   import type { MediaType, WatchProvider } from '@shared/api';
   import AccountButtons from '@/components/Account/AccountButtons.vue';
+  import TrailerDialog from '@/components/Details/TrailerDialog.vue';
   import AppButton from '@/components/ui/AppButton.vue';
   import AppImage from '@/components/ui/AppImage.vue';
   import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
@@ -141,12 +142,6 @@
       ),
     };
   });
-
-  const trailerUrl = computed(() =>
-    details.value?.trailer
-      ? `https://www.youtube.com/watch?v=${details.value.trailer.key}`
-      : null,
-  );
 
   const imdbUrl = computed(() =>
     details.value?.imdbId
@@ -334,12 +329,14 @@
 
           <AccountButtons :id="details.id" class="mt-6" :type="details.type" />
 
-          <div v-if="trailerUrl || imdbUrl" class="mt-4 flex flex-wrap gap-3">
-            <AppButton
-              v-if="trailerUrl"
-              :href="trailerUrl"
-              :label="t('details.trailer')"
-              icon="pi pi-youtube"
+          <div
+            v-if="details.trailer || imdbUrl"
+            class="mt-4 flex flex-wrap gap-3"
+          >
+            <TrailerDialog
+              v-if="details.trailer"
+              :video-key="details.trailer.key"
+              :title="details.title"
             />
             <!-- In the colors of IMDb, where it leads. -->
             <a

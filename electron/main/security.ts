@@ -36,6 +36,51 @@ export function isAppUrl(url: string, location: AppLocation): boolean {
   );
 }
 
+/** Where the player of the trailers comes from: YouTube, without its
+ * cookies until a video plays. */
+export const TRAILER_ORIGIN = 'https://www.youtube-nocookie.com';
+
+/**
+ * Who the app is, for YouTube. Its player answers "Error 153" to a page that
+ * does not say where it is embedded, and a page loaded from file:// says
+ * nothing; YouTube asks an app for https:// and its app id, the appId of
+ * electron-builder.json5.
+ */
+export const APP_REFERER = 'https://io.github.alebl.mediaapp';
+
+/** The headers of a request for the player, saying who the app is. */
+export function withAppReferer(
+  headers: Record<string, string>,
+): Record<string, string> {
+  return { ...headers, Referer: APP_REFERER };
+}
+
+/** True for the player of a trailer, the only page the app shows in a frame. */
+export function isTrailerUrl(url: string): boolean {
+  try {
+    const target = new URL(url);
+
+    return (
+      target.origin === TRAILER_ORIGIN && target.pathname.startsWith('/embed/')
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** The one permission the app gives: full screen, to the player of a
+ * trailer. */
+export function allowsPermission(
+  permission: string,
+  requestingUrl: string | undefined,
+): boolean {
+  return (
+    permission === 'fullscreen' &&
+    requestingUrl !== undefined &&
+    isTrailerUrl(requestingUrl)
+  );
+}
+
 export function isNativeTheme(value: unknown): value is NativeTheme {
   return value === 'system' || value === 'light' || value === 'dark';
 }

@@ -49,6 +49,8 @@ function contentSecurityPolicy(): Plugin {
         // CSSOM, which the policy does not restrict.
         `style-src 'self'${isDevServer ? " 'unsafe-inline'" : ''}`,
         "img-src 'self' data: https://image.tmdb.org",
+        // Only the player of YouTube, for the trailers (TrailerDialog).
+        'frame-src https://www.youtube-nocookie.com',
         "font-src 'self' data:",
         `connect-src 'self'${isDevServer ? ' ws:' : ''}`,
         "object-src 'none'",

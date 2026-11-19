@@ -59,6 +59,8 @@ describe('DetailsPage', () => {
 
   afterEach(() => {
     wrapper.unmount();
+    // What opened in a layer of its own, such as the trailer.
+    document.body.innerHTML = '';
     delete window.api;
   });
 
@@ -96,28 +98,35 @@ describe('DetailsPage', () => {
     );
   });
 
-  it('links to the trailer and to IMDb, to open in the browser', async () => {
+  it('links to IMDb, to open in the browser, in its colors', async () => {
     await open();
 
-    const trailer = wrapper.get('a[href^="https://www.youtube.com/"]');
     const imdb = wrapper.get('a[href^="https://www.imdb.com/"]');
 
-    expect(trailer.attributes('href')).toBe(
-      'https://www.youtube.com/watch?v=vKQi3bBA1y8',
-    );
-    expect(trailer.text()).toBe('Watch the trailer');
     expect(imdb.attributes('href')).toBe(
       'https://www.imdb.com/title/tt0133093/',
     );
-    // in the colors of IMDb
     expect(imdb.text()).toBe('See on IMDb');
     expect(imdb.classes()).toEqual(
       expect.arrayContaining(['bg-imdb', 'text-black']),
     );
-    for (const link of [trailer, imdb]) {
-      expect(link.attributes('target')).toBe('_blank');
-      expect(link.attributes('rel')).toBe('noopener noreferrer');
-    }
+    expect(imdb.attributes('target')).toBe('_blank');
+    expect(imdb.attributes('rel')).toBe('noopener noreferrer');
+  });
+
+  it('plays the trailer over the page, without leaving the app', async () => {
+    await open();
+
+    await button('Watch the trailer')!.trigger('click');
+    await flushPromises();
+
+    expect(
+      document.body
+        .querySelector('[role="dialog"] iframe')!
+        .getAttribute('src'),
+    ).toBe(
+      'https://www.youtube-nocookie.com/embed/vKQi3bBA1y8?autoplay=1&rel=0',
+    );
   });
 
   it('shows where to watch in the region of the user, from JustWatch', async () => {
@@ -215,10 +224,8 @@ describe('DetailsPage', () => {
     expect(wrapper.text()).toContain('47 min per episode');
     expect(wrapper.text()).toContain('5 seasons');
     expect(wrapper.text()).toContain('62 episodes');
-    // nothing to link to
-    expect(wrapper.find('a[href^="https://www.youtube.com/"]').exists()).toBe(
-      false,
-    );
+    // no trailer to play
+    expect(button('Watch the trailer')).toBeUndefined();
   });
 
   it('asks again in the language chosen in the menu', async () => {

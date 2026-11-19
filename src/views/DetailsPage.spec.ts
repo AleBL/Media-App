@@ -249,6 +249,19 @@ describe('DetailsPage', () => {
     expect(people[1].find('img').exists()).toBe(false);
   });
 
+  it('leads from each person of the cast to their page', async () => {
+    await open();
+
+    const links = wrapper.findAll('[aria-labelledby="cast-title"] li a');
+
+    expect(links.map((link) => [link.text(), link.attributes('href')])).toEqual(
+      [
+        ['Keanu Reeves', '/person/6384'],
+        ['Laurence Fishburne', '/person/2975'],
+      ],
+    );
+  });
+
   it('shows the seasons and episodes of a tv show', async () => {
     api.tmdb.details.mockResolvedValue({ ok: true, data: BREAKING_BAD });
 

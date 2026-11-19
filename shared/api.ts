@@ -40,6 +40,13 @@ export interface MediaItem {
   rating?: number;
   /** YYYY-MM-DD, only in the list of watched titles. */
   watchedAt?: string;
+  /** Only in the cast of a person: who they played, as TMDB names them. */
+  character?: string;
+  /**
+   * Only in the crew of a person: what they did, as the departments of TMDB
+   * in English (Directing, Writing), for the app to translate.
+   */
+  departments?: string[];
 }
 
 export interface PersonItem {
@@ -91,6 +98,11 @@ export interface DetailsRequest {
 export interface TitleRequest {
   type: MediaType;
   id: number;
+}
+
+export interface PersonRequest {
+  id: number;
+  language: string;
 }
 
 export type AccountList = 'watchlist' | 'favorite';
@@ -191,6 +203,46 @@ export interface MediaDetails {
   cast: CastMember[];
   watch?: WatchOptions;
   certification?: Certification;
+}
+
+/** Where someone is on the web besides TMDB: ids, and a whole url for the site. */
+export interface PersonLinks {
+  /** Such as `nm0000206`. */
+  imdb?: string;
+  instagram?: string;
+  /** Twitter, now X. */
+  x?: string;
+  facebook?: string;
+  tiktok?: string;
+  /** An https address. */
+  homepage?: string;
+}
+
+export interface PersonDetails {
+  id: number;
+  name: string;
+  /** What TMDB knows them for, in English: Acting, Directing, Writing. */
+  department?: string;
+  biography?: string;
+  /**
+   * The language of the biography, such as `en`, when TMDB has none in
+   * the language asked for.
+   */
+  biographyLanguage?: string;
+  /** YYYY-MM-DD. */
+  birthday?: string;
+  /** YYYY-MM-DD. */
+  deathday?: string;
+  placeOfBirth?: string;
+  profilePath?: string;
+  links: PersonLinks;
+  /**
+   * The titles they played in, each once, the best known first (by votes),
+   * with talk shows and the news last.
+   */
+  cast: MediaItem[];
+  /** The titles they worked on behind the camera, in the same order. */
+  crew: MediaItem[];
 }
 
 /** An age rating, such as `14` in Brazil or `PG-13` in the United States. */
@@ -308,6 +360,7 @@ export interface MediaAppApi {
     search(request: SearchRequest): Promise<Result<Paged<SearchItem>>>;
     genres(language: string): Promise<Result<Genre[]>>;
     details(request: DetailsRequest): Promise<Result<MediaDetails>>;
+    person(request: PersonRequest): Promise<Result<PersonDetails>>;
     /** The first page of a list, each title tagged with its type. */
     list(request: ListRequest): Promise<Result<MediaItem[]>>;
     /** Country codes with watch providers, such as `BR`, sorted. */
@@ -370,6 +423,7 @@ export const IPC = {
   tmdbSearch: 'tmdb:search',
   tmdbGenres: 'tmdb:genres',
   tmdbDetails: 'tmdb:details',
+  tmdbPerson: 'tmdb:person',
   tmdbList: 'tmdb:list',
   tmdbRegions: 'tmdb:regions',
   clearCache: 'app:clear-cache',

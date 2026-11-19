@@ -14,7 +14,10 @@ import {
   type MarkRequest,
   type MediaType,
   type Paged,
+  type PersonDetails,
   type PersonItem,
+  type PersonLinks,
+  type PersonRequest,
   type RateRequest,
   type SearchItem,
   type SearchRequest,
@@ -134,6 +137,23 @@ type DetailsBody = {
   'watch/providers'?: { results?: unknown } | null;
   release_dates?: { results?: unknown } | null;
   content_ratings?: { results?: unknown } | null;
+};
+
+type PersonBody = {
+  id?: unknown;
+  adult?: unknown;
+  name?: unknown;
+  known_for_department?: unknown;
+  biography?: unknown;
+  birthday?: unknown;
+  deathday?: unknown;
+  place_of_birth?: unknown;
+  profile_path?: unknown;
+  homepage?: unknown;
+  imdb_id?: unknown;
+  external_ids?: Record<string, unknown> | null;
+  translations?: { translations?: unknown } | null;
+  combined_credits?: { cast?: unknown; crew?: unknown } | null;
 };
 
 type JsonObject = Record<string, unknown>;
@@ -529,6 +549,205 @@ function toDetails(body: DetailsBody, request: DetailsRequest): MediaDetails {
   };
 }
 
+/** Talk shows and the news: someone there is a guest, not in a role. */
+const TALK_AND_NEWS = [10767, 10763];
+
+/** The order of what someone did on a title, behind the camera. */
+const DEPARTMENTS = [
+  'Directing',
+  'Writing',
+  'Creator',
+  'Production',
+  'Editing',
+  'Camera',
+  'Sound',
+  'Art',
+  'Costume & Make-Up',
+  'Visual Effects',
+  'Lighting',
+  'Crew',
+];
+
+/** A name on a social network: letters, digits, dots and underscores. */
+const HANDLE = /^[\w.]{1,64}$/;
+const IMDB_PERSON = /^nm\d{5,10}$/;
+
+interface Credit {
+  item: MediaItem;
+  votes: number;
+  talk: boolean;
+  roles: string[];
+}
+
+/**
+ * Each title once, with every role in it, the best known first: by votes,
+ * which popularity is not (talk shows are popular this week), with talk
+ * shows and the news last.
+ */
+function toCredits(
+  list: unknown,
+  roleOf: (credit: JsonObject) => string | undefined,
+): Credit[] {
+  const byTitle = new Map<string, Credit>();
+
+  for (const credit of objectArray(list)) {
+    const [item] = toTitles(credit, credit.media_type);
+
+    if (!item) {
+      continue;
+    }
+
+    const key = `${item.media_type}-${item.id}`;
+    let entry = byTitle.get(key);
+
+    if (!entry) {
+      const genres = Array.isArray(credit.genre_ids) ? credit.genre_ids : [];
+
+      entry = {
+        item,
+        votes: positiveNumber(credit.vote_count) ?? 0,
+        talk: TALK_AND_NEWS.some((genre) => genres.includes(genre)),
+        roles: [],
+      };
+      byTitle.set(key, entry);
+    }
+
+    const role = roleOf(credit);
+
+    if (role && !entry.roles.includes(role)) {
+      entry.roles.push(role);
+    }
+  }
+
+  return [...byTitle.values()].sort(
+    (a, b) => Number(a.talk) - Number(b.talk) || b.votes - a.votes,
+  );
+}
+
+/** The departments in the order of DEPARTMENTS, any other last. */
+function departmentOrder(a: string, b: string) {
+  const rank = (department: string) => {
+    const index = DEPARTMENTS.indexOf(department);
+
+    return index === -1 ? DEPARTMENTS.length : index;
+  };
+
+  return rank(a) - rank(b);
+}
+
+/**
+ * In the language asked for, or another country's version of it (pt-PT
+ * for pt-BR), or else in English, saying so.
+ */
+function pickBiography(
+  body: PersonBody,
+  language: string,
+): Pick<PersonDetails, 'biography' | 'biographyLanguage'> {
+  const own = nonEmptyText(body.biography)?.trim();
+
+  if (own) {
+    return { biography: own };
+  }
+
+  const base = language.slice(0, 2);
+  const biographies = objectArray(body.translations?.translations).flatMap(
+    (entry) => {
+      const data = entry.data;
+      const text =
+        typeof data === 'object' && data !== null
+          ? nonEmptyText((data as JsonObject).biography)?.trim()
+          : undefined;
+
+      return text && typeof entry.iso_639_1 === 'string'
+        ? [{ language: entry.iso_639_1, country: entry.iso_3166_1, text }]
+        : [];
+    },
+  );
+  const same = biographies.find((entry) => entry.language === base);
+
+  if (same) {
+    return { biography: same.text };
+  }
+
+  const english =
+    biographies.find(
+      (entry) => entry.language === 'en' && entry.country === 'US',
+    ) ?? biographies.find((entry) => entry.language === 'en');
+
+  return english
+    ? { biography: english.text, biographyLanguage: 'en' }
+    : { biography: undefined };
+}
+
+function toHomepage(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.length > 2048) {
+    return undefined;
+  }
+
+  try {
+    return new URL(value).protocol === 'https:' ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function toPersonLinks(body: PersonBody): PersonLinks {
+  const ids = body.external_ids ?? {};
+  const handle = (value: unknown) =>
+    typeof value === 'string' && HANDLE.test(value) ? value : undefined;
+
+  return {
+    imdb: [body.imdb_id, ids.imdb_id].find(
+      (id): id is string => typeof id === 'string' && IMDB_PERSON.test(id),
+    ),
+    instagram: handle(ids.instagram_id),
+    x: handle(ids.twitter_id),
+    facebook: handle(ids.facebook_id),
+    tiktok: handle(ids.tiktok_id),
+    homepage: toHomepage(body.homepage),
+  };
+}
+
+function toPerson(body: PersonBody, language: string): PersonDetails {
+  const name = nonEmptyText(body.name);
+
+  if (typeof body.id !== 'number' || !name) {
+    return invalidResponse();
+  }
+
+  // Searches leave adults out, so their pages are hidden too.
+  if (body.adult === true) {
+    throw new TmdbError('not-found', 404);
+  }
+
+  const date = (value: unknown) =>
+    typeof value === 'string' && DATE.test(value) ? value : undefined;
+  const credits = body.combined_credits;
+
+  return {
+    id: body.id,
+    name,
+    department: nonEmptyText(body.known_for_department),
+    ...pickBiography(body, language),
+    birthday: date(body.birthday),
+    deathday: date(body.deathday),
+    placeOfBirth: nonEmptyText(body.place_of_birth),
+    profilePath: nonEmptyText(body.profile_path),
+    links: toPersonLinks(body),
+    cast: toCredits(credits?.cast, (credit) =>
+      nonEmptyText(credit.character)?.trim(),
+    ).map(({ item, roles }) =>
+      roles.length ? { ...item, character: roles.join(' / ') } : item,
+    ),
+    crew: toCredits(credits?.crew, (credit) =>
+      nonEmptyText(credit.department)?.trim(),
+    ).map(({ item, roles }) => ({
+      ...item,
+      departments: roles.sort(departmentOrder),
+    })),
+  };
+}
+
 export function createTmdbClient(options: TmdbClientOptions) {
   const baseUrl = (options.baseUrl || TMDB_BASE_URL).replace(/\/+$/, '');
   const v4BaseUrl = baseUrl.replace(/\/3$/, '/4');
@@ -740,6 +959,22 @@ export function createTmdbClient(options: TmdbClientOptions) {
       );
 
       return toDetails(body, details);
+    },
+
+    /**
+     * The page of a person, with what they did. The biographies in every
+     * language come along, for one in English when there is none in the
+     * language asked for.
+     */
+    async person({ id, language }: PersonRequest): Promise<PersonDetails> {
+      const body = await request<PersonBody>(`/person/${id}`, {
+        params: {
+          language,
+          append_to_response: 'combined_credits,external_ids,translations',
+        },
+      });
+
+      return toPerson(body, language);
     },
 
     /**

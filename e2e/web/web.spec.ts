@@ -529,6 +529,12 @@ test.describe('web version', () => {
       page.frameLocator('[role="dialog"] iframe').getByText('Player'),
     ).toBeVisible();
     await page.keyboard.press('Escape');
+    // The page of a person of the cast, through the function of the site.
+    await page.getByRole('link', { name: 'Ada Actor' }).click();
+    await expect(heading(page)).toHaveText('Ada Actor');
+    await expect(
+      page.getByRole('region', { name: 'Filmography' }).getByRole('article'),
+    ).toHaveCount(3);
     for (const name of ['settings', 'about', 'account'] as const) {
       await openPage(page, name);
     }

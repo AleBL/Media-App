@@ -5,6 +5,7 @@
   import type { MediaType, WatchProvider } from '@shared/api';
   import AccountButtons from '@/components/Account/AccountButtons.vue';
   import AgeRating from '@/components/Details/AgeRating.vue';
+  import ImdbLink from '@/components/Details/ImdbLink.vue';
   import TrailerDialog from '@/components/Details/TrailerDialog.vue';
   import AppButton from '@/components/ui/AppButton.vue';
   import AppImage from '@/components/ui/AppImage.vue';
@@ -18,6 +19,7 @@
   import { useDetailsStore } from '@/stores/details';
   import { accessProblem } from '@/util/access';
   import { backdropUrl, logoUrl, posterUrl, profileUrl } from '@/util/images';
+  import { personPage } from '@/util/people';
   import { countryName } from '@/util/region';
 
   const props = defineProps<{ type: MediaType; id: number }>();
@@ -336,17 +338,7 @@
               :video-key="details.trailer.key"
               :title="details.title"
             />
-            <!-- In the colors of IMDb, where it leads. -->
-            <a
-              v-if="imdbUrl"
-              :href="imdbUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex h-9 items-center gap-2 rounded-md bg-imdb px-3.5 text-sm font-semibold text-black no-underline shadow-xs transition hover:brightness-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-primary-400 dark:focus-visible:ring-offset-surface-800"
-            >
-              <span class="pi pi-external-link" aria-hidden="true" />
-              {{ t('details.imdb') }}
-            </a>
+            <ImdbLink v-if="imdbUrl" :href="imdbUrl" />
           </div>
         </div>
 
@@ -435,17 +427,26 @@
           :previous-label="t('details.castPrevious')"
           :next-label="t('details.castNext')"
         >
+          <!-- The name leads to the page of the person, and the link
+               covers the picture too. -->
           <li
             v-for="person in details.cast"
             :key="person.id"
-            class="w-28 shrink-0 snap-start text-center sm:w-32"
+            class="group relative w-28 shrink-0 snap-start text-center sm:w-32"
           >
             <AppImage
               :src="person.profilePath ? profileUrl(person.profilePath) : null"
               icon="pi pi-user"
-              class="w-full rounded-md"
+              class="w-full rounded-md transition-shadow duration-200 group-hover:shadow-md group-has-[a:focus-visible]:ring-2 group-has-[a:focus-visible]:ring-primary-500 dark:group-has-[a:focus-visible]:ring-primary-400"
             />
-            <p class="mt-2 text-sm font-medium">{{ person.name }}</p>
+            <p class="mt-2 text-sm font-medium">
+              <RouterLink
+                :to="personPage(person.id)"
+                class="text-surface-900 no-underline outline-hidden after:absolute after:inset-0 group-hover:underline dark:text-surface-0"
+              >
+                {{ person.name }}
+              </RouterLink>
+            </p>
             <p
               v-if="person.character"
               class="text-xs text-surface-500 dark:text-surface-400"

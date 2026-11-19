@@ -6,6 +6,7 @@
   import { useGenresStore } from '@/stores/genres';
   import { posterUrl } from '@/util/images';
   import { mediaPage, mediaTitle, mediaType, mediaYear } from '@/util/media';
+  import { creditRole } from '@/util/people';
 
   const props = defineProps<{
     item: MediaItem;
@@ -27,6 +28,9 @@
   const typeLabel = computed(() =>
     mediaType(props.item) === 'tv' ? 'pageTitles.tvShow' : 'pageTitles.movie',
   );
+
+  // Only the titles of the page of a person have one.
+  const role = computed(() => creditRole(props.item, t));
 
   const oneDecimal = computed(
     () =>
@@ -90,6 +94,9 @@
           >{{ ` (${year})` }}</span
         >
       </h3>
+      <p v-if="role" class="text-sm text-surface-700 dark:text-surface-300">
+        {{ role }}
+      </p>
       <p
         class="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-surface-500 dark:text-surface-400"
       >

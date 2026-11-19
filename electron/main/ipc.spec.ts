@@ -4,6 +4,7 @@ import {
   IPC,
   type CredentialStatus,
   type MediaDetails,
+  type PersonDetails,
   type SessionState,
 } from '../../shared/api';
 import { registerIpc, type IpcEvent, type IpcServices } from './ipc';
@@ -41,6 +42,14 @@ const fromElsewhere: IpcEvent = {
 };
 const search = { type: 'movie', query: 'matrix', page: 1, language: 'en' };
 const details = { type: 'movie', id: 603, language: 'pt-BR', region: 'BR' };
+const KEANU: PersonDetails = {
+  id: 6384,
+  name: 'Keanu Reeves',
+  links: {},
+  cast: [{ id: 603, media_type: 'movie', title: 'Matrix', character: 'Neo' }],
+  crew: [],
+};
+
 const MATRIX: MediaDetails = {
   type: 'movie',
   id: 603,
@@ -73,6 +82,7 @@ describe('ipc handlers', () => {
           totalResults: 1,
         })),
         details: vi.fn(async () => MATRIX),
+        person: vi.fn(async () => KEANU),
         list: vi.fn(async () => [{ id: 603, media_type: 'movie' as const }]),
         regions: vi.fn(async () => ['BR', 'US']),
       },
@@ -444,6 +454,38 @@ describe('ipc handlers', () => {
         call(IPC.tmdbDetails, fromElsewhere, details),
       ).resolves.toEqual({ ok: false, error: { code: 'invalid-request' } });
       expect(services.tmdb.details).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('page of a person', () => {
+    const keanu = { id: 6384, language: 'pt-BR' };
+
+    it('answers with the person, from the app', async () => {
+      await expect(call(IPC.tmdbPerson, fromApp, keanu)).resolves.toEqual({
+        ok: true,
+        data: KEANU,
+      });
+      expect(services.tmdb.person).toHaveBeenCalledWith(keanu);
+    });
+
+    it.each([
+      ['an id that is not a number', { ...keanu, id: '6384/images' }],
+      ['an id that is no id', { ...keanu, id: 0 }],
+      ['a language that is not a locale', { ...keanu, language: '../en' }],
+      ['nothing', undefined],
+    ])('rejects %s without asking', async (_case, request) => {
+      await expect(call(IPC.tmdbPerson, fromApp, request)).resolves.toEqual({
+        ok: false,
+        error: { code: 'invalid-request' },
+      });
+      expect(services.tmdb.person).not.toHaveBeenCalled();
+    });
+
+    it('rejects a sender that is not the app', async () => {
+      await expect(call(IPC.tmdbPerson, fromElsewhere, keanu)).resolves.toEqual(
+        { ok: false, error: { code: 'invalid-request' } },
+      );
+      expect(services.tmdb.person).not.toHaveBeenCalled();
     });
   });
 

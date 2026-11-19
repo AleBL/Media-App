@@ -106,7 +106,10 @@ describe('CardGrid', () => {
     expect(title.get('a').attributes('href')).toBe('#/movie/603');
     expect(person.text()).toContain('Keanu Reeves');
     expect(person.text()).toContain('Known for');
-    expect(person.get('a').attributes('href')).toBe('#/movie/603');
+    expect(person.findAll('a').map((link) => link.attributes('href'))).toEqual([
+      '#/person/6384',
+      '#/movie/603',
+    ]);
   });
 
   it('takes medium for a view it does not know', async () => {

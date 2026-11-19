@@ -17,6 +17,9 @@ export const TOTAL_RESULTS = 45;
 export const QUERY_WITHOUT_RESULTS = 'nothing like this';
 /** The one movie that TMDB does not have. */
 export const MISSING_MOVIE = 404404;
+
+/** The people of the cast of every title, by id. */
+const PEOPLE: Record<number, string> = { 1: 'Ada Actor', 2: 'Bob Actor' };
 /** The trailer of every title, on YouTube. */
 export const TRAILER_KEY = 'e2eTrailer1';
 
@@ -852,6 +855,115 @@ export async function startFakeTmdb() {
                 ],
               },
             }),
+      });
+    }
+
+    // The page of a person of the cast: a biography only in English, two
+    // roles in the same movie, a talk show with more votes than the rest,
+    // and a movie they directed and wrote.
+    const person = /^\/3\/person\/(\d+)$/.exec(url.pathname);
+
+    if (person) {
+      const id = Number(person[1]);
+      const language = query.language;
+      const name = PEOPLE[id] ?? `Person ${id}`;
+      // Long enough to show only its start.
+      const biography = Array.from(
+        { length: 8 },
+        (_, index) =>
+          `${name} was born in Lisbon and plays heroes (${index + 1}).`,
+      ).join('\n\n');
+
+      if (id === MISSING_MOVIE) {
+        return send(404, {
+          success: false,
+          status_code: 34,
+          status_message: 'The resource you requested could not be found.',
+        });
+      }
+
+      return send(200, {
+        id,
+        name,
+        adult: false,
+        known_for_department: 'Acting',
+        biography: language.startsWith('en') ? biography : '',
+        birthday: '1970-05-20',
+        deathday: null,
+        place_of_birth: 'Lisbon, Portugal',
+        profile_path: null,
+        homepage: null,
+        imdb_id: 'nm0000001',
+        external_ids: { imdb_id: 'nm0000001', instagram_id: 'ada.actor' },
+        translations: {
+          translations: [
+            {
+              iso_639_1: 'en',
+              iso_3166_1: 'US',
+              data: { biography, name: '' },
+            },
+          ],
+        },
+        combined_credits: {
+          cast: [
+            {
+              id: 9005,
+              media_type: 'tv',
+              name: `Talk Show [${language}]`,
+              first_air_date: '2015-01-01',
+              genre_ids: [10767],
+              vote_count: 5000,
+              character: 'Self',
+            },
+            {
+              id: 9001,
+              media_type: 'tv',
+              name: `Show 1 [${language}]`,
+              first_air_date: '2008-01-20',
+              genre_ids: [18],
+              vote_count: 300,
+              character: 'Doctor',
+            },
+            {
+              id: 1,
+              media_type: 'movie',
+              title: `Movie 1 [${language}]`,
+              release_date: '2020-01-01',
+              genre_ids: [28],
+              vote_count: 900,
+              character: 'Hero',
+            },
+            {
+              id: 1,
+              media_type: 'movie',
+              title: `Movie 1 [${language}]`,
+              release_date: '2020-01-01',
+              genre_ids: [28],
+              vote_count: 900,
+              character: 'Twin',
+            },
+          ],
+          crew: [
+            {
+              id: 3,
+              media_type: 'movie',
+              title: `Movie 3 [${language}]`,
+              release_date: '2024-01-01',
+              vote_count: 10,
+              department: 'Writing',
+              job: 'Screenplay',
+            },
+            {
+              id: 3,
+              media_type: 'movie',
+              title: `Movie 3 [${language}]`,
+              release_date: '2024-01-01',
+              vote_count: 10,
+              department: 'Directing',
+              job: 'Director',
+            },
+          ],
+        },
       });
     }
 

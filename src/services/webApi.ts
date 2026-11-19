@@ -196,6 +196,8 @@ export function createWebApi(
           language,
           region,
         }),
+      person: ({ id, language }) =>
+        callSite({ resource: 'person', id: String(id), language }),
       list: ({ list, language }) =>
         callSite({ resource: 'list', list, language }),
       regions: () => callSite({ resource: 'regions' }),

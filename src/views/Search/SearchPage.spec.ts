@@ -196,7 +196,10 @@ describe('SearchPage', () => {
       'Person',
     ]);
     expect(cards[2].text()).toContain('Person 1');
-    expect(cards[2].get('a').attributes('href')).toBe('#/movie/1');
+    // the person leads to their page, and to the titles they are known for
+    expect(
+      cards[2].findAll('a').map((link) => link.attributes('href')),
+    ).toEqual(['#/person/1', '#/movie/1']);
     expect(warn.mock.calls.flat().join(' ')).not.toContain('Duplicate keys');
     warn.mockRestore();
   });

@@ -72,7 +72,7 @@ test.describe('web version', () => {
   }) => {
     await page.goto(site.url);
     await openPage(page, 'search');
-    await page.getByRole('radio', { name: 'All' }).check();
+    await page.getByRole('radio', { name: 'All', exact: true }).check();
     await searchBox(page).fill('keanu');
 
     await expect(cards(page)).toHaveCount(20);

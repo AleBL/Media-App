@@ -3,6 +3,7 @@
   import { storeToRefs } from 'pinia';
   import { chooseLanguage, languageName } from '@/components/NavBar/language';
   import { colorScheme } from '@/components/NavBar/theme';
+  import CardViewPicker from '@/components/Cards/CardViewPicker.vue';
   import OwnKeyInput from '@/components/Settings/OwnKeyInput.vue';
   import AppButton from '@/components/ui/AppButton.vue';
   import AppCombobox from '@/components/ui/AppCombobox.vue';
@@ -159,6 +160,14 @@
         :label="t('settings.sizeTitle')"
         name="settings-size"
       />
+    </section>
+
+    <section>
+      <h2 class="mb-2 text-xl">{{ t('cards.view') }}</h2>
+      <p class="mb-3 text-sm text-surface-600 dark:text-surface-300">
+        {{ t('settings.viewHint') }}
+      </p>
+      <CardViewPicker name="settings-view" />
     </section>
 
     <section>

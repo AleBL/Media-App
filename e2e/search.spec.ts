@@ -32,6 +32,33 @@ test.describe('search', () => {
     });
   });
 
+  test('shows the results small, large or as a list, the same on other pages', async ({
+    page,
+  }) => {
+    await searchBox(page).fill('matrix');
+    await expect(cards(page)).toHaveCount(20);
+
+    const first = cards(page).first();
+    const width = async () => (await first.boundingBox())?.width ?? 0;
+    const medium = await width();
+
+    await page.getByRole('radio', { name: 'Small' }).check();
+    await expect.poll(width).toBeLessThan(medium);
+    // too small for the genres
+    await expect(first).not.toContainText('Action');
+
+    await page.getByRole('radio', { name: 'Large' }).check();
+    await expect.poll(width).toBeGreaterThan(medium);
+
+    // A list has the synopsis.
+    await page.getByRole('radio', { name: 'List' }).check();
+    await expect(first).toContainText('The story of title 1, told in en.');
+    await expect(first).toContainText('Movie 1 [en]');
+
+    await openPage(page, 'settings');
+    await expect(page.getByRole('radio', { name: 'List' })).toBeChecked();
+  });
+
   test('asks once for a query typed key by key', async ({ page, tmdb }) => {
     await searchBox(page).pressSequentially('matrix', { delay: 40 });
 
@@ -93,7 +120,7 @@ test.describe('search', () => {
     await searchBox(page).fill('keanu');
     await expect(cards(page).first()).toContainText('Movie 1');
 
-    await page.getByRole('radio', { name: 'All' }).check();
+    await page.getByRole('radio', { name: 'All', exact: true }).check();
 
     await expect(cards(page)).toHaveCount(20);
     await expect(cards(page).nth(1)).toContainText('TV Show');

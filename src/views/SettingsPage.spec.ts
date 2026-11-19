@@ -112,6 +112,18 @@ describe('SettingsPage', () => {
     await radio('settings-theme', 'auto').setValue(true);
   });
 
+  it('chooses how the titles show, as the pages that list them do', async () => {
+    await mountPage();
+
+    expect(isChecked('settings-view', 'medium')).toBe(true);
+
+    await radio('settings-view', 'list').setValue(true);
+    await flushPromises();
+
+    expect(localStorage.getItem('card-view')).toBe('list');
+    expect(useSettingsStore().view).toBe('list');
+  });
+
   it('makes the interface bigger or smaller, or leaves it to the screen', async () => {
     await mountPage();
 

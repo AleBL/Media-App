@@ -55,6 +55,14 @@
     "listsUnavailable": "The lists are unavailable at the moment. Please try again later."
   },
 
+  "cards": {
+    "view": "View",
+    "small": "Small",
+    "medium": "Medium",
+    "large": "Large",
+    "list": "List"
+  },
+
   "settings": {
     "ownKeyTitle": "Your own TMDB key",
     "ownKeyOptional": "The app already has access to TMDB, so this is optional. A key of your own is used instead of the app's, which keeps the search working if the app's access ever stops.",
@@ -79,6 +87,7 @@
     "sizeTitle": "Interface size",
     "sizeHint": "Automatic makes everything a little bigger on a large screen.",
     "sizeAuto": "Automatic",
+    "viewHint": "How the search and the lists show the titles. The rows of the home page follow the size.",
     "cacheTitle": "Cache",
     "cacheHint": "The app keeps the names of the genres and the images to be faster. Clearing them makes it ask TMDB again.",
     "clearCache": "Clear cache",

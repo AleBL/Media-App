@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useStorage } from '@vueuse/core';
 import { userRegion } from '@/util/region';
 
@@ -14,6 +14,14 @@ export type UiSize = (typeof UI_SIZES)[number];
 
 const isUiSize = (value: string): value is UiSize =>
   (UI_SIZES as readonly string[]).includes(value);
+
+/** How the search and the lists show the titles: cards of three sizes, or
+ * a list with the synopsis. */
+export const CARD_VIEWS = ['small', 'medium', 'large', 'list'] as const;
+export type CardView = (typeof CARD_VIEWS)[number];
+
+const isCardView = (value: string): value is CardView =>
+  (CARD_VIEWS as readonly string[]).includes(value);
 
 /**
  * What the user chose on the settings page that the language and the theme
@@ -47,5 +55,12 @@ export const useSettingsStore = defineStore('settings', () => {
     { immediate: true },
   );
 
-  return { region, regionFor, uiSize };
+  /** What was chosen, as kept: a choice on the page sets it. */
+  const cardView = useStorage<string>('card-view', 'medium');
+  /** The view to show: medium when what was kept is not one. */
+  const view = computed<CardView>(() =>
+    isCardView(cardView.value) ? cardView.value : 'medium',
+  );
+
+  return { region, regionFor, uiSize, cardView, view };
 });

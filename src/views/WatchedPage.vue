@@ -6,12 +6,12 @@
   import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
   import AppLoadMore from '@/components/ui/AppLoadMore.vue';
   import AppState from '@/components/ui/AppState.vue';
-  import PosterCardSkeleton from '@/components/Home/PosterCardSkeleton.vue';
-  import PosterCard from '@/components/Home/PosterCard.vue';
+  import CardGrid from '@/components/Cards/CardGrid.vue';
+  import CardGridSkeleton from '@/components/Cards/CardGridSkeleton.vue';
+  import CardViewPicker from '@/components/Cards/CardViewPicker.vue';
   import { useGenresStore } from '@/stores/genres';
   import { useSessionStore } from '@/stores/session';
   import { useWatchedStore } from '@/stores/watched';
-  import { searchKey } from '@/util/media';
 
   const { t, locale } = useI18n();
   const route = useRoute();
@@ -81,11 +81,11 @@
       <!-- Asked again, in another language: the list stays readable. -->
       <AppLoadingBar v-if="view.loading" class="my-1" />
 
-      <ul class="page card-grid list-none py-4">
-        <li v-for="item in view.results" :key="searchKey(item)">
-          <PosterCard :item="item" grid show-type />
-        </li>
-      </ul>
+      <div class="page flex justify-end pt-2">
+        <CardViewPicker name="watched-view" />
+      </div>
+
+      <CardGrid :items="view.results" show-type />
 
       <AppLoadMore
         :loading="view.loadingMore"
@@ -101,9 +101,6 @@
 
     <!-- The shape of the list until it comes; the text is for screen
          readers. -->
-    <div v-else role="status" class="page card-grid py-4">
-      <span class="sr-only">{{ t('lists.loading') }}</span>
-      <PosterCardSkeleton v-for="index in 12" :key="index" />
-    </div>
+    <CardGridSkeleton v-else :label="t('lists.loading')" />
   </div>
 </template>

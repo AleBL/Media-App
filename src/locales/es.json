@@ -55,6 +55,14 @@
     "listsUnavailable": "Las listas no están disponibles en este momento. Inténtalo de nuevo más tarde."
   },
 
+  "cards": {
+    "view": "Vista",
+    "small": "Pequeño",
+    "medium": "Mediano",
+    "large": "Grande",
+    "list": "Lista"
+  },
+
   "settings": {
     "ownKeyTitle": "Tu propia clave de TMDB",
     "ownKeyOptional": "La aplicación ya tiene acceso a TMDB, así que esto es opcional. Una clave tuya se usa en lugar de la de la aplicación, lo que mantiene la búsqueda funcionando si el acceso de la aplicación deja de funcionar algún día.",
@@ -79,6 +87,7 @@
     "sizeTitle": "Tamaño de la interfaz",
     "sizeHint": "En automático, todo se ve un poco más grande en una pantalla grande.",
     "sizeAuto": "Automático",
+    "viewHint": "Cómo la búsqueda y las listas muestran los títulos. Las filas de la página de inicio siguen el tamaño.",
     "cacheTitle": "Caché",
     "cacheHint": "La app guarda los nombres de los géneros y las imágenes para ser más rápida. Borrarlos hace que los pida de nuevo a TMDB.",
     "clearCache": "Borrar caché",

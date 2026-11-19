@@ -8,6 +8,7 @@
   import { useGenresStore } from '@/stores/genres';
   import { useSearchStore } from '@/stores/search';
   import { accessProblem } from '@/util/access';
+  import { FIRST_YEAR, LAST_YEAR } from '@/components/Discover/query';
   import AppButton from '@/components/ui/AppButton.vue';
   import AppLoadMore from '@/components/ui/AppLoadMore.vue';
   import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
@@ -26,6 +27,7 @@
   const {
     query,
     mediaType,
+    year,
     results,
     resultsType,
     totalResults,
@@ -54,9 +56,9 @@
       : `access.${problem.value}`;
   });
 
-  // The search lives in the address too (#/search?q=matrix&type=tv), so a
-  // link, reloading and going back find it. A link with a search sets it;
-  // without one, the search already here goes into the address.
+  // The search lives in the address too (#/search?q=matrix&type=tv&year=1999),
+  // so a link, reloading and going back find it. A link with a search sets
+  // it; without one, the search already here goes into the address.
   const SEARCH_TYPES: SearchType[] = ['movie', 'tv', 'multi'];
 
   function toAddress() {
@@ -64,9 +66,15 @@
     const next = {
       ...(text && { q: text }),
       ...(mediaType.value !== 'movie' && { type: mediaType.value }),
+      ...(year.value !== null &&
+        mediaType.value !== 'multi' && { year: String(year.value) }),
     };
 
-    if (route.query.q !== next.q || route.query.type !== next.type) {
+    if (
+      route.query.q !== next.q ||
+      route.query.type !== next.type ||
+      route.query.year !== next.year
+    ) {
       void router.replace({ query: next });
     }
   }
@@ -74,19 +82,25 @@
   // First from the address, then into it: the other way round, an empty
   // search here would wipe the one of the link before it is read.
   onMounted(() => {
-    const { q, type } = route.query;
+    const { q, type, year: inAddress } = route.query;
 
     if (typeof q === 'string') {
+      const number = Number(inAddress);
+
       query.value = q;
       mediaType.value = SEARCH_TYPES.includes(type as SearchType)
         ? (type as SearchType)
         : 'movie';
+      year.value =
+        Number.isInteger(number) && number >= FIRST_YEAR && number <= LAST_YEAR
+          ? number
+          : null;
     } else {
       toAddress();
     }
   });
 
-  watch([query, mediaType], toAddress);
+  watch([query, mediaType, year], toAddress);
 
   // The user may be coming back from the settings, where the credential
   // changed: ask again instead of showing the old failure.

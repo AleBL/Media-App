@@ -163,6 +163,38 @@ test.describe('search', () => {
     expect(tmdb.lastSearch()?.language).toBe('pt-BR');
   });
 
+  test('finds the titles of a year, with more filters in Explore', async ({
+    page,
+    tmdb,
+  }) => {
+    await searchBox(page).fill('the office');
+    await page.getByRole('radio', { name: 'TV Show' }).check();
+    const year = page.getByRole('spinbutton', { name: 'Year of release' });
+    await year.fill('2005');
+    await year.press('Enter');
+
+    await expect(page).toHaveURL(/#\/search\?q=the\+office&type=tv&year=2005$/);
+    await expect
+      .poll(() => tmdb.lastSearch())
+      .toMatchObject({
+        path: '/3/search/tv',
+        query: 'the office',
+        first_air_date_year: '2005',
+      });
+
+    await page.getByRole('link', { name: 'More filters' }).click();
+
+    await expect(page).toHaveURL(/#\/discover\?type=tv&from=2005&to=2005$/);
+    await expect(heading(page)).toHaveText('Explore');
+    await expect
+      .poll(() => tmdb.lastDiscovery())
+      .toMatchObject({
+        path: '/3/discover/tv',
+        'first_air_date.gte': '2005-01-01',
+        'first_air_date.lte': '2005-12-31',
+      });
+  });
+
   test('says so when nothing is found', async ({ page }) => {
     await searchBox(page).fill(QUERY_WITHOUT_RESULTS);
 

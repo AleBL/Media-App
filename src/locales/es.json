@@ -127,7 +127,10 @@
     "moreFailed": "No se pudieron cargar los siguientes resultados.",
     "showing": "{shown} de {total} resultados",
     "notFoundHint": "Prueba con otras palabras, o busca en todo a la vez.",
-    "tryAgain": "Intentar de nuevo"
+    "tryAgain": "Intentar de nuevo",
+    "year": "Año",
+    "yearLabel": "Año de estreno",
+    "moreFilters": "Más filtros"
   },
 
   "discover": {

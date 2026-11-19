@@ -127,7 +127,10 @@
     "moreFailed": "Não foi possível carregar os próximos resultados.",
     "showing": "{shown} de {total} resultados",
     "notFoundHint": "Tente outras palavras, ou procure em tudo de uma vez.",
-    "tryAgain": "Tentar de novo"
+    "tryAgain": "Tentar de novo",
+    "year": "Ano",
+    "yearLabel": "Ano de lançamento",
+    "moreFilters": "Mais filtros"
   },
 
   "discover": {

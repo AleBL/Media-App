@@ -18,6 +18,7 @@
   import {
     filtersInUse,
     readChoice,
+    toDiscovery,
     toQuery,
     withoutFilters,
     type DiscoverChoice,
@@ -112,7 +113,7 @@
         )
       : settings.myServices;
 
-    return [...mine].sort((a, b) => a - b);
+    return mine;
   });
 
   const onMine = computed(
@@ -126,25 +127,16 @@
     ),
   );
 
-  // Built in the same order every time: the store tells two apart by it.
-  const discovery = computed<Discovery>(() => {
-    const { type, sort, fromYear, toYear, minRating, originalLanguage } =
-      choice.value;
-
-    return {
-      type,
-      language: locale.value,
-      region: region.value,
-      sort,
-      ...(genres.value.length > 0 && { genres: genres.value }),
-      ...(fromYear && { fromYear }),
-      ...(toYear && { toYear }),
-      ...(minRating && { minRating }),
-      ...(originalLanguage && { originalLanguage }),
-      ...(ageRating.value && { ageRating: ageRating.value }),
-      ...(onMine.value && { providers: myServices.value }),
-    };
-  });
+  const discovery = computed<Discovery>(() =>
+    toDiscovery(
+      { ...choice.value, genres: genres.value, ageRating: ageRating.value },
+      {
+        language: locale.value,
+        region: region.value,
+        providers: onMine.value ? myServices.value : [],
+      },
+    ),
+  );
 
   // By what it asks, not by the object: the filters coming in build the
   // same discovery again, which is no reason to ask TMDB again.

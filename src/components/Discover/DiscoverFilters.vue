@@ -12,7 +12,7 @@
   import AppSegmented from '@/components/ui/AppSegmented.vue';
   import AppSkeleton from '@/components/ui/AppSkeleton.vue';
   import { classIndColors, meaningOf } from '@/util/ageRating';
-  import { countryName } from '@/util/region';
+  import { countryName, languageIn } from '@/util/region';
   import MyServices from './MyServices.vue';
   import {
     FIRST_YEAR,
@@ -156,29 +156,12 @@
   });
 
   // Each language by its name in the language of the app, in that order.
-  const languageOptions = computed(() => {
-    let names: Intl.DisplayNames | null = null;
-
-    try {
-      names = new Intl.DisplayNames([locale.value], { type: 'language' });
-    } catch {
-      // Without names, the codes.
-    }
-
-    const options = (props.filters?.languages ?? []).map((code) => {
-      const name = names?.of(code) ?? code;
-
-      return {
-        value: code,
-        label: name.charAt(0).toLocaleUpperCase(locale.value) + name.slice(1),
-      };
-    });
-
-    return [
-      { value: '', label: t('discover.anyLanguage') },
-      ...options.sort((a, b) => a.label.localeCompare(b.label, locale.value)),
-    ];
-  });
+  const languageOptions = computed(() => [
+    { value: '', label: t('discover.anyLanguage') },
+    ...(props.filters?.languages ?? [])
+      .map((code) => ({ value: code, label: languageIn(code, locale.value) }))
+      .sort((a, b) => a.label.localeCompare(b.label, locale.value)),
+  ]);
 
   const language = computed({
     get: () => props.choice.originalLanguage ?? '',

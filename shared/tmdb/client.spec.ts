@@ -673,8 +673,11 @@ describe('genres', () => {
 describe('lists of the home page', () => {
   it.each([
     ['trending', '/3/trending/all/week'],
+    ['trending-movies', '/3/trending/movie/week'],
+    ['trending-tv', '/3/trending/tv/week'],
     ['popular-movies', '/3/movie/popular'],
     ['popular-tv', '/3/tv/popular'],
+    ['now-playing', '/3/movie/now_playing'],
   ] as const)('asks TMDB for %s', async (list, path) => {
     const { client, requestedUrl } = setup([answer(200, { results: [] })]);
 
@@ -704,6 +707,17 @@ describe('lists of the home page', () => {
       { id: 603, media_type: 'movie', title: 'Matrix' },
       { id: 1396, media_type: 'tv', name: 'Breaking Bad' },
     ]);
+  });
+
+  it('asks for the movies in the theaters of a country', async () => {
+    const { client, requestedUrl } = setup([
+      answer(200, { results: [{ id: 1, title: 'In theaters' }] }),
+    ]);
+
+    await expect(
+      client.list({ list: 'now-playing', language: 'pt-BR', region: 'BR' }),
+    ).resolves.toEqual([{ id: 1, media_type: 'movie', title: 'In theaters' }]);
+    expect(requestedUrl().searchParams.get('region')).toBe('BR');
   });
 
   it('tags every title of a popular list with its type', async () => {

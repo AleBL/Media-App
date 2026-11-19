@@ -1,9 +1,9 @@
 import type { Page } from '@playwright/test';
 import { chooseLanguage, expect, heading, test } from './support/fixtures';
 
-/** A list of the home page, by its title. */
+/** A row of the home page, by its title. */
 const list = (page: Page, title: string) =>
-  page.getByRole('region', { name: title });
+  page.getByRole('region', { name: title, exact: true });
 
 // The app opens on the home page, which shows the lists at once.
 test.describe('home page', () => {
@@ -25,17 +25,31 @@ test.describe('home page', () => {
       3,
     );
     await expect(list(page, 'Popular TV shows')).toContainText('Show 11 [en]');
-    // asked at the same time, so in any order
     expect(
-      tmdb
-        .lists()
-        .map(({ path, language }) => `${path} ${language}`)
-        .sort(),
-    ).toEqual([
-      '/3/movie/popular en',
-      '/3/trending/all/week en',
-      '/3/tv/popular en',
-    ]);
+      tmdb.lists().map(({ path, language }) => `${path} ${language}`),
+    ).toEqual(
+      expect.arrayContaining([
+        '/3/movie/popular en',
+        '/3/trending/all/week en',
+        '/3/tv/popular en',
+      ]),
+    );
+    // the rows further down wait until they come near
+    expect(tmdb.discoveries()).toHaveLength(0);
+
+    const comedies = list(page, 'Popular movies: Comedy');
+    await comedies.scrollIntoViewIfNeeded();
+    await expect(comedies.getByRole('article').first()).toContainText(
+      'Movie 1 [en]',
+    );
+    // with the rows around it, now near too
+    expect(tmdb.discoveries()).toContainEqual(
+      expect.objectContaining({ path: '/3/discover/movie', with_genres: '35' }),
+    );
+    // in the theaters of the country of the settings, once there
+    const theaters = list(page, 'Now playing in theaters');
+    await theaters.scrollIntoViewIfNeeded();
+    await expect(theaters).toContainText('Movie 21 [en]');
   });
 
   test('scrolls the rows sideways without the bar of the system, which has the colors of the app', async ({
@@ -63,6 +77,7 @@ test.describe('home page', () => {
 
     await expect(page).toHaveURL(/#\/tv\/9001$/);
     await expect(heading(page)).toHaveText('Show 1 [en] (2008)');
+    const asked = tmdb.lists().length;
 
     await page.getByRole('button', { name: 'Back' }).click();
 
@@ -70,8 +85,8 @@ test.describe('home page', () => {
     await expect(
       list(page, 'Trending this week').getByRole('article'),
     ).toHaveCount(3);
-    // the lists were kept, not asked for again
-    expect(tmdb.lists()).toHaveLength(3);
+    // the rows were kept, not asked for again
+    expect(tmdb.lists()).toHaveLength(asked);
   });
 
   test('follows the language chosen in the menu', async ({ page, tmdb }) => {
@@ -85,5 +100,21 @@ test.describe('home page', () => {
       'Movie 1 [pt-BR]',
     );
     expect(tmdb.lists().at(-1)?.language).toBe('pt-BR');
+  });
+
+  test('shows the movies or the tv shows alone, trending of that type too', async ({
+    page,
+    tmdb,
+  }) => {
+    await page.getByRole('radio', { name: 'TV shows' }).check();
+
+    await expect(page).toHaveURL(/#\/home\?type=tv$/);
+    await expect(list(page, 'Trending this week').getByRole('link')).toHaveText(
+      ['Show 1 [en]', 'Show 2 [en]', 'Show 3 [en]', 'Show 4 [en]'],
+    );
+    await expect(list(page, 'Popular movies')).toHaveCount(0);
+    expect(tmdb.lists().map(({ path }) => path)).toContain(
+      '/3/trending/tv/week',
+    );
   });
 });

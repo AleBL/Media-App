@@ -256,6 +256,15 @@ describe('web api', () => {
     expect(fetch.mock.calls[0][0]).toBe(
       '/api/tmdb?resource=list&list=trending&language=es',
     );
+
+    await createWebApi(fetch).tmdb.list({
+      list: 'now-playing',
+      language: 'pt-BR',
+      region: 'BR',
+    });
+    expect(fetch.mock.calls[1][0]).toBe(
+      '/api/tmdb?resource=list&list=now-playing&language=pt-BR&region=BR',
+    );
   });
 
   it('asks the site for the page of a title', async () => {

@@ -143,12 +143,21 @@ export interface DiscoverFilters {
   languages: string[];
 }
 
-/** The lists of the home page. */
-export type MediaList = 'trending' | 'popular-movies' | 'popular-tv';
+/** The lists of TMDB the home page shows. */
+export type MediaList =
+  | 'trending'
+  | 'trending-movies'
+  | 'trending-tv'
+  | 'popular-movies'
+  | 'popular-tv'
+  /** The movies in the theaters of `region`. */
+  | 'now-playing';
 
 export interface ListRequest {
   list: MediaList;
   language: string;
+  /** Country code such as `BR`, for the movies in its theaters. */
+  region?: string;
 }
 
 export interface DetailsRequest {

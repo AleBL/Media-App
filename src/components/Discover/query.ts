@@ -1,5 +1,10 @@
 import type { LocationQuery, LocationQueryRaw } from 'vue-router';
-import { DISCOVER_SORTS, type DiscoverSort, type MediaType } from '@shared/api';
+import {
+  DISCOVER_SORTS,
+  type DiscoverRequest,
+  type DiscoverSort,
+  type MediaType,
+} from '@shared/api';
 
 /**
  * What the Explore page shows, as its address keeps it
@@ -104,6 +109,35 @@ export function filtersInUse(choice: DiscoverChoice, mine: boolean): number {
     !!choice.originalLanguage,
     mine,
   ].filter(Boolean).length;
+}
+
+/**
+ * What to ask TMDB for a choice, in a language and a country, on the
+ * services given (none: on any). Built in the same order every time, which
+ * tells two apart by their JSON.
+ */
+export function toDiscovery(
+  choice: DiscoverChoice,
+  where: { language: string; region: string; providers: number[] },
+): Omit<DiscoverRequest, 'page'> {
+  const { type, sort, genres, fromYear, toYear, minRating } = choice;
+  const { originalLanguage, ageRating } = choice;
+
+  return {
+    type,
+    language: where.language,
+    region: where.region,
+    sort,
+    ...(genres.length > 0 && { genres }),
+    ...(fromYear && { fromYear }),
+    ...(toYear && { toYear }),
+    ...(minRating && { minRating }),
+    ...(originalLanguage && { originalLanguage }),
+    ...(ageRating && { ageRating }),
+    ...(where.providers.length > 0 && {
+      providers: [...where.providers].sort((a, b) => a - b),
+    }),
+  };
 }
 
 /** The same type and order, and nothing else. */

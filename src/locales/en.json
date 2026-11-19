@@ -219,7 +219,10 @@
     "nothingHint": "Try taking a filter away.",
     "allAges": "All",
     "showCount": "Show {n} title | Show {n} titles",
-    "showMany": "Show more than {n} titles"
+    "showMany": "Show more than {n} titles",
+    "onHome": "On the home page",
+    "addedToHome": "Row added to the home page.",
+    "removedFromHome": "Row removed from the home page."
   },
 
   "access": {

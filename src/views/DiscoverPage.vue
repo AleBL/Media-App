@@ -28,11 +28,14 @@
   import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
   import AppSegmented from '@/components/ui/AppSegmented.vue';
   import AppState from '@/components/ui/AppState.vue';
+  import AppToggleButton from '@/components/ui/AppToggleButton.vue';
   import { isDesktop } from '@/services/api';
   import { useCredentialsStore } from '@/stores/credentials';
   import { useDiscoverStore, type Discovery } from '@/stores/discover';
   import { useGenresStore } from '@/stores/genres';
+  import { useHomeRowsStore } from '@/stores/homeRows';
   import { useSettingsStore } from '@/stores/settings';
+  import { useToastsStore } from '@/stores/toasts';
   import { accessProblem } from '@/util/access';
 
   /** TMDB counts up to 500 pages of titles, and stops there. */
@@ -205,6 +208,29 @@
 
   const retryFilters = () => store.loadFilters(filtersRequest.value);
 
+  // These filters as a row of the home page, at its top; the notice can
+  // undo it.
+  const homeRows = useHomeRowsStore();
+  const toasts = useToastsStore();
+  const onHome = computed(() => homeRows.rowOf(choice.value) !== undefined);
+
+  function toggleHome() {
+    const before = [...homeRows.rows];
+    const wasDefault = homeRows.isDefault;
+    const row = homeRows.rowOf(choice.value);
+
+    if (row) {
+      homeRows.remove(row);
+    } else {
+      homeRows.add(choice.value);
+    }
+
+    toasts.show(t(row ? 'discover.removedFromHome' : 'discover.addedToHome'), {
+      label: t('toast.undo'),
+      run: () => (wasDefault ? homeRows.restore() : homeRows.set(before)),
+    });
+  }
+
   // The filters of a narrow screen, in a drawer from the side.
   const drawer = ref(false);
 </script>
@@ -286,12 +312,22 @@
         <div v-else-if="results.length" :aria-busy="loading || loadingMore">
           <!-- Other filters on their way: the titles stay readable. -->
           <AppLoadingBar v-if="loading" class="mt-3" />
-          <p
-            class="mt-3 text-sm text-surface-500 dark:text-surface-400"
-            aria-live="polite"
-          >
-            {{ counted }}
-          </p>
+          <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <p
+              class="text-sm text-surface-500 dark:text-surface-400"
+              aria-live="polite"
+            >
+              {{ counted }}
+            </p>
+            <AppToggleButton
+              size="sm"
+              icon="pi pi-plus"
+              pressed-icon="pi pi-check"
+              :label="t('discover.onHome')"
+              :pressed="onHome"
+              @click="toggleHome"
+            />
+          </div>
 
           <CardGrid :items="results" bare />
 

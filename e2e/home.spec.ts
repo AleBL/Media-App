@@ -1,5 +1,12 @@
 import type { Page } from '@playwright/test';
-import { chooseLanguage, expect, heading, test } from './support/fixtures';
+import {
+  cards,
+  chooseLanguage,
+  expect,
+  heading,
+  openPage,
+  test,
+} from './support/fixtures';
 
 /** A row of the home page, by its title. */
 const list = (page: Page, title: string) =>
@@ -116,5 +123,63 @@ test.describe('home page', () => {
     expect(tmdb.lists().map(({ path }) => path)).toContain(
       '/3/trending/tv/week',
     );
+  });
+
+  test('takes a row made in Explore, and changes the rows', async ({
+    page,
+    tmdb,
+  }) => {
+    await openPage(page, 'discover');
+    await page
+      .getByRole('complementary', { name: 'Filters' })
+      .getByRole('checkbox', { name: 'Action' })
+      .check();
+    await expect(page).toHaveURL(/genres=28$/);
+    await page.getByRole('button', { name: 'On the home page' }).click();
+    await expect(
+      page.getByRole('button', { name: 'On the home page' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    await openPage(page, 'home');
+
+    // at the top, where it shows at once
+    const action = list(page, 'Popular movies: Action');
+    await expect(
+      page.locator('main section, section').first(),
+    ).toHaveAccessibleName('Popular movies: Action');
+    await expect(action.getByRole('article')).toHaveCount(20);
+    await expect
+      .poll(() => tmdb.lastDiscovery())
+      .toMatchObject({ path: '/3/discover/movie', with_genres: '28' });
+
+    // all of it in Explore
+    await action
+      .getByRole('link', { name: 'See all: Popular movies: Action' })
+      .click();
+    await expect(page).toHaveURL(/#\/discover\?genres=28$/);
+    await expect(cards(page)).toHaveCount(20);
+
+    await openPage(page, 'home');
+    await page.getByRole('button', { name: 'Customize the home page' }).click();
+    await page
+      .getByRole('button', { name: 'Move down: Popular movies: Action' })
+      .click();
+    await page
+      .getByRole('button', { name: 'Remove: Trending this week' })
+      .click();
+    await expect(
+      page.getByRole('region', { name: /Notifications/ }),
+    ).toContainText('Trending this week left the home page.');
+    await page.getByRole('button', { name: 'Done' }).click();
+
+    await expect(list(page, 'Trending this week')).toHaveCount(0);
+    await expect(
+      page.locator('main section, section').first(),
+    ).toHaveAccessibleName('Popular movies: Action');
+
+    // kept for the next time
+    await page.reload();
+    await expect(list(page, 'Popular movies: Action')).toBeVisible();
+    await expect(list(page, 'Trending this week')).toHaveCount(0);
   });
 });

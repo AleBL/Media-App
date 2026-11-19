@@ -219,7 +219,10 @@
     "nothingHint": "Tente tirar algum filtro.",
     "allAges": "Todas",
     "showCount": "Ver {n} título | Ver {n} títulos",
-    "showMany": "Ver mais de {n} títulos"
+    "showMany": "Ver mais de {n} títulos",
+    "onHome": "Na página inicial",
+    "addedToHome": "Fileira acrescentada à página inicial.",
+    "removedFromHome": "Fileira tirada da página inicial."
   },
 
   "access": {

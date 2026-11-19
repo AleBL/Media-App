@@ -51,4 +51,26 @@ describe('settings store', () => {
 
     expect(root.dataset.uiSize).toBeUndefined();
   });
+
+  it('keeps the services of the user, each once', async () => {
+    const settings = useSettingsStore();
+
+    expect(settings.myServices).toEqual([]);
+
+    settings.setMyServices([8, 119, 8]);
+    await nextTick();
+
+    expect(settings.myServices).toEqual([8, 119]);
+    expect(JSON.parse(localStorage.getItem('my-services')!)).toEqual([8, 119]);
+  });
+
+  it.each([
+    ['ids among other things', '[8, "119", -1, 1.5, null, 337]', [8, 337]],
+    ['something that is not a list', '{"8": true}', []],
+    ['something that is not JSON', 'netflix', []],
+  ])('keeps only ids from %s kept before', (_case, kept, ids) => {
+    localStorage.setItem('my-services', kept);
+
+    expect(useSettingsStore().myServices).toEqual(ids);
+  });
 });

@@ -179,14 +179,41 @@ export function createWebApi(
     setNativeTheme: () => {},
     clearCache: async () => ({ ok: true, data: null }),
     tmdb: {
-      search: ({ type, query, page, language }) =>
+      search: ({ type, query, page, language, year }) =>
         callSite({
           resource: 'search',
           type,
           query,
           page: String(page),
           language,
+          ...(year !== undefined && { year: String(year) }),
         }),
+      discover: (request) =>
+        callSite({
+          resource: 'discover',
+          type: request.type,
+          page: String(request.page),
+          language: request.language,
+          region: request.region,
+          sort: request.sort,
+          ...(request.genres?.length && { genres: request.genres.join(',') }),
+          ...(request.fromYear !== undefined && {
+            from: String(request.fromYear),
+          }),
+          ...(request.toYear !== undefined && { to: String(request.toYear) }),
+          ...(request.minRating !== undefined && {
+            rating: String(request.minRating),
+          }),
+          ...(request.originalLanguage && {
+            original: request.originalLanguage,
+          }),
+          ...(request.ageRating && { age: request.ageRating }),
+          ...(request.providers?.length && {
+            providers: request.providers.join(','),
+          }),
+        }),
+      discoverFilters: ({ type, language, region }) =>
+        callSite({ resource: 'discover-filters', type, language, region }),
       genres: (language) => callSite({ resource: 'genres', language }),
       details: ({ type, id, language, region }) =>
         callSite({

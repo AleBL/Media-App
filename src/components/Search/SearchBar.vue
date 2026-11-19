@@ -2,14 +2,16 @@
   import { computed, watch } from 'vue';
   import { storeToRefs } from 'pinia';
   import { watchDebounced } from '@vueuse/core';
-  import type { SearchType } from '@shared/api';
+  import type { MediaType, SearchType } from '@shared/api';
+  import { FIRST_YEAR, LAST_YEAR, toQuery } from '@/components/Discover/query';
+  import AppButton from '@/components/ui/AppButton.vue';
   import AppSegmented from '@/components/ui/AppSegmented.vue';
   import { SEARCH_DEBOUNCE_MS, useSearchStore } from '@/stores/search';
   import { MEDIA_TYPES } from '@/util/constants';
 
   const { t, locale } = useI18n();
   const store = useSearchStore();
-  const { query, mediaType } = storeToRefs(store);
+  const { query, mediaType, year } = storeToRefs(store);
 
   const types = [
     {
@@ -43,6 +45,39 @@
 
   watch(mediaType, () => store.search());
 
+  // A year typed in, once the field is left; what is not a year is none.
+  function setYear(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const text = input.value.trim();
+    const value = Number(text);
+    const valid =
+      text !== '' &&
+      Number.isInteger(value) &&
+      value >= FIRST_YEAR &&
+      value <= LAST_YEAR;
+
+    year.value = valid ? value : null;
+
+    if (!valid) {
+      input.value = '';
+    }
+  }
+
+  watch(year, () => store.search());
+
+  // TMDB searches by name with the year alone: the other filters are those
+  // of the Explore page, for the same type and year.
+  const moreFilters = computed(() => ({
+    name: 'discover',
+    query: toQuery({
+      type: mediaType.value as MediaType,
+      sort: 'popularity',
+      genres: [],
+      mine: false,
+      ...(year.value !== null && { fromYear: year.value, toYear: year.value }),
+    }),
+  }));
+
   // TMDB translates titles: the results start again in the new language,
   // and more come at the end as before.
   watch(locale, () => store.search());
@@ -71,5 +106,26 @@
       :label="t('search.kind')"
       name="mediaType"
     />
+
+    <!-- People have no year, and no filters. -->
+    <div v-if="mediaType !== 'multi'" class="flex items-center gap-2">
+      <input
+        type="number"
+        inputmode="numeric"
+        class="field w-28"
+        :min="FIRST_YEAR"
+        :max="LAST_YEAR"
+        :value="year ?? ''"
+        :placeholder="t('search.year')"
+        :aria-label="t('search.yearLabel')"
+        @change="setYear"
+      />
+      <AppButton
+        severity="ghost"
+        icon="pi pi-sliders-h"
+        :label="t('search.moreFilters')"
+        :to="moreFilters"
+      />
+    </div>
   </div>
 </template>

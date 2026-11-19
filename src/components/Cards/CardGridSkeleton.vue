@@ -7,6 +7,8 @@
   defineProps<{
     /** What is loading, for screen readers. */
     label: string;
+    /** Already in the column of a page, such as beside the filters. */
+    bare?: boolean;
   }>();
 
   const settings = useSettingsStore();
@@ -17,7 +19,7 @@
   <div
     v-if="settings.view === 'list'"
     role="status"
-    class="page flex flex-col gap-3 py-4"
+    :class="[!bare && 'page', 'flex flex-col gap-3 py-4']"
   >
     <span class="sr-only">{{ label }}</span>
     <div
@@ -38,7 +40,7 @@
   <div
     v-else
     role="status"
-    :class="['page card-grid py-4', GRID_SIZE[settings.view]]"
+    :class="[!bare && 'page', 'card-grid py-4', GRID_SIZE[settings.view]]"
   >
     <span class="sr-only">{{ label }}</span>
     <PosterCardSkeleton v-for="index in 12" :key="index" />

@@ -23,6 +23,8 @@
     empty: string;
     /** Names the button that opens the whole list. */
     openLabel: string;
+    /** As wide as where it is, such as a side panel. */
+    block?: boolean;
   }>();
 
   const model = defineModel<string>({ required: true });
@@ -33,7 +35,7 @@
 
 <template>
   <ComboboxRoot v-model="model" open-on-click>
-    <ComboboxAnchor class="relative w-full sm:w-80">
+    <ComboboxAnchor :class="['relative w-full', !block && 'sm:w-80']">
       <ComboboxInput
         :id="id"
         :display-value="labelOf"

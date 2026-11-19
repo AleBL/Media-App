@@ -15,6 +15,7 @@ declare module 'vue-router' {
   }
 }
 import DetailsPage from '@/views/DetailsPage.vue';
+import DiscoverPage from '@/views/DiscoverPage.vue';
 import PersonPage from '@/views/PersonPage.vue';
 import SearchPage from '@/views/Search/SearchPage.vue';
 import SettingsPage from '@/views/SettingsPage.vue';
@@ -35,6 +36,12 @@ const routes: RouteRecordRaw[] = [
     path: '/search',
     name: 'search',
     component: SearchPage,
+  },
+  {
+    // Movies or tv shows by their filters, kept in the query.
+    path: '/discover',
+    name: 'discover',
+    component: DiscoverPage,
   },
   {
     path: '/settings',

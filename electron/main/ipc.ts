@@ -3,6 +3,9 @@ import {
   type AccountListRequest,
   type CredentialStatus,
   type DetailsRequest,
+  type DiscoverFilters,
+  type DiscoverFiltersRequest,
+  type DiscoverRequest,
   type Genre,
   type ListRequest,
   type MarkRequest,
@@ -30,6 +33,8 @@ import {
   parseAccountListRequest,
   parseApiKey,
   parseDetailsRequest,
+  parseDiscoverFiltersRequest,
+  parseDiscoverRequest,
   parseLanguage,
   parseListRequest,
   parseMarkRequest,
@@ -68,6 +73,8 @@ export interface IpcServices {
     search(request: SearchRequest): Promise<Paged<SearchItem>>;
     details(request: DetailsRequest): Promise<MediaDetails>;
     person(request: PersonRequest): Promise<PersonDetails>;
+    discover(request: DiscoverRequest): Promise<Paged<MediaItem>>;
+    discoverFilters(request: DiscoverFiltersRequest): Promise<DiscoverFilters>;
     list(request: ListRequest): Promise<MediaItem[]>;
     regions(): Promise<string[]>;
   };
@@ -182,6 +189,24 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
 
     return request
       ? toResult(() => services.tmdb.person(request))
+      : invalidRequest();
+  });
+
+  ipc.handle(IPC.tmdbDiscover, (event, value) => {
+    const request = isTrusted(event) ? parseDiscoverRequest(value) : null;
+
+    return request
+      ? toResult(() => services.tmdb.discover(request))
+      : invalidRequest();
+  });
+
+  ipc.handle(IPC.tmdbDiscoverFilters, (event, value) => {
+    const request = isTrusted(event)
+      ? parseDiscoverFiltersRequest(value)
+      : null;
+
+    return request
+      ? toResult(() => services.tmdb.discoverFilters(request))
       : invalidRequest();
   });
 

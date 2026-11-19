@@ -23,6 +23,9 @@ const api: MediaAppApi = {
     genres: (language) => ipcRenderer.invoke(IPC.tmdbGenres, language),
     details: (request) => ipcRenderer.invoke(IPC.tmdbDetails, request),
     person: (request) => ipcRenderer.invoke(IPC.tmdbPerson, request),
+    discover: (request) => ipcRenderer.invoke(IPC.tmdbDiscover, request),
+    discoverFilters: (request) =>
+      ipcRenderer.invoke(IPC.tmdbDiscoverFilters, request),
     list: (request) => ipcRenderer.invoke(IPC.tmdbList, request),
     regions: () => ipcRenderer.invoke(IPC.tmdbRegions),
   },

@@ -185,7 +185,7 @@
 </script>
 
 <template>
-  <div class="mx-auto max-w-5xl px-4 pb-10">
+  <div class="page pb-10">
     <div class="my-4">
       <AppButton
         :label="t('details.back')"
@@ -249,7 +249,7 @@
            itself, readable in both themes. -->
       <div
         v-if="details.backdropPath"
-        class="relative -mx-4 h-48 overflow-hidden sm:mx-0 sm:h-72 sm:rounded-lg"
+        class="relative -mx-4 h-48 overflow-hidden sm:mx-0 sm:h-72 sm:rounded-lg 2xl:h-96"
         aria-hidden="true"
       >
         <img
@@ -263,10 +263,11 @@
       </div>
 
       <!-- Only the poster rises over the still; the text starts below it,
-           on the page, readable in both themes. -->
+           on the page, readable in both themes. Where to watch goes under
+           both, and beside them on a big screen. -->
       <div
         :class="[
-          'relative flex flex-col gap-6 sm:flex-row',
+          'relative grid gap-6 sm:grid-cols-[16rem_minmax(0,1fr)] 2xl:grid-cols-[18rem_minmax(0,1fr)_26rem]',
           details.backdropPath && 'sm:px-6',
         ]"
       >
@@ -274,12 +275,12 @@
           :src="posterUrl(details.posterPath)"
           eager
           :class="[
-            'w-48 shrink-0 self-center rounded-md shadow-lg ring-1 ring-black/5 sm:w-64 sm:self-start',
+            'w-48 self-start justify-self-center rounded-md shadow-lg ring-1 ring-black/5 sm:w-full',
             details.backdropPath && '-mt-24 sm:-mt-40',
           ]"
         />
 
-        <div class="flex-1">
+        <div class="min-w-0">
           <h1 id="details-title" class="text-3xl font-semibold">
             {{ details.title }}
             <span
@@ -320,7 +321,7 @@
             >
           </p>
 
-          <p v-if="details.overview" class="mt-4 leading-relaxed">
+          <p v-if="details.overview" class="mt-4 max-w-[80ch] leading-relaxed">
             {{ details.overview }}
           </p>
 
@@ -342,63 +343,66 @@
             />
           </div>
         </div>
-      </div>
 
-      <section class="mt-10" aria-labelledby="watch-title">
-        <h2 id="watch-title" class="text-xl font-semibold">
-          {{ t('details.whereToWatch', { region: regionName }) }}
-        </h2>
+        <section
+          class="mt-4 sm:col-span-2 2xl:col-span-1 2xl:mt-0"
+          aria-labelledby="watch-title"
+        >
+          <h2 id="watch-title" class="text-xl font-semibold">
+            {{ t('details.whereToWatch', { region: regionName }) }}
+          </h2>
 
-        <template v-if="watchGroups.length">
-          <div v-for="group in watchGroups" :key="group.key" class="mt-4">
-            <h3
-              class="text-sm font-medium text-surface-500 dark:text-surface-400"
-            >
-              {{ t(`details.${group.key}`) }}
-            </h3>
-            <ul class="mt-2 flex list-none flex-wrap gap-3 p-0">
-              <li v-for="provider in group.providers" :key="provider.id">
-                <!-- The name of the service shows on hover; screen readers
+          <template v-if="watchGroups.length">
+            <div v-for="group in watchGroups" :key="group.key" class="mt-4">
+              <h3
+                class="text-sm font-medium text-surface-500 dark:text-surface-400"
+              >
+                {{ t(`details.${group.key}`) }}
+              </h3>
+              <ul class="mt-2 flex list-none flex-wrap gap-3 p-0">
+                <li v-for="provider in group.providers" :key="provider.id">
+                  <!-- The name of the service shows on hover; screen readers
                      read it from the logo. -->
-                <AppTooltip
-                  v-if="provider.logoPath"
-                  :text="provider.name"
-                  side="top"
-                >
-                  <AppImage
-                    :src="logoUrl(provider.logoPath)"
-                    :alt="provider.name"
-                    shape="square"
-                    class="h-12 w-12 rounded-lg"
-                  />
-                </AppTooltip>
-                <span
-                  v-else
-                  class="flex h-12 items-center rounded-lg bg-surface-100 px-3 text-sm dark:bg-surface-700"
-                >
-                  {{ provider.name }}
-                </span>
-              </li>
-            </ul>
-          </div>
-        </template>
-        <p v-else class="mt-2 text-surface-500 dark:text-surface-400">
-          {{ t('details.nowhereToWatch', { region: regionName }) }}
-        </p>
+                  <AppTooltip
+                    v-if="provider.logoPath"
+                    :text="provider.name"
+                    side="top"
+                  >
+                    <AppImage
+                      :src="logoUrl(provider.logoPath)"
+                      :alt="provider.name"
+                      shape="square"
+                      class="h-12 w-12 rounded-lg"
+                    />
+                  </AppTooltip>
+                  <span
+                    v-else
+                    class="flex h-12 items-center rounded-lg bg-surface-100 px-3 text-sm dark:bg-surface-700"
+                  >
+                    {{ provider.name }}
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </template>
+          <p v-else class="mt-2 text-surface-500 dark:text-surface-400">
+            {{ t('details.nowhereToWatch', { region: regionName }) }}
+          </p>
 
-        <!-- TMDB only lets the app show this data with its source named. -->
-        <p class="mt-4 text-sm text-surface-500 dark:text-surface-400">
-          {{ t('details.justWatch') }}
-          <a
-            v-if="details.watch?.link"
-            :href="details.watch.link"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {{ t('details.allOptions') }}
-          </a>
-        </p>
-      </section>
+          <!-- TMDB only lets the app show this data with its source named. -->
+          <p class="mt-4 text-sm text-surface-500 dark:text-surface-400">
+            {{ t('details.justWatch') }}
+            <a
+              v-if="details.watch?.link"
+              :href="details.watch.link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ t('details.allOptions') }}
+            </a>
+          </p>
+        </section>
+      </div>
 
       <section
         v-if="details.cast.length"

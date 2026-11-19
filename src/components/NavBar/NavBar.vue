@@ -47,7 +47,7 @@
   >
     <nav
       :aria-label="t('menu.label')"
-      class="mx-auto flex h-16 max-w-7xl items-center gap-1 px-4"
+      class="page flex h-16 items-center gap-1"
     >
       <AppIconButton
         class="lg:hidden"

@@ -2,6 +2,10 @@
   import NavBar from './components/NavBar/NavBar.vue';
   import AppToaster from './components/ui/AppToaster.vue';
   import UpdateBanner from './components/Updates/UpdateBanner.vue';
+  import { useSettingsStore } from './stores/settings';
+
+  // From the start: it keeps the size of the interface on the page.
+  useSettingsStore();
 </script>
 
 <template>

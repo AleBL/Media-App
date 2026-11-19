@@ -121,6 +121,24 @@ describe('search', () => {
     });
   });
 
+  it('keeps the synopsis of a title, for the list view, and not a blank one', async () => {
+    const { client } = setup([
+      answer(200, {
+        ...page,
+        results: [
+          { id: 603, title: 'The Matrix', overview: 'A hacker learns.' },
+          { id: 604, title: 'The Matrix Reloaded', overview: '  ' },
+        ],
+      }),
+    ]);
+
+    const { results } = await client.search(search);
+
+    expect(
+      results.map((item) => ('overview' in item ? item.overview : null)),
+    ).toEqual(['A hacker learns.', undefined]);
+  });
+
   it('caps the totals at the last page TMDB accepts', async () => {
     const { client } = setup([
       answer(200, { ...page, total_pages: 900, total_results: 18000 }),
@@ -159,6 +177,276 @@ describe('search', () => {
     await expect(client.search(search)).resolves.toMatchObject({
       results: [{ id: 603, media_type: 'movie', title: 'The Matrix' }],
     });
+  });
+
+  it('asks for the year a movie came out, or a tv show began', async () => {
+    const { client, requestedUrl } = setup([
+      answer(200, page),
+      answer(200, page),
+    ]);
+
+    await client.search({ ...search, year: 1999 });
+    await client.search({ ...search, type: 'tv', year: 2005 });
+
+    expect(requestedUrl(0).searchParams.get('primary_release_year')).toBe(
+      '1999',
+    );
+    expect(requestedUrl(0).searchParams.has('year')).toBe(false);
+    expect(requestedUrl(1).searchParams.get('first_air_date_year')).toBe(
+      '2005',
+    );
+  });
+});
+
+/** A client whose TMDB answers by path, such as `/discover/movie`. */
+function setupByPath(bodies: Record<string, unknown>) {
+  const fetch = vi.fn<FetchLike>(async (url) => {
+    const path = new URL(url).pathname.replace(/^\/3/, '');
+
+    if (!Object.hasOwn(bodies, path)) {
+      throw new Error(`unexpected request to ${path}`);
+    }
+
+    return answer(200, bodies[path]);
+  });
+  const client = createTmdbClient({ getCredential: () => V3_KEY, fetch });
+  const asked = (path: string) =>
+    fetch.mock.calls
+      .map(([url]) => new URL(url))
+      .filter((url) => url.pathname === `/3${path}`);
+
+  return { client, fetch, asked };
+}
+
+/** The query of a url, without the key. */
+const paramsOf = (url: URL) => {
+  const params = Object.fromEntries(url.searchParams);
+
+  delete params.api_key;
+  return params;
+};
+
+describe('discovery', () => {
+  const discover = {
+    type: 'movie',
+    page: 1,
+    language: 'pt-BR',
+    region: 'BR',
+    sort: 'popularity',
+  } as const;
+  const found = { ...page, results: [{ id: 603, title: 'The Matrix' }] };
+  // Every country's ratings, in no order, as TMDB sends them.
+  const ageRatings = {
+    certifications: {
+      US: [
+        { certification: 'PG-13', order: 3 },
+        { certification: 'NR', order: 0 },
+        { certification: 'G', order: 1 },
+        { certification: 'R', order: 4 },
+        { certification: 'PG', order: 2 },
+      ],
+      BR: [
+        { certification: '12', order: 3 },
+        { certification: 'L', order: 1 },
+        { certification: '10', order: 2 },
+      ],
+    },
+  };
+
+  it('asks for the popular titles of a type, leaving adult ones out', async () => {
+    const { client, asked } = setupByPath({ '/discover/movie': found });
+
+    await expect(client.discover(discover)).resolves.toEqual({
+      page: 1,
+      results: [{ id: 603, media_type: 'movie', title: 'The Matrix' }],
+      totalPages: 3,
+      totalResults: 45,
+    });
+    expect(paramsOf(asked('/discover/movie')[0])).toEqual({
+      page: '1',
+      language: 'pt-BR',
+      include_adult: 'false',
+      sort_by: 'popularity.desc',
+    });
+  });
+
+  it('asks for every filter given, all of the genres and any of the services', async () => {
+    const { client, asked } = setupByPath({ '/discover/tv': found });
+
+    const { results } = await client.discover({
+      ...discover,
+      type: 'tv',
+      page: 2,
+      genres: [18, 80],
+      fromYear: 1990,
+      toYear: 1999,
+      minRating: 7,
+      originalLanguage: 'ko',
+      providers: [8, 119],
+    });
+
+    expect(results[0].media_type).toBe('tv');
+    expect(paramsOf(asked('/discover/tv')[0])).toEqual({
+      page: '2',
+      language: 'pt-BR',
+      include_adult: 'false',
+      sort_by: 'popularity.desc',
+      with_genres: '18,80',
+      'first_air_date.gte': '1990-01-01',
+      'first_air_date.lte': '1999-12-31',
+      'vote_average.gte': '7',
+      // with fewer votes, the average does not tell much
+      'vote_count.gte': '200',
+      with_original_language: 'ko',
+      watch_region: 'BR',
+      with_watch_providers: '8|119',
+    });
+  });
+
+  it('puts the best rated first only among titles with enough votes', async () => {
+    const { client, asked } = setupByPath({ '/discover/movie': found });
+
+    await client.discover({ ...discover, sort: 'rating' });
+
+    expect(paramsOf(asked('/discover/movie')[0])).toMatchObject({
+      sort_by: 'vote_average.desc',
+      'vote_count.gte': '300',
+    });
+  });
+
+  it('puts the newest first among those already out that some people saw', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-18T12:00:00Z'));
+
+    try {
+      const { client, asked } = setupByPath({ '/discover/movie': found });
+
+      await client.discover({ ...discover, sort: 'newest' });
+      await client.discover({ ...discover, sort: 'newest', toYear: 1999 });
+
+      const [now, nineties] = asked('/discover/movie').map(paramsOf);
+      expect(now).toMatchObject({
+        sort_by: 'primary_release_date.desc',
+        'primary_release_date.lte': '2026-11-18',
+        'vote_count.gte': '10',
+      });
+      expect(nineties['primary_release_date.lte']).toBe('1999-12-31');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('asks for an age rating and the milder ones by name, never "NR"', async () => {
+    const { client, asked } = setupByPath({
+      '/discover/movie': found,
+      '/certification/movie/list': ageRatings,
+    });
+
+    await client.discover({ ...discover, region: 'US', ageRating: 'PG-13' });
+    await client.discover({ ...discover, region: 'BR', ageRating: '10' });
+
+    const [american, brazilian] = asked('/discover/movie').map(paramsOf);
+    expect(american).toMatchObject({
+      certification_country: 'US',
+      certification: 'G|PG|PG-13',
+    });
+    expect(brazilian).toMatchObject({
+      certification_country: 'BR',
+      certification: 'L|10',
+    });
+    // kept for the next pages
+    expect(asked('/certification/movie/list')).toHaveLength(1);
+  });
+
+  it('leaves out an age rating the country does not have', async () => {
+    const { client, asked } = setupByPath({
+      '/discover/movie': found,
+      '/certification/movie/list': ageRatings,
+    });
+
+    await client.discover({ ...discover, ageRating: 'PG-13' });
+
+    expect(asked('/discover/movie')[0].searchParams.has('certification')).toBe(
+      false,
+    );
+  });
+});
+
+describe('filters of a discovery', () => {
+  it('brings the genres, services, age ratings and languages of a type in a country', async () => {
+    const service = (id: number, name: string, inBrazil?: number) => ({
+      provider_id: id,
+      provider_name: name,
+      logo_path: `/${id}.png`,
+      display_priority: id,
+      display_priorities: inBrazil === undefined ? { US: 1 } : { BR: inBrazil },
+    });
+    const { client, asked } = setupByPath({
+      '/genre/tv/list': {
+        genres: [
+          { id: 18, name: 'Drama' },
+          { id: 18, name: 'Drama again' },
+          { name: 'Without an id' },
+        ],
+      },
+      '/watch/providers/tv': {
+        results: [
+          service(307, 'Globoplay', 12),
+          service(1, 'Elsewhere'),
+          service(8, 'Netflix', 0),
+          service(8, 'Netflix', 0),
+          { provider_id: 9, provider_name: '' },
+        ],
+      },
+      '/certification/tv/list': {
+        certifications: {
+          BR: [
+            { certification: '10', order: 1 },
+            { certification: 'L', order: 0 },
+          ],
+        },
+      },
+      '/configuration/languages': [
+        { iso_639_1: 'ko', english_name: 'Korean' },
+        { iso_639_1: 'xx', english_name: 'No Language' },
+        { iso_639_1: 'en', english_name: 'English' },
+        { iso_639_1: 'not a code' },
+      ],
+    });
+
+    await expect(
+      client.discoverFilters({ type: 'tv', language: 'pt-BR', region: 'BR' }),
+    ).resolves.toEqual({
+      genres: [{ id: 18, name: 'Drama' }],
+      providers: [
+        { id: 8, name: 'Netflix', logoPath: '/8.png' },
+        { id: 307, name: 'Globoplay', logoPath: '/307.png' },
+        // without a place in the country: last
+        { id: 1, name: 'Elsewhere', logoPath: '/1.png' },
+      ],
+      ageRatings: ['L', '10'],
+      languages: ['en', 'ko'],
+    });
+    expect(paramsOf(asked('/genre/tv/list')[0])).toEqual({
+      language: 'pt-BR',
+    });
+    expect(paramsOf(asked('/watch/providers/tv')[0])).toEqual({
+      language: 'pt-BR',
+      watch_region: 'BR',
+    });
+  });
+
+  it('has no age ratings for a country without them', async () => {
+    const { client } = setupByPath({
+      '/genre/movie/list': { genres: [] },
+      '/watch/providers/movie': { results: [] },
+      '/certification/movie/list': { certifications: {} },
+      '/configuration/languages': [],
+    });
+
+    await expect(
+      client.discoverFilters({ type: 'movie', language: 'en', region: 'AQ' }),
+    ).resolves.toMatchObject({ ageRatings: [], providers: [] });
   });
 });
 
@@ -385,8 +673,11 @@ describe('genres', () => {
 describe('lists of the home page', () => {
   it.each([
     ['trending', '/3/trending/all/week'],
+    ['trending-movies', '/3/trending/movie/week'],
+    ['trending-tv', '/3/trending/tv/week'],
     ['popular-movies', '/3/movie/popular'],
     ['popular-tv', '/3/tv/popular'],
+    ['now-playing', '/3/movie/now_playing'],
   ] as const)('asks TMDB for %s', async (list, path) => {
     const { client, requestedUrl } = setup([answer(200, { results: [] })]);
 
@@ -416,6 +707,17 @@ describe('lists of the home page', () => {
       { id: 603, media_type: 'movie', title: 'Matrix' },
       { id: 1396, media_type: 'tv', name: 'Breaking Bad' },
     ]);
+  });
+
+  it('asks for the movies in the theaters of a country', async () => {
+    const { client, requestedUrl } = setup([
+      answer(200, { results: [{ id: 1, title: 'In theaters' }] }),
+    ]);
+
+    await expect(
+      client.list({ list: 'now-playing', language: 'pt-BR', region: 'BR' }),
+    ).resolves.toEqual([{ id: 1, media_type: 'movie', title: 'In theaters' }]);
+    expect(requestedUrl().searchParams.get('region')).toBe('BR');
   });
 
   it('tags every title of a popular list with its type', async () => {
@@ -518,6 +820,22 @@ describe('details', () => {
       },
     },
     external_ids: { imdb_id: 'tt0133093', facebook_id: null },
+    release_dates: {
+      results: [
+        {
+          iso_3166_1: 'BR',
+          release_dates: [
+            { type: 1, certification: '', note: 'Festival do Rio' },
+            { type: 5, certification: '14', note: 'Blu-ray' },
+            { type: 3, certification: '12', note: '' },
+          ],
+        },
+        {
+          iso_3166_1: 'US',
+          release_dates: [{ type: 3, certification: 'R', note: '' }],
+        },
+      ],
+    },
   };
 
   const show = {
@@ -537,6 +855,12 @@ describe('details', () => {
     credits: { cast: [] },
     videos: { results: [] },
     'watch/providers': { results: {} },
+    content_ratings: {
+      results: [
+        { iso_3166_1: 'BR', rating: '16', descriptors: [] },
+        { iso_3166_1: 'US', rating: 'TV-MA', descriptors: [] },
+      ],
+    },
   };
 
   const inBrazil = {
@@ -563,7 +887,7 @@ describe('details', () => {
     );
     expect(url.searchParams.get('language')).toBe('pt-BR');
     expect(url.searchParams.get('append_to_response')).toBe(
-      'credits,videos,watch/providers,external_ids',
+      'credits,videos,watch/providers,external_ids,release_dates',
     );
     // pt-BR and pt are not the same to TMDB: videos in either, then English
     expect(url.searchParams.get('include_video_language')).toBe(
@@ -611,6 +935,8 @@ describe('details', () => {
         rent: [{ id: 2, name: 'Apple TV' }],
         buy: [{ id: 2, name: 'Apple TV' }],
       },
+      // the rating of the release in theaters, not of the disc
+      certification: { country: 'BR', code: '12' },
     });
   });
 
@@ -633,8 +959,13 @@ describe('details', () => {
       voteCount: 15000,
       imdbId: 'tt0903747',
       cast: [],
+      certification: { country: 'US', code: 'TV-MA' },
     });
     expect(requestedUrl().pathname).toBe('/3/tv/1396');
+    // a tv show is rated once per country, not per release
+    expect(requestedUrl().searchParams.get('append_to_response')).toBe(
+      'credits,videos,watch/providers,external_ids,content_ratings',
+    );
     expect(requestedUrl().searchParams.get('include_video_language')).toBe(
       'en,en-US,null',
     );
@@ -680,6 +1011,62 @@ describe('details', () => {
     expect(details.watch).toBeUndefined();
   });
 
+  it('rates a title as the United States do when the region has no rating', async () => {
+    const { client } = setup([answer(200, movie), answer(200, show)]);
+
+    await expect(
+      client.details({ ...inBrazil, region: 'PT' }),
+    ).resolves.toMatchObject({ certification: { country: 'US', code: 'R' } });
+    await expect(
+      client.details({ type: 'tv', id: 1396, language: 'pt', region: 'PT' }),
+    ).resolves.toMatchObject({
+      certification: { country: 'US', code: 'TV-MA' },
+    });
+  });
+
+  it('takes any rating of a movie never released in theaters', async () => {
+    const { client } = setup([
+      answer(200, {
+        ...movie,
+        release_dates: {
+          results: [
+            {
+              iso_3166_1: 'BR',
+              release_dates: [
+                { type: 4, certification: ' ', note: 'Netflix' },
+                { type: 4, certification: 'L', note: 'Disney+' },
+              ],
+            },
+          ],
+        },
+      }),
+    ]);
+
+    await expect(client.details(inBrazil)).resolves.toMatchObject({
+      certification: { country: 'BR', code: 'L' },
+    });
+  });
+
+  it.each([
+    ['not rated', [{ iso_3166_1: 'US', rating: 'NR' }]],
+    ['rated without a code', [{ iso_3166_1: 'BR', rating: '' }]],
+    ['rated in other countries only', [{ iso_3166_1: 'DE', rating: '16' }]],
+    ['given something else', [{ iso_3166_1: 'BR', rating: 14 }]],
+  ])('has no rating for a title %s', async (_case, results) => {
+    const { client } = setup([
+      answer(200, { ...show, content_ratings: { results } }),
+    ]);
+
+    const details = await client.details({
+      type: 'tv',
+      id: 1396,
+      language: 'pt-BR',
+      region: 'BR',
+    });
+
+    expect(details.certification).toBeUndefined();
+  });
+
   it(`shows the first ${CAST_SIZE} of the cast`, async () => {
     const cast = Array.from({ length: 30 }, (_, index) => ({
       id: index + 1,
@@ -716,6 +1103,267 @@ describe('details', () => {
     const { client } = setup([answer(200, { ...movie, title: '' })]);
 
     await expect(client.details(inBrazil)).rejects.toMatchObject({
+      code: 'server',
+    });
+  });
+});
+
+describe('person', () => {
+  const keanu = {
+    id: 6384,
+    adult: false,
+    name: 'Keanu Reeves',
+    known_for_department: 'Acting',
+    biography: 'Keanu Charles Reeves é um ator canadense.',
+    birthday: '1964-09-02',
+    deathday: null,
+    place_of_birth: 'Beirut, Lebanon',
+    profile_path: '/keanu.jpg',
+    homepage: null,
+    imdb_id: 'nm0000206',
+    popularity: 50,
+    external_ids: {
+      imdb_id: 'nm0000206',
+      instagram_id: null,
+      twitter_id: 'keanu_x',
+      facebook_id: 'Keanu.Page',
+      tiktok_id: 'not a handle!',
+    },
+    translations: { translations: [] },
+    combined_credits: {
+      cast: [
+        {
+          id: 2001,
+          media_type: 'tv',
+          name: 'A Talk Show',
+          genre_ids: [10767, 35],
+          vote_count: 9000,
+          character: 'Self',
+        },
+        {
+          id: 245891,
+          media_type: 'movie',
+          title: 'John Wick',
+          release_date: '2014-10-22',
+          overview: 'Um assassino aposentado.',
+          vote_count: 18000,
+          popularity: 99,
+          character: 'John Wick',
+        },
+        {
+          id: 603,
+          media_type: 'movie',
+          title: 'Matrix',
+          release_date: '1999-03-31',
+          poster_path: '/matrix.jpg',
+          genre_ids: [28, 878],
+          vote_average: 8.2,
+          vote_count: 26000,
+          character: 'Neo',
+        },
+        {
+          id: 603,
+          media_type: 'movie',
+          title: 'Matrix',
+          vote_count: 26000,
+          character: 'Thomas Anderson ',
+        },
+        {
+          id: 1100,
+          media_type: 'tv',
+          name: 'Swedish Dicks',
+          vote_count: 40,
+          character: '',
+        },
+        { id: 9999, media_type: 'movie', title: 'Adult', adult: true },
+        { id: 7, media_type: 'person', name: 'Not a title' },
+      ],
+      crew: [
+        {
+          id: 186759,
+          media_type: 'movie',
+          title: 'Man of Tai Chi',
+          department: 'Production',
+          job: 'Producer',
+        },
+        {
+          id: 186759,
+          media_type: 'movie',
+          title: 'Man of Tai Chi',
+          department: 'Directing',
+          job: 'Director',
+        },
+        {
+          id: 186759,
+          media_type: 'movie',
+          title: 'Man of Tai Chi',
+          department: 'Directing',
+          job: 'Second Unit Director',
+        },
+      ],
+    },
+  };
+
+  const inPortuguese = { id: 6384, language: 'pt-BR' };
+
+  it('asks for the person with their credits, links and biographies in one request', async () => {
+    const { client, requestedUrl } = setup([answer(200, keanu)]);
+
+    await client.person(inPortuguese);
+
+    const url = requestedUrl();
+    expect(url.pathname).toBe('/3/person/6384');
+    expect(url.searchParams.get('language')).toBe('pt-BR');
+    expect(url.searchParams.get('append_to_response')).toBe(
+      'combined_credits,external_ids,translations',
+    );
+  });
+
+  it('keeps what the page shows, each title once, the best known first', async () => {
+    const { client } = setup([answer(200, keanu)]);
+
+    await expect(client.person(inPortuguese)).resolves.toEqual({
+      id: 6384,
+      name: 'Keanu Reeves',
+      department: 'Acting',
+      biography: 'Keanu Charles Reeves é um ator canadense.',
+      birthday: '1964-09-02',
+      placeOfBirth: 'Beirut, Lebanon',
+      profilePath: '/keanu.jpg',
+      // a handle that is not one is left out
+      links: { imdb: 'nm0000206', x: 'keanu_x', facebook: 'Keanu.Page' },
+      cast: [
+        {
+          id: 603,
+          media_type: 'movie',
+          title: 'Matrix',
+          release_date: '1999-03-31',
+          poster_path: '/matrix.jpg',
+          genre_ids: [28, 878],
+          vote_average: 8.2,
+          // two roles in the same title
+          character: 'Neo / Thomas Anderson',
+        },
+        {
+          id: 245891,
+          media_type: 'movie',
+          title: 'John Wick',
+          release_date: '2014-10-22',
+          overview: 'Um assassino aposentado.',
+          character: 'John Wick',
+        },
+        { id: 1100, media_type: 'tv', name: 'Swedish Dicks' },
+        // more votes, but a talk show: last
+        {
+          id: 2001,
+          media_type: 'tv',
+          name: 'A Talk Show',
+          genre_ids: [10767, 35],
+          character: 'Self',
+        },
+      ],
+      crew: [
+        {
+          id: 186759,
+          media_type: 'movie',
+          title: 'Man of Tai Chi',
+          departments: ['Directing', 'Production'],
+        },
+      ],
+    });
+  });
+
+  it.each([
+    [
+      'from another country, in the same language',
+      [
+        { iso_639_1: 'en', iso_3166_1: 'US', data: { biography: 'An actor.' } },
+        { iso_639_1: 'pt', iso_3166_1: 'PT', data: { biography: 'Um actor.' } },
+      ],
+      { biography: 'Um actor.' },
+    ],
+    [
+      'in English, saying so, when none is in the language',
+      [
+        {
+          iso_639_1: 'fr',
+          iso_3166_1: 'FR',
+          data: { biography: 'Un acteur.' },
+        },
+        { iso_639_1: 'en', iso_3166_1: 'US', data: { biography: 'An actor.' } },
+      ],
+      { biography: 'An actor.', biographyLanguage: 'en' },
+    ],
+    [
+      'nowhere, when neither has one',
+      [
+        {
+          iso_639_1: 'fr',
+          iso_3166_1: 'FR',
+          data: { biography: 'Un acteur.' },
+        },
+        { iso_639_1: 'en', iso_3166_1: 'US', data: { biography: ' ' } },
+        { iso_639_1: 'en', iso_3166_1: 'GB', data: null },
+      ],
+      {},
+    ],
+  ])(
+    'finds a biography %s',
+    async (
+      _case,
+      translations,
+      expected: { biography?: string; biographyLanguage?: string },
+    ) => {
+      const { client } = setup([
+        answer(200, {
+          ...keanu,
+          biography: '',
+          translations: { translations },
+        }),
+      ]);
+
+      const person = await client.person(inPortuguese);
+
+      expect(person.biography).toBe(expected.biography);
+      expect(person.biographyLanguage).toBe(expected.biographyLanguage);
+    },
+  );
+
+  it('keeps only a site that opens safely, and an IMDb id of a person', async () => {
+    const { client } = setup([
+      answer(200, { ...keanu, homepage: 'https://keanu.example/' }),
+      answer(200, {
+        ...keanu,
+        homepage: 'http://keanu.example/',
+        imdb_id: 'tt0133093',
+        external_ids: { imdb_id: 'javascript:alert(1)' },
+      }),
+    ]);
+
+    await expect(client.person(inPortuguese)).resolves.toMatchObject({
+      links: { homepage: 'https://keanu.example/' },
+    });
+    await expect(client.person(inPortuguese)).resolves.toMatchObject({
+      links: {
+        homepage: undefined,
+        imdb: undefined,
+        x: undefined,
+      },
+    });
+  });
+
+  it('does not show an adult, whom no search would list', async () => {
+    const { client } = setup([answer(200, { ...keanu, adult: true })]);
+
+    await expect(client.person(inPortuguese)).rejects.toMatchObject({
+      code: 'not-found',
+    });
+  });
+
+  it('reports an answer without a name as unreadable', async () => {
+    const { client } = setup([answer(200, { ...keanu, name: ' ' })]);
+
+    await expect(client.person(inPortuguese)).rejects.toMatchObject({
       code: 'server',
     });
   });
@@ -976,7 +1624,7 @@ describe('lists of the user (v4)', () => {
     await expect(
       client.createList(USER, {
         name: 'Assistidos',
-        description: 'Media App',
+        description: 'MoviLedger',
         language: 'pt-BR',
       }),
     ).resolves.toBe(88);
@@ -986,7 +1634,7 @@ describe('lists of the user (v4)', () => {
       method: 'POST',
       body: {
         name: 'Assistidos',
-        description: 'Media App',
+        description: 'MoviLedger',
         iso_639_1: 'pt',
         iso_3166_1: 'BR',
         public: false,
@@ -1003,14 +1651,14 @@ describe('lists of the user (v4)', () => {
 
     await client.updateList(USER, 88, {
       name: 'Assistidos',
-      description: 'Media App',
+      description: 'MoviLedger',
     });
 
     expect(asked(fetch)).toMatchObject({
       method: 'PUT',
       body: {
         name: 'Assistidos',
-        description: 'Media App',
+        description: 'MoviLedger',
         public: false,
         sort_by: 'original_order.desc',
       },

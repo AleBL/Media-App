@@ -1,21 +1,27 @@
 <script setup lang="ts">
-  import { computed, ref, watch } from 'vue';
-  import { useRouter } from 'vue-router';
-  import { storeToRefs } from 'pinia';
-  import type { MediaList } from '@shared/api';
+  import { computed, onBeforeMount, ref, watch } from 'vue';
+  import { useRoute, useRouter } from 'vue-router';
+  import type { MediaType } from '@shared/api';
+  import HomeRow from '@/components/Home/HomeRow.vue';
+  import HomeRowsEditor from '@/components/Home/HomeRowsEditor.vue';
   import AppButton from '@/components/ui/AppButton.vue';
-  import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
+  import AppSegmented from '@/components/ui/AppSegmented.vue';
   import AppState from '@/components/ui/AppState.vue';
-  import PosterCardSkeleton from '@/components/Home/PosterCardSkeleton.vue';
-  import PosterRow from '@/components/Home/PosterRow.vue';
   import { isDesktop } from '@/services/api';
   import { useCredentialsStore } from '@/stores/credentials';
-  import { HOME_LISTS, useHomeStore } from '@/stores/home';
+  import { useGenresStore } from '@/stores/genres';
+  import { useHomeStore } from '@/stores/home';
+  import { rowId, rowType, useHomeRowsStore } from '@/stores/homeRows';
   import { accessProblem } from '@/util/access';
 
   const { t, locale } = useI18n();
+  const route = useRoute();
   const router = useRouter();
   const home = useHomeStore();
+  const homeRows = useHomeRowsStore();
+  const genres = useGenresStore();
+  const credentials = useCredentialsStore();
+  const desktop = isDesktop();
 
   // Straight to the results of what was typed, kept in the address.
   const text = ref('');
@@ -25,28 +31,47 @@
 
     void router.push({ name: 'search', query: query ? { q: query } : {} });
   }
-  const { lists } = storeToRefs(home);
-  const credentials = useCredentialsStore();
-  const desktop = isDesktop();
 
-  const TITLES: Record<MediaList, string> = {
-    trending: 'homePage.trending',
-    'popular-movies': 'homePage.popularMovies',
-    'popular-tv': 'homePage.popularTv',
-  };
+  // The names of the genres, in the titles of the rows and on the cards.
+  watch(locale, () => genres.load(locale.value), { immediate: true });
 
-  // TMDB translates the titles: the lists come again in the new language.
-  watch(locale, () => home.load(), { immediate: true });
+  // The user may be coming back from the settings, where the key changed:
+  // the rows that failed are asked again.
+  onBeforeMount(() => home.forgetFailures());
 
-  // Without access to TMDB every list fails the same way: one message for
+  // Without access to TMDB every row fails the same way: one message for
   // all of them, instead of one in each.
-  const problem = computed(() => {
-    const failed = HOME_LISTS.map((list) => lists.value[list].error).find(
-      (error) => error !== null,
-    );
+  const problem = computed(() =>
+    accessProblem(home.failure?.code, desktop, credentials.hasKey),
+  );
 
-    return accessProblem(failed?.code, desktop, credentials.hasKey);
+  // Everything, the movies or the tv shows, in the address
+  // (#/home?type=tv), so coming back from a title finds the same rows.
+  const kind = computed({
+    get: (): MediaType | 'all' =>
+      route.query.type === 'movie' || route.query.type === 'tv'
+        ? route.query.type
+        : 'all',
+    set: (value: string) =>
+      void router.replace({ query: value === 'all' ? {} : { type: value } }),
   });
+
+  const kindOptions = computed(() => [
+    { value: 'all', label: t('search.all') },
+    { value: 'movie', label: t('lists.movies') },
+    { value: 'tv', label: t('lists.tvShows') },
+  ]);
+
+  // A row of both (trending) shows the titles of the kind chosen.
+  const shown = computed(() =>
+    homeRows.rows.filter((row) => {
+      const type = rowType(row);
+
+      return kind.value === 'all' || type === 'all' || type === kind.value;
+    }),
+  );
+
+  const editing = ref(false);
 </script>
 
 <template>
@@ -85,7 +110,7 @@
     </form>
   </div>
 
-  <div class="mx-auto max-w-6xl px-4 pb-10">
+  <div class="page pb-10">
     <AppState v-if="problem" tone="error" icon="pi pi-exclamation-triangle">
       {{
         t(
@@ -102,52 +127,53 @@
     </AppState>
 
     <template v-else>
-      <section
-        v-for="list in HOME_LISTS"
-        :key="list"
-        class="mt-8"
-        :aria-labelledby="`list-${list}`"
-      >
-        <h2 :id="`list-${list}`" class="text-xl font-semibold">
-          {{ t(TITLES[list]) }}
+      <div class="mt-4 flex flex-wrap items-center gap-3">
+        <AppSegmented
+          v-if="!editing"
+          v-model="kind"
+          :options="kindOptions"
+          :label="t('homePage.kind')"
+          name="home-kind"
+        />
+        <h2 v-else class="text-xl font-semibold">
+          {{ t('homePage.customize') }}
         </h2>
+        <AppButton
+          class="ml-auto"
+          :severity="editing ? 'primary' : 'ghost'"
+          :icon="editing ? 'pi pi-check' : 'pi pi-sliders-h'"
+          :label="editing ? t('homePage.done') : t('homePage.customize')"
+          :aria-expanded="editing"
+          @click="editing = !editing"
+        />
+      </div>
 
-        <div
-          v-if="lists[list].error"
-          role="alert"
-          class="mt-3 flex flex-wrap items-center gap-3 text-red-600 dark:text-red-400"
+      <HomeRowsEditor v-if="editing" />
+
+      <template v-else>
+        <HomeRow
+          v-for="row in shown"
+          :key="rowId(row)"
+          :row="row"
+          :kind="kind"
+        />
+
+        <AppState
+          v-if="!shown.length"
+          icon="pi pi-th-large"
+          :title="t('homePage.noRows')"
         >
-          <p>{{ t('homePage.listError') }}</p>
-          <AppButton
-            :label="t('homePage.tryAgain')"
-            icon="pi pi-refresh"
-            severity="secondary"
-            @click="home.loadList(list)"
-          />
-        </div>
-
-        <!-- The shape of the row until it comes; the text is for screen
-             readers. -->
-        <div
-          v-else-if="!lists[list].items.length && lists[list].loading"
-          role="status"
-          class="mt-4 flex gap-4 overflow-hidden pb-3"
-        >
-          <span class="sr-only">{{ t('homePage.loading') }}</span>
-          <PosterCardSkeleton
-            v-for="index in 8"
-            :key="index"
-            class="w-36 shrink-0 sm:w-40"
-          />
-        </div>
-
-        <template v-else>
-          <!-- Loading again, in another language: the row stays. -->
-          <AppLoadingBar v-if="lists[list].loading" class="mt-3" />
-
-          <PosterRow :items="lists[list].items" :busy="lists[list].loading" />
-        </template>
-      </section>
+          {{ t('homePage.noRowsHint') }}
+          <template #actions>
+            <AppButton
+              severity="secondary"
+              icon="pi pi-sliders-h"
+              :label="t('homePage.customize')"
+              @click="editing = true"
+            />
+          </template>
+        </AppState>
+      </template>
     </template>
   </div>
 </template>

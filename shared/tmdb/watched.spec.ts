@@ -20,7 +20,7 @@ const MATRIX = { type: 'movie', id: 603 } as const;
 const WATCHED: UserList = {
   id: 77,
   name: 'Assistidos',
-  description: `Media App (${WATCHED_MARKER})`,
+  description: `MoviLedger (${WATCHED_MARKER})`,
 };
 const OTHER: UserList = { id: 5, name: 'Noir', description: 'Old films' };
 

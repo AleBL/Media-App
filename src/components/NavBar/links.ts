@@ -12,6 +12,7 @@ export interface NavLink {
 export const mainLinks = (t: Translate): NavLink[] => [
   { to: '/home', icon: 'pi pi-home', label: t('menu.home') },
   { to: '/search', icon: 'pi pi-search', label: t('pageTitles.search') },
+  { to: '/discover', icon: 'pi pi-compass', label: t('discover.title') },
 ];
 
 /** The pages of whoever signed in, in the menu under their name. */

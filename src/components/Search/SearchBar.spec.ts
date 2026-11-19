@@ -3,6 +3,7 @@ import { nextTick } from 'vue';
 import { mount, VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import i18n from '@/plugins/i18n';
+import router from '@/router';
 import SearchBar from '@/components/Search/SearchBar.vue';
 import { SEARCH_DEBOUNCE_MS, useSearchStore } from '@/stores/search';
 import { installFakeApi, pageOf } from '@/test/fakeApi';
@@ -21,7 +22,7 @@ describe('SearchBar', () => {
     setActivePinia(pinia);
     store = useSearchStore();
     wrapper = mount(SearchBar, {
-      global: { plugins: [pinia, i18n] },
+      global: { plugins: [pinia, i18n, router] },
     });
   });
 
@@ -114,5 +115,62 @@ describe('SearchBar', () => {
       page: 1,
       language: 'pt-BR',
     });
+  });
+
+  it('searches the titles of a year, and everything without one', async () => {
+    store.query = 'office';
+    await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
+    api.tmdb.search.mockClear();
+
+    const year = wrapper.get('input[aria-label="Year of release"]');
+    await year.setValue('2005');
+    await year.trigger('change');
+    await nextTick();
+
+    expect(store.year).toBe(2005);
+    expect(api.tmdb.search).toHaveBeenLastCalledWith({
+      type: 'movie',
+      query: 'office',
+      page: 1,
+      language: 'en',
+      year: 2005,
+    });
+
+    // people have no year
+    await wrapper.get('input[value="multi"]').setValue(true);
+    await nextTick();
+
+    expect(wrapper.find('input[aria-label="Year of release"]').exists()).toBe(
+      false,
+    );
+    expect(api.tmdb.search).toHaveBeenLastCalledWith({
+      type: 'multi',
+      query: 'office',
+      page: 1,
+      language: 'en',
+    });
+  });
+
+  it('takes no year for one that is not', async () => {
+    const year = wrapper.get('input[aria-label="Year of release"]');
+
+    await year.setValue('1700');
+    await year.trigger('change');
+
+    expect(store.year).toBeNull();
+    expect((year.element as HTMLInputElement).value).toBe('');
+  });
+
+  it('leads to more filters in the Explore page, with the type and the year', async () => {
+    await wrapper.get('input[value="tv"]').setValue(true);
+    store.year = 2005;
+    await nextTick();
+
+    const more = wrapper
+      .findAll('a')
+      .find((link) => link.text() === 'More filters')!;
+    expect(more.attributes('href')).toBe(
+      '#/discover?type=tv&from=2005&to=2005',
+    );
   });
 });

@@ -232,8 +232,25 @@ describe('tmdb proxy', () => {
       );
     });
 
+    it('asks for the movies in the theaters of a country', async () => {
+      const fetch = tmdbAnswers(200, { results: [] });
+
+      await ask(
+        '?resource=list&list=now-playing&language=pt-BR&region=BR',
+        fetch,
+      );
+
+      const url = new URL(fetch.mock.calls[0][0]);
+      expect(url.pathname).toBe('/3/movie/now_playing');
+      expect(url.searchParams.get('region')).toBe('BR');
+    });
+
     it.each([
       ['no list', '?resource=list&language=en'],
+      [
+        'a region that is not a country',
+        '?resource=list&list=now-playing&language=en&region=brazil',
+      ],
       [
         'a list the app does not show',
         '?resource=list&list=upcoming&language=en',
@@ -312,6 +329,143 @@ describe('tmdb proxy', () => {
 
       expect(response.status).toBe(400);
       expect(body).toEqual({ ok: false, error: { code: 'invalid-request' } });
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('person', () => {
+    const PERSON = '?resource=person&id=6384&language=pt-BR';
+
+    it('answers with the page of the person, kept as long as a title', async () => {
+      const fetch = tmdbAnswers(200, {
+        id: 6384,
+        name: 'Keanu Reeves',
+        popularity: 50,
+        combined_credits: {
+          cast: [
+            { id: 603, media_type: 'movie', title: 'Matrix', character: 'Neo' },
+          ],
+        },
+      });
+
+      const { response, body } = await ask(PERSON, fetch);
+
+      expect(response.status).toBe(200);
+      expect(body).toEqual({
+        ok: true,
+        data: {
+          id: 6384,
+          name: 'Keanu Reeves',
+          links: {},
+          cast: [
+            { id: 603, media_type: 'movie', title: 'Matrix', character: 'Neo' },
+          ],
+          crew: [],
+        },
+      });
+      const url = new URL(fetch.mock.calls[0][0]);
+      expect(url.pathname).toBe('/3/person/6384');
+      expect(url.searchParams.get('language')).toBe('pt-BR');
+      expect(response.headers.get('Cache-Control')).toBe(
+        'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400',
+      );
+    });
+
+    it.each([
+      ['no id', '?resource=person&language=pt-BR'],
+      ['an id that is a path', PERSON.replace('6384', '6384%2Fimages')],
+      ['no language', '?resource=person&id=6384'],
+    ])('refuses %s without asking TMDB', async (_case, query) => {
+      const { response, fetch } = await ask(query, tmdbAnswers(200, {}));
+
+      expect(response.status).toBe(400);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('discovery', () => {
+    const DISCOVER =
+      '?resource=discover&type=tv&page=2&language=pt-BR&region=BR&sort=rating';
+
+    it('asks TMDB with every filter, kept as long as a search', async () => {
+      const fetch = tmdbAnswers(200, searchBody);
+
+      const { response, body } = await ask(
+        `${DISCOVER}&genres=18,80&from=1990&to=1999&rating=7&original=ko&providers=8,119`,
+        fetch,
+      );
+
+      expect(response.status).toBe(200);
+      expect(body).toMatchObject({
+        ok: true,
+        data: { results: [{ id: 603, media_type: 'tv' }], totalResults: 45 },
+      });
+      const url = new URL(fetch.mock.calls[0][0]);
+      expect(url.pathname).toBe('/3/discover/tv');
+      expect(Object.fromEntries(url.searchParams)).toMatchObject({
+        page: '2',
+        sort_by: 'vote_average.desc',
+        with_genres: '18,80',
+        'first_air_date.gte': '1990-01-01',
+        'first_air_date.lte': '1999-12-31',
+        'vote_average.gte': '7',
+        with_original_language: 'ko',
+        watch_region: 'BR',
+        with_watch_providers: '8|119',
+      });
+      expect(response.headers.get('Cache-Control')).toBe(
+        'public, max-age=0, s-maxage=300, stale-while-revalidate=3600',
+      );
+    });
+
+    it('answers with what the filters offer, kept as long as the genres', async () => {
+      const fetch = vi.fn<FetchLike>(async (url) => {
+        const path = new URL(url).pathname;
+        const body = path.startsWith('/3/genre/')
+          ? { genres: [{ id: 18, name: 'Drama' }] }
+          : path.startsWith('/3/watch/')
+            ? { results: [] }
+            : path.startsWith('/3/certification/')
+              ? { certifications: { BR: [{ certification: 'L', order: 0 }] } }
+              : [{ iso_639_1: 'ko' }];
+
+        return new Response(JSON.stringify(body));
+      });
+
+      const { response, body } = await ask(
+        '?resource=discover-filters&type=tv&language=pt-BR&region=BR',
+        fetch,
+      );
+
+      expect(response.status).toBe(200);
+      expect(body).toEqual({
+        ok: true,
+        data: {
+          genres: [{ id: 18, name: 'Drama' }],
+          providers: [],
+          ageRatings: ['L'],
+          languages: ['ko'],
+        },
+      });
+      expect(response.headers.get('Cache-Control')).toBe(
+        'public, max-age=0, s-maxage=86400, stale-while-revalidate=604800',
+      );
+    });
+
+    it.each([
+      ['no order', DISCOVER.replace('&sort=rating', '')],
+      ['an empty list of genres', `${DISCOVER}&genres=`],
+      ['a genre that is not an id', `${DISCOVER}&genres=18,drama`],
+      ['a year that is not one', `${DISCOVER}&from=nineties`],
+      ['an age rating that joins two', `${DISCOVER}&age=L%7C10`],
+      [
+        'the filters of no type',
+        '?resource=discover-filters&language=en&region=BR',
+      ],
+    ])('refuses %s without asking TMDB', async (_case, query) => {
+      const { response, fetch } = await ask(query, tmdbAnswers(200, {}));
+
+      expect(response.status).toBe(400);
       expect(fetch).not.toHaveBeenCalled();
     });
   });

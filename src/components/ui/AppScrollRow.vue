@@ -1,11 +1,16 @@
 <script setup lang="ts">
   import { ref } from 'vue';
-  import { usePreferredReducedMotion, useScroll } from '@vueuse/core';
-  import AppIconButton from './AppIconButton.vue';
+  import {
+    usePreferredReducedMotion,
+    useResizeObserver,
+    useScroll,
+  } from '@vueuse/core';
 
   // A row of cards that scrolls sideways: the cards go in the default slot,
-  // as <li>. A mouse without a wheel that goes sideways has the arrows,
-  // which show on hover and on focus, and only where there is more.
+  // as <li>. It has no bar of the system, which on Windows is a thick gray
+  // one under each row: the sides with more to see fade out, and a mouse
+  // without a wheel that goes sideways has the arrows, which show on hover
+  // and on focus. A touch screen swipes, and has no arrows.
   defineProps<{
     /** Loading again: the row stays readable. */
     busy?: boolean;
@@ -14,8 +19,11 @@
   }>();
 
   const row = ref<HTMLElement>();
-  const { arrivedState } = useScroll(row);
+  const { arrivedState, measure } = useScroll(row);
   const motion = usePreferredReducedMotion();
+
+  // A wider or narrower window can show it all, or no longer.
+  useResizeObserver(row, () => measure());
 
   // About a screen of cards at a time; the cards snap into place.
   function move(direction: 1 | -1) {
@@ -25,34 +33,45 @@
     });
   }
 
+  // Over the middle of the pictures, apart from the text under them.
   const ARROW =
-    'absolute top-[38%] z-20 -translate-y-1/2 rounded-full bg-surface-0/90 shadow-md opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100 dark:bg-surface-800/90';
+    'absolute top-[40%] z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface-0/95 text-surface-800 opacity-0 shadow-lg ring-1 ring-surface-900/10 transition-opacity group-hover/row:opacity-100 hover:bg-surface-0 focus-visible:opacity-100 pointer-coarse:hidden dark:bg-surface-900/95 dark:text-surface-0 dark:ring-surface-0/15 dark:hover:bg-surface-900';
 </script>
 
 <template>
   <div class="group/row relative">
-    <div v-if="!arrivedState.left" :class="[ARROW, 'left-1']">
-      <AppIconButton
-        icon="pi pi-angle-left"
-        :label="previousLabel"
-        @click="move(-1)"
-      />
-    </div>
+    <button
+      v-if="!arrivedState.left"
+      type="button"
+      :class="[ARROW, 'left-1']"
+      :aria-label="previousLabel"
+      @click="move(-1)"
+    >
+      <span class="pi pi-chevron-left" aria-hidden="true" />
+    </button>
 
+    <!-- The cards snap clear of the faded side, so the one in front is
+         never under it. -->
     <ul
       ref="row"
-      class="m-0 mt-4 flex snap-x list-none gap-4 overflow-x-auto scroll-smooth p-0 pb-3 motion-reduce:scroll-auto"
+      :class="[
+        'no-scrollbar fade-x m-0 mt-3 flex snap-x scroll-px-12 list-none gap-4 overflow-x-auto scroll-smooth py-1 motion-reduce:scroll-auto',
+        !arrivedState.left && '[--fade-left:3rem]',
+        !arrivedState.right && '[--fade-right:3rem]',
+      ]"
       :aria-busy="busy"
     >
       <slot />
     </ul>
 
-    <div v-if="!arrivedState.right" :class="[ARROW, 'right-1']">
-      <AppIconButton
-        icon="pi pi-angle-right"
-        :label="nextLabel"
-        @click="move(1)"
-      />
-    </div>
+    <button
+      v-if="!arrivedState.right"
+      type="button"
+      :class="[ARROW, 'right-1']"
+      :aria-label="nextLabel"
+      @click="move(1)"
+    >
+      <span class="pi pi-chevron-right" aria-hidden="true" />
+    </button>
   </div>
 </template>

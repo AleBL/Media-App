@@ -4,6 +4,9 @@
   import { storeToRefs } from 'pinia';
   import type { MediaType, WatchProvider } from '@shared/api';
   import AccountButtons from '@/components/Account/AccountButtons.vue';
+  import AgeRating from '@/components/Details/AgeRating.vue';
+  import ImdbLink from '@/components/Details/ImdbLink.vue';
+  import TrailerDialog from '@/components/Details/TrailerDialog.vue';
   import AppButton from '@/components/ui/AppButton.vue';
   import AppImage from '@/components/ui/AppImage.vue';
   import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
@@ -16,6 +19,8 @@
   import { useDetailsStore } from '@/stores/details';
   import { accessProblem } from '@/util/access';
   import { backdropUrl, logoUrl, posterUrl, profileUrl } from '@/util/images';
+  import { personPage } from '@/util/people';
+  import { countryName } from '@/util/region';
 
   const props = defineProps<{ type: MediaType; id: number }>();
 
@@ -142,29 +147,13 @@
     };
   });
 
-  const trailerUrl = computed(() =>
-    details.value?.trailer
-      ? `https://www.youtube.com/watch?v=${details.value.trailer.key}`
-      : null,
-  );
-
   const imdbUrl = computed(() =>
     details.value?.imdbId
       ? `https://www.imdb.com/title/${details.value.imdbId}/`
       : null,
   );
 
-  const regionName = computed(() => {
-    try {
-      return (
-        new Intl.DisplayNames([locale.value], { type: 'region' }).of(
-          region.value,
-        ) ?? region.value
-      );
-    } catch {
-      return region.value;
-    }
-  });
+  const regionName = computed(() => countryName(region.value, locale.value));
 
   const watchGroups = computed(() => {
     const watch = details.value?.watch;
@@ -182,10 +171,17 @@
 
     return groups.filter((group) => group.providers.length > 0);
   });
+
+  // The page of TMDB with the links to the title on each service.
+  const watchLink = computed(() => details.value?.watch?.link);
+
+  /** What makes a link open in the browser, when there is one. */
+  const outside = (href: string | undefined) =>
+    href ? { href, target: '_blank', rel: 'noopener noreferrer' } : {};
 </script>
 
 <template>
-  <div class="mx-auto max-w-5xl px-4 pb-10">
+  <div class="page pb-10">
     <div class="my-4">
       <AppButton
         :label="t('details.back')"
@@ -249,7 +245,7 @@
            itself, readable in both themes. -->
       <div
         v-if="details.backdropPath"
-        class="relative -mx-4 h-48 overflow-hidden sm:mx-0 sm:h-72 sm:rounded-lg"
+        class="relative -mx-4 h-48 overflow-hidden sm:mx-0 sm:h-72 sm:rounded-lg 2xl:h-96"
         aria-hidden="true"
       >
         <img
@@ -263,10 +259,11 @@
       </div>
 
       <!-- Only the poster rises over the still; the text starts below it,
-           on the page, readable in both themes. -->
+           on the page, readable in both themes. Where to watch goes under
+           both, and beside them on a big screen. -->
       <div
         :class="[
-          'relative flex flex-col gap-6 sm:flex-row',
+          'relative grid gap-6 sm:grid-cols-[16rem_minmax(0,1fr)] 2xl:grid-cols-[18rem_minmax(0,1fr)_26rem]',
           details.backdropPath && 'sm:px-6',
         ]"
       >
@@ -274,12 +271,12 @@
           :src="posterUrl(details.posterPath)"
           eager
           :class="[
-            'w-48 shrink-0 self-center rounded-md shadow-lg ring-1 ring-black/5 sm:w-64 sm:self-start',
+            'w-48 self-start justify-self-center rounded-md shadow-lg ring-1 ring-black/5 sm:w-full',
             details.backdropPath && '-mt-24 sm:-mt-40',
           ]"
         />
 
-        <div class="flex-1">
+        <div class="min-w-0">
           <h1 id="details-title" class="text-3xl font-semibold">
             {{ details.title }}
             <span
@@ -299,9 +296,15 @@
           </p>
 
           <ul
-            v-if="facts.length"
-            class="mt-4 flex list-none flex-wrap gap-x-3 gap-y-1 p-0 text-sm text-surface-600 dark:text-surface-300"
+            v-if="facts.length || details.certification"
+            class="mt-4 flex list-none flex-wrap items-center gap-x-3 gap-y-1 p-0 text-sm text-surface-600 dark:text-surface-300"
           >
+            <li v-if="details.certification" class="flex">
+              <AgeRating
+                :certification="details.certification"
+                :region="region"
+              />
+            </li>
             <li
               v-for="(fact, index) in facts"
               :key="fact"
@@ -320,85 +323,95 @@
             >
           </p>
 
-          <p v-if="details.overview" class="mt-4 leading-relaxed">
+          <p v-if="details.overview" class="mt-4 max-w-[80ch] leading-relaxed">
             {{ details.overview }}
           </p>
 
           <AccountButtons :id="details.id" class="mt-6" :type="details.type" />
 
-          <div v-if="trailerUrl || imdbUrl" class="mt-4 flex flex-wrap gap-3">
-            <AppButton
-              v-if="trailerUrl"
-              :href="trailerUrl"
-              :label="t('details.trailer')"
-              icon="pi pi-youtube"
+          <div
+            v-if="details.trailer || imdbUrl"
+            class="mt-4 flex flex-wrap gap-3"
+          >
+            <TrailerDialog
+              v-if="details.trailer"
+              :video-key="details.trailer.key"
+              :title="details.title"
             />
-            <AppButton
-              v-if="imdbUrl"
-              :href="imdbUrl"
-              :label="t('details.imdb')"
-              icon="pi pi-external-link"
-              severity="secondary"
-            />
+            <ImdbLink v-if="imdbUrl" :href="imdbUrl" />
           </div>
         </div>
-      </div>
 
-      <section class="mt-10" aria-labelledby="watch-title">
-        <h2 id="watch-title" class="text-xl font-semibold">
-          {{ t('details.whereToWatch', { region: regionName }) }}
-        </h2>
+        <section
+          class="mt-4 sm:col-span-2 2xl:col-span-1 2xl:mt-0"
+          aria-labelledby="watch-title"
+        >
+          <h2 id="watch-title" class="text-xl font-semibold">
+            {{ t('details.whereToWatch', { region: regionName }) }}
+          </h2>
 
-        <template v-if="watchGroups.length">
-          <div v-for="group in watchGroups" :key="group.key" class="mt-4">
-            <h3
-              class="text-sm font-medium text-surface-500 dark:text-surface-400"
+          <template v-if="watchGroups.length">
+            <div v-for="group in watchGroups" :key="group.key" class="mt-4">
+              <h3
+                class="text-sm font-medium text-surface-500 dark:text-surface-400"
+              >
+                {{ t(`details.${group.key}`) }}
+              </h3>
+              <ul class="mt-2 flex list-none flex-wrap gap-3 p-0">
+                <li v-for="provider in group.providers" :key="provider.id">
+                  <!-- Each service leads to the page of TMDB, which links
+                       straight to the title on each one: TMDB gives no link
+                       of its own per service. The name of the service shows
+                       on hover and on focus; screen readers read it from
+                       the logo. -->
+                  <AppTooltip
+                    v-if="provider.logoPath"
+                    :text="provider.name"
+                    side="top"
+                  >
+                    <component
+                      :is="watchLink ? 'a' : 'span'"
+                      v-bind="outside(watchLink)"
+                      class="block rounded-lg transition-shadow hover:shadow-md hover:ring-2 hover:ring-primary-500/60"
+                    >
+                      <AppImage
+                        :src="logoUrl(provider.logoPath)"
+                        :alt="provider.name"
+                        shape="square"
+                        class="h-12 w-12 rounded-lg"
+                      />
+                    </component>
+                  </AppTooltip>
+                  <component
+                    :is="watchLink ? 'a' : 'span'"
+                    v-else
+                    v-bind="outside(watchLink)"
+                    class="flex h-12 items-center rounded-lg bg-surface-100 px-3 text-sm text-surface-800 no-underline hover:ring-2 hover:ring-primary-500/60 dark:bg-surface-700 dark:text-surface-100"
+                  >
+                    {{ provider.name }}
+                  </component>
+                </li>
+              </ul>
+            </div>
+          </template>
+          <p v-else class="mt-2 text-surface-500 dark:text-surface-400">
+            {{ t('details.nowhereToWatch', { region: regionName }) }}
+          </p>
+
+          <!-- TMDB only lets the app show this data with its source named. -->
+          <p class="mt-4 text-sm text-surface-500 dark:text-surface-400">
+            {{ t('details.justWatch') }}
+            <a
+              v-if="details.watch?.link"
+              :href="details.watch.link"
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              {{ t(`details.${group.key}`) }}
-            </h3>
-            <ul class="mt-2 flex list-none flex-wrap gap-3 p-0">
-              <li v-for="provider in group.providers" :key="provider.id">
-                <!-- The name of the service shows on hover; screen readers
-                     read it from the logo. -->
-                <AppTooltip
-                  v-if="provider.logoPath"
-                  :text="provider.name"
-                  side="top"
-                >
-                  <AppImage
-                    :src="logoUrl(provider.logoPath)"
-                    :alt="provider.name"
-                    shape="square"
-                    class="h-12 w-12 rounded-lg"
-                  />
-                </AppTooltip>
-                <span
-                  v-else
-                  class="flex h-12 items-center rounded-lg bg-surface-100 px-3 text-sm dark:bg-surface-700"
-                >
-                  {{ provider.name }}
-                </span>
-              </li>
-            </ul>
-          </div>
-        </template>
-        <p v-else class="mt-2 text-surface-500 dark:text-surface-400">
-          {{ t('details.nowhereToWatch', { region: regionName }) }}
-        </p>
-
-        <!-- TMDB only lets the app show this data with its source named. -->
-        <p class="mt-4 text-sm text-surface-500 dark:text-surface-400">
-          {{ t('details.justWatch') }}
-          <a
-            v-if="details.watch?.link"
-            :href="details.watch.link"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {{ t('details.allOptions') }}
-          </a>
-        </p>
-      </section>
+              {{ t('details.allOptions') }}
+            </a>
+          </p>
+        </section>
+      </div>
 
       <section
         v-if="details.cast.length"
@@ -414,17 +427,26 @@
           :previous-label="t('details.castPrevious')"
           :next-label="t('details.castNext')"
         >
+          <!-- The name leads to the page of the person, and the link
+               covers the picture too. -->
           <li
             v-for="person in details.cast"
             :key="person.id"
-            class="w-28 shrink-0 snap-start text-center sm:w-32"
+            class="group relative w-28 shrink-0 snap-start text-center sm:w-32"
           >
             <AppImage
               :src="person.profilePath ? profileUrl(person.profilePath) : null"
               icon="pi pi-user"
-              class="w-full rounded-md"
+              class="w-full rounded-md transition-shadow duration-200 group-hover:shadow-md group-has-[a:focus-visible]:ring-2 group-has-[a:focus-visible]:ring-primary-500 dark:group-has-[a:focus-visible]:ring-primary-400"
             />
-            <p class="mt-2 text-sm font-medium">{{ person.name }}</p>
+            <p class="mt-2 text-sm font-medium">
+              <RouterLink
+                :to="personPage(person.id)"
+                class="text-surface-900 no-underline outline-hidden after:absolute after:inset-0 group-hover:underline dark:text-surface-0"
+              >
+                {{ person.name }}
+              </RouterLink>
+            </p>
             <p
               v-if="person.character"
               class="text-xs text-surface-500 dark:text-surface-400"

@@ -154,23 +154,23 @@ describe('updates', () => {
 });
 
 describe('canReplaceItself', () => {
-  const installed = 'C:\\Users\\ada\\AppData\\Local\\Programs\\media-app';
+  const installed = 'C:\\Users\\ada\\AppData\\Local\\Programs\\moviledger';
 
   it('is true for the Windows installer, which leaves an uninstaller', () => {
     const exists = vi.fn((path: string) =>
-      path.endsWith('Uninstall Media App.exe'),
+      path.endsWith('Uninstall MoviLedger.exe'),
     );
 
     expect(
       canReplaceItself({
         platform: 'win32',
-        execPath: `${installed}\\Media App.exe`,
+        execPath: `${installed}\\MoviLedger.exe`,
         env: {},
         exists,
       }),
     ).toBe(true);
     expect(exists).toHaveBeenCalledWith(
-      `${installed}\\Uninstall Media App.exe`,
+      `${installed}\\Uninstall MoviLedger.exe`,
     );
   });
 
@@ -178,7 +178,7 @@ describe('canReplaceItself', () => {
     expect(
       canReplaceItself({
         platform: 'win32',
-        execPath: 'D:\\Apps\\media-app\\Media App.exe',
+        execPath: 'D:\\Apps\\moviledger\\MoviLedger.exe',
         env: {},
         exists: () => false,
       }),
@@ -189,21 +189,21 @@ describe('canReplaceItself', () => {
     const linux = (env: Record<string, string>) =>
       canReplaceItself({
         platform: 'linux',
-        execPath: '/opt/Media App/media-app',
+        execPath: '/opt/MoviLedger/moviledger',
         env,
         exists: () => true,
       });
 
-    expect(linux({ APPIMAGE: '/home/ada/media-app.AppImage' })).toBe(true);
+    expect(linux({ APPIMAGE: '/home/ada/moviledger.AppImage' })).toBe(true);
     expect(linux({})).toBe(false);
-    expect(linux({ SNAP: '/snap/media-app/1' })).toBe(false);
+    expect(linux({ SNAP: '/snap/moviledger/1' })).toBe(false);
   });
 
   it('is false on macOS, where an unsigned app cannot update itself', () => {
     expect(
       canReplaceItself({
         platform: 'darwin',
-        execPath: '/Applications/Media App.app/Contents/MacOS/Media App',
+        execPath: '/Applications/MoviLedger.app/Contents/MacOS/MoviLedger',
         env: {},
         exists: () => true,
       }),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { userRegion } from '@/util/region';
+import { countryName, languageIn, userRegion } from '@/util/region';
 
 describe('userRegion', () => {
   it('takes the country of the first language of the system that has one', () => {
@@ -24,5 +24,22 @@ describe('userRegion', () => {
 
   it('falls back to the United States for anything else', () => {
     expect(userRegion('fr', [])).toBe('US');
+  });
+});
+
+describe('countryName', () => {
+  it('names a country in the language of the app', () => {
+    expect(countryName('US', 'pt-BR')).toBe('Estados Unidos');
+    expect(countryName('BR', 'en')).toBe('Brazil');
+  });
+
+  it('keeps the code of what is no country', () => {
+    expect(countryName('not a code', 'en')).toBe('not a code');
+  });
+
+  it('names a language in the language of the app, with a capital', () => {
+    expect(languageIn('ko', 'pt-BR')).toBe('Coreano');
+    expect(languageIn('ko', 'en')).toBe('Korean');
+    expect(languageIn('not a code', 'en')).toBe('Not a code');
   });
 });

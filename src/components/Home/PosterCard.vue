@@ -2,10 +2,12 @@
   import { computed } from 'vue';
   import type { MediaItem } from '@shared/api';
   import CardButtons from '@/components/Account/CardButtons.vue';
+  import { ROW_WIDTH, type CardSize } from '@/components/Cards/view';
   import AppImage from '@/components/ui/AppImage.vue';
   import { useGenresStore } from '@/stores/genres';
   import { posterUrl } from '@/util/images';
   import { mediaPage, mediaTitle, mediaType, mediaYear } from '@/util/media';
+  import { creditRole } from '@/util/people';
 
   const props = defineProps<{
     item: MediaItem;
@@ -17,6 +19,11 @@
     grid?: boolean;
     /** Says whether it is a movie or a tv show, among results of both. */
     showType?: boolean;
+    /**
+     * The size chosen (CardViewPicker): how wide it is in a row, and, when
+     * small, no genres. Medium unless given.
+     */
+    size?: CardSize;
   }>();
 
   const { t, locale } = useI18n();
@@ -34,12 +41,18 @@
   );
 
   const genres = computed(() =>
-    props.grid ? genreStore.names(props.item.genre_ids, locale.value) : '',
+    props.grid && props.size !== 'small'
+      ? genreStore.names(props.item.genre_ids, locale.value)
+      : '',
   );
 
   const typeLabel = computed(() =>
     mediaType(props.item) === 'tv' ? 'pageTitles.tvShow' : 'pageTitles.movie',
   );
+
+  // Only the titles of the page of a person have one: who they played, or
+  // what they did.
+  const role = computed(() => creditRole(props.item, t));
 
   // Only the titles of the list of rated titles have one.
   const yourRating = computed(() =>
@@ -68,7 +81,9 @@
   <!-- A title in a row of the home page or in a grid. Its name is the link
        to its page, and the link covers the whole card; the buttons of the
        lists of the account sit above it, on the poster. -->
-  <article :class="['group relative', grid ? 'w-full' : 'w-36 sm:w-40']">
+  <article
+    :class="['group relative', grid ? 'w-full' : ROW_WIDTH[size ?? 'medium']]"
+  >
     <AppImage
       :src="posterUrl(item.poster_path, 'w342')"
       class="w-full rounded-md shadow-sm transition-shadow duration-200 group-hover:shadow-md group-has-[a:focus-visible]:ring-2 group-has-[a:focus-visible]:ring-primary-500 dark:group-has-[a:focus-visible]:ring-primary-400"
@@ -92,6 +107,12 @@
         {{ name }}
       </RouterLink>
     </h3>
+    <p
+      v-if="role"
+      class="mt-0.5 line-clamp-2 text-xs text-surface-600 dark:text-surface-300"
+    >
+      {{ role }}
+    </p>
     <p
       class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-surface-500 dark:text-surface-400"
     >

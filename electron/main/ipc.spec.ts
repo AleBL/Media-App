@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   IPC,
   type CredentialStatus,
+  type DiscoverFilters,
   type MediaDetails,
+  type PersonDetails,
   type SessionState,
 } from '../../shared/api';
 import { registerIpc, type IpcEvent, type IpcServices } from './ipc';
@@ -41,6 +43,21 @@ const fromElsewhere: IpcEvent = {
 };
 const search = { type: 'movie', query: 'matrix', page: 1, language: 'en' };
 const details = { type: 'movie', id: 603, language: 'pt-BR', region: 'BR' };
+const KEANU: PersonDetails = {
+  id: 6384,
+  name: 'Keanu Reeves',
+  links: {},
+  cast: [{ id: 603, media_type: 'movie', title: 'Matrix', character: 'Neo' }],
+  crew: [],
+};
+
+const MOVIE_FILTERS: DiscoverFilters = {
+  genres: [{ id: 28, name: 'Action' }],
+  providers: [{ id: 8, name: 'Netflix' }],
+  ageRatings: ['G', 'PG'],
+  languages: ['en'],
+};
+
 const MATRIX: MediaDetails = {
   type: 'movie',
   id: 603,
@@ -73,6 +90,14 @@ describe('ipc handlers', () => {
           totalResults: 1,
         })),
         details: vi.fn(async () => MATRIX),
+        person: vi.fn(async () => KEANU),
+        discover: vi.fn(async () => ({
+          page: 1,
+          results: [{ id: 603, media_type: 'movie' as const }],
+          totalPages: 1,
+          totalResults: 1,
+        })),
+        discoverFilters: vi.fn(async () => MOVIE_FILTERS),
         list: vi.fn(async () => [{ id: 603, media_type: 'movie' as const }]),
         regions: vi.fn(async () => ['BR', 'US']),
       },
@@ -444,6 +469,88 @@ describe('ipc handlers', () => {
         call(IPC.tmdbDetails, fromElsewhere, details),
       ).resolves.toEqual({ ok: false, error: { code: 'invalid-request' } });
       expect(services.tmdb.details).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('page of a person', () => {
+    const keanu = { id: 6384, language: 'pt-BR' };
+
+    it('answers with the person, from the app', async () => {
+      await expect(call(IPC.tmdbPerson, fromApp, keanu)).resolves.toEqual({
+        ok: true,
+        data: KEANU,
+      });
+      expect(services.tmdb.person).toHaveBeenCalledWith(keanu);
+    });
+
+    it.each([
+      ['an id that is not a number', { ...keanu, id: '6384/images' }],
+      ['an id that is no id', { ...keanu, id: 0 }],
+      ['a language that is not a locale', { ...keanu, language: '../en' }],
+      ['nothing', undefined],
+    ])('rejects %s without asking', async (_case, request) => {
+      await expect(call(IPC.tmdbPerson, fromApp, request)).resolves.toEqual({
+        ok: false,
+        error: { code: 'invalid-request' },
+      });
+      expect(services.tmdb.person).not.toHaveBeenCalled();
+    });
+
+    it('rejects a sender that is not the app', async () => {
+      await expect(call(IPC.tmdbPerson, fromElsewhere, keanu)).resolves.toEqual(
+        { ok: false, error: { code: 'invalid-request' } },
+      );
+      expect(services.tmdb.person).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('discovery', () => {
+    const discovery = {
+      type: 'tv',
+      page: 2,
+      language: 'pt-BR',
+      region: 'BR',
+      sort: 'rating',
+      genres: [18],
+      ageRating: '14',
+      providers: [8, 119],
+    };
+
+    it('answers with the titles found, from the app', async () => {
+      await expect(
+        call(IPC.tmdbDiscover, fromApp, discovery),
+      ).resolves.toMatchObject({ ok: true, data: { totalResults: 1 } });
+      expect(services.tmdb.discover).toHaveBeenCalledWith(discovery);
+    });
+
+    it('answers with what the filters offer', async () => {
+      const filters = { type: 'movie', language: 'en', region: 'US' };
+
+      await expect(
+        call(IPC.tmdbDiscoverFilters, fromApp, filters),
+      ).resolves.toEqual({ ok: true, data: MOVIE_FILTERS });
+      expect(services.tmdb.discoverFilters).toHaveBeenCalledWith(filters);
+    });
+
+    it.each([
+      [IPC.tmdbDiscover, { ...discovery, sort: 'revenue' }],
+      [IPC.tmdbDiscover, { ...discovery, ageRating: 'L|10' }],
+      [IPC.tmdbDiscover, { ...discovery, providers: ['8'] }],
+      [IPC.tmdbDiscoverFilters, { type: 'movie', language: 'en' }],
+    ])('rejects on %s what it cannot ask', async (channel, request) => {
+      await expect(call(channel, fromApp, request)).resolves.toEqual({
+        ok: false,
+        error: { code: 'invalid-request' },
+      });
+      expect(services.tmdb.discover).not.toHaveBeenCalled();
+      expect(services.tmdb.discoverFilters).not.toHaveBeenCalled();
+    });
+
+    it('rejects a sender that is not the app', async () => {
+      await expect(
+        call(IPC.tmdbDiscover, fromElsewhere, discovery),
+      ).resolves.toEqual({ ok: false, error: { code: 'invalid-request' } });
+      expect(services.tmdb.discover).not.toHaveBeenCalled();
     });
   });
 

@@ -29,12 +29,19 @@ test.describe('page of a title', () => {
     ).toBeVisible();
     await expect(page.getByText('Ada Actor')).toBeVisible();
     await expect(page.getByText('Villain')).toBeVisible();
+    // the age rating of the region, with what it means
+    await expect(
+      page.getByRole('img', {
+        name: 'Age rating: PG-13. May be inappropriate for children under 13',
+      }),
+    ).toHaveText('PG-13');
     expect(tmdb.pages()).toEqual([
       {
         path: '/3/movie/2',
         credential: 'app',
         language: 'en',
-        append_to_response: 'credits,videos,watch/providers,external_ids',
+        append_to_response:
+          'credits,videos,watch/providers,external_ids,release_dates',
         include_video_language: 'en,en-US,null',
       },
     ]);
@@ -55,21 +62,65 @@ test.describe('page of a title', () => {
     ).toBeVisible();
   });
 
-  test('opens the trailer and IMDb in the browser of the system', async ({
+  test('plays the trailer over the page, without leaving the app', async ({
     page,
-    running,
   }) => {
+    // A stand-in for the player of YouTube: nothing leaves the machine.
+    // (It answers before the main process adds who the app is, which the
+    // unit tests of security.ts cover.)
+    await page.route('https://www.youtube-nocookie.com/**', (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+        body: '<p>Player of the trailer</p>',
+      }),
+    );
     await cards(page).first().getByRole('link').click();
     await expect(heading(page)).toBeVisible();
 
-    await page.getByRole('link', { name: 'Watch the trailer' }).click();
+    const play = page.getByRole('button', { name: 'Watch the trailer' });
+    await play.click();
+
+    const dialog = page.getByRole('dialog', { name: 'Trailer: Movie 1 [en]' });
+    await expect(dialog.locator('iframe')).toHaveAttribute(
+      'src',
+      `https://www.youtube-nocookie.com/embed/${TRAILER_KEY}?autoplay=1&rel=0`,
+    );
+    await expect(
+      page
+        .frameLocator('[role="dialog"] iframe')
+        .getByText('Player of the trailer'),
+    ).toBeVisible();
+
+    // Esc takes it away with the video, and the focus goes back.
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(page.locator('iframe')).toHaveCount(0);
+    await expect(play).toBeFocused();
+  });
+
+  test('opens YouTube, IMDb and where to watch in the browser of the system', async ({
+    page,
+    running,
+  }) => {
+    await page.route('https://www.youtube-nocookie.com/**', (route) =>
+      route.fulfill({ contentType: 'text/html', body: '<p>Player</p>' }),
+    );
+    await cards(page).first().getByRole('link').click();
+    await expect(heading(page)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Watch the trailer' }).click();
+    await page.getByRole('link', { name: 'Open on YouTube' }).click();
+    await page.keyboard.press('Escape');
     await page.getByRole('link', { name: 'See on IMDb' }).click();
+    // A service leads to the page of TMDB with the links to each one.
+    await page.getByRole('link', { name: 'Stream US' }).click();
 
     await expect
       .poll(running.openedInBrowser)
       .toEqual([
         `https://www.youtube.com/watch?v=${TRAILER_KEY}`,
         'https://www.imdb.com/title/tt0133093/',
+        'https://www.themoviedb.org/movie/1/watch?locale=US',
       ]);
     // The window still shows the app.
     await expect(page).toHaveURL(/#\/movie\/1$/);
@@ -100,6 +151,9 @@ test.describe('page of a title', () => {
     await expect(heading(page)).toHaveText('Show 1 [en] (2008)');
     await expect(page.getByText('5 seasons')).toBeVisible();
     await expect(page.getByText('47 min per episode')).toBeVisible();
+    await expect(
+      page.getByRole('img', { name: 'Age rating: TV-MA. Adults only' }),
+    ).toBeVisible();
   });
 
   test('follows the language chosen in the menu', async ({ page, tmdb }) => {

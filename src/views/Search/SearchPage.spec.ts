@@ -168,6 +168,45 @@ describe('SearchPage', () => {
     await flushPromises();
   });
 
+  it('keeps the year in the address, but not for a search of everything', async () => {
+    await router.push('/search?q=office&type=tv&year=2005');
+    await mountPage();
+
+    expect(store.year).toBe(2005);
+
+    store.year = 2001;
+    await flushPromises();
+    expect(router.currentRoute.value.query).toEqual({
+      q: 'office',
+      type: 'tv',
+      year: '2001',
+    });
+
+    store.mediaType = 'multi';
+    await flushPromises();
+    expect(router.currentRoute.value.query).toEqual({
+      q: 'office',
+      type: 'multi',
+    });
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, SEARCH_DEBOUNCE_MS + 20),
+    );
+    await flushPromises();
+  });
+
+  it('takes no year from a link with one that is not', async () => {
+    await router.push('/search?q=office&year=soon');
+    await mountPage();
+
+    expect(store.year).toBeNull();
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, SEARCH_DEBOUNCE_MS + 20),
+    );
+    await flushPromises();
+  });
+
   it('shows people and titles of a search of everything, saying what each is', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     store.results = [movie(2)];
@@ -196,7 +235,10 @@ describe('SearchPage', () => {
       'Person',
     ]);
     expect(cards[2].text()).toContain('Person 1');
-    expect(cards[2].get('a').attributes('href')).toBe('#/movie/1');
+    // the person leads to their page, and to the titles they are known for
+    expect(
+      cards[2].findAll('a').map((link) => link.attributes('href')),
+    ).toEqual(['#/person/1', '#/movie/1']);
     expect(warn.mock.calls.flat().join(' ')).not.toContain('Duplicate keys');
     warn.mockRestore();
   });

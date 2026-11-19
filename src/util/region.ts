@@ -30,3 +30,29 @@ export function userRegion(
 
   return BY_LANGUAGE[appLocale] ?? 'US';
 }
+
+/** A country by its name in `locale`, or by its code when it has none. */
+export function countryName(code: string, locale: string): string {
+  try {
+    return new Intl.DisplayNames([locale], { type: 'region' }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
+/**
+ * A language by its name in `locale`, starting with a capital as in a
+ * list ("Coreano"), or by its code when it has none.
+ */
+export function languageIn(code: string, locale: string): string {
+  let name = code;
+
+  try {
+    name =
+      new Intl.DisplayNames([locale], { type: 'language' }).of(code) ?? code;
+  } catch {
+    // The code, then.
+  }
+
+  return name.charAt(0).toLocaleUpperCase(locale) + name.slice(1);
+}

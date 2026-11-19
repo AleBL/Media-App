@@ -4,9 +4,12 @@ import {
   parseAccountListRequest,
   parseApiKey,
   parseDetailsRequest,
+  parseDiscoverFiltersRequest,
+  parseDiscoverRequest,
   parseLanguage,
   parseListRequest,
   parseMarkRequest,
+  parsePersonRequest,
   parseRateRequest,
   parseRegion,
   parseSearchRequest,
@@ -173,6 +176,16 @@ describe('parseSearchRequest', () => {
     expect(parseSearchRequest({ ...valid, type })).toEqual({ ...valid, type });
   });
 
+  it('accepts the year of a movie or a tv show, and no year for everything', () => {
+    expect(parseSearchRequest({ ...valid, year: 1999 })).toEqual({
+      ...valid,
+      year: 1999,
+    });
+    expect(parseSearchRequest({ ...valid, type: 'multi', year: 1999 })).toEqual(
+      { ...valid, type: 'multi' },
+    );
+  });
+
   it.each([
     ['a missing request', undefined],
     ['a string', 'matrix'],
@@ -185,8 +198,102 @@ describe('parseSearchRequest', () => {
     ['a fractional page', { ...valid, page: 1.5 }],
     ['a page sent as text', { ...valid, page: '1' }],
     ['a language that is not a locale', { ...valid, language: '../x' }],
+    ['a year sent as text', { ...valid, year: '1999' }],
+    ['a year before the movies', { ...valid, year: 1800 }],
+    ['a fractional year', { ...valid, year: 1999.5 }],
   ])('rejects %s', (_case, request) => {
     expect(parseSearchRequest(request)).toBeNull();
+  });
+});
+
+describe('parseDiscoverRequest', () => {
+  const valid = {
+    type: 'tv',
+    page: 1,
+    language: 'pt-BR',
+    region: 'BR',
+    sort: 'popularity',
+  };
+  const everything = {
+    ...valid,
+    sort: 'rating',
+    genres: [18, 80],
+    fromYear: 1990,
+    toYear: 1999,
+    minRating: 7,
+    originalLanguage: 'ko',
+    ageRating: 'M/12',
+    providers: [8, 119],
+  };
+
+  it('accepts a discovery with no filter and drops fields it does not know', () => {
+    expect(parseDiscoverRequest({ ...valid, path: '/account' })).toEqual(valid);
+  });
+
+  it('accepts every filter, each genre and service once', () => {
+    expect(
+      parseDiscoverRequest({ ...everything, genres: [18, 80, 18] }),
+    ).toEqual(everything);
+  });
+
+  it('accepts a single year, an age rating with accents and no list', () => {
+    expect(
+      parseDiscoverRequest({
+        ...valid,
+        fromYear: 2005,
+        toYear: 2005,
+        ageRating: 'Públicos',
+        genres: [],
+        providers: [],
+      }),
+    ).toEqual({
+      ...valid,
+      fromYear: 2005,
+      toYear: 2005,
+      ageRating: 'Públicos',
+    });
+  });
+
+  it.each([
+    ['a missing request', undefined],
+    ['an unknown media type', { ...valid, type: 'multi' }],
+    ['a page past the last one', { ...valid, page: 501 }],
+    ['an unknown order', { ...valid, sort: 'revenue' }],
+    ['an order of the prototype', { ...valid, sort: 'constructor' }],
+    ['no region', { ...valid, region: undefined }],
+    ['a language that is not a locale', { ...valid, language: 'pt_BR' }],
+    ['genres that are not ids', { ...valid, genres: ['18'] }],
+    [
+      'too many genres',
+      { ...valid, genres: Array.from({ length: 11 }, (_, i) => i + 1) },
+    ],
+    ['services that are not a list', { ...valid, providers: 8 }],
+    ['years the wrong way round', { ...valid, fromYear: 2000, toYear: 1990 }],
+    ['a year sent as text', { ...valid, fromYear: '1990' }],
+    ['a rating of 10', { ...valid, minRating: 10 }],
+    ['a fractional rating', { ...valid, minRating: 7.5 }],
+    ['a language that is not a code', { ...valid, originalLanguage: 'kor' }],
+    ['an age rating that joins two', { ...valid, ageRating: 'L|10' }],
+    ['an age rating too long', { ...valid, ageRating: 'x'.repeat(13) }],
+  ])('rejects %s', (_case, request) => {
+    expect(parseDiscoverRequest(request)).toBeNull();
+  });
+});
+
+describe('parseDiscoverFiltersRequest', () => {
+  const valid = { type: 'movie', language: 'en', region: 'US' };
+
+  it('accepts the filters of a type in a country', () => {
+    expect(parseDiscoverFiltersRequest({ ...valid, extra: 1 })).toEqual(valid);
+  });
+
+  it.each([
+    ['a missing request', undefined],
+    ['an unknown media type', { ...valid, type: 'person' }],
+    ['no language', { ...valid, language: undefined }],
+    ['a region that is not a country', { ...valid, region: 'USA' }],
+  ])('rejects %s', (_case, request) => {
+    expect(parseDiscoverFiltersRequest(request)).toBeNull();
   });
 });
 
@@ -204,15 +311,19 @@ describe('parseRegion', () => {
 });
 
 describe('parseListRequest', () => {
-  it.each(['trending', 'popular-movies', 'popular-tv'])(
-    'accepts the list %s',
-    (list) => {
-      expect(parseListRequest({ list, language: 'es', extra: 1 })).toEqual({
-        list,
-        language: 'es',
-      });
-    },
-  );
+  it.each([
+    'trending',
+    'trending-movies',
+    'trending-tv',
+    'popular-movies',
+    'popular-tv',
+    'now-playing',
+  ])('accepts the list %s', (list) => {
+    expect(parseListRequest({ list, language: 'es', extra: 1 })).toEqual({
+      list,
+      language: 'es',
+    });
+  });
 
   it.each([
     ['a missing request', undefined],
@@ -220,8 +331,18 @@ describe('parseListRequest', () => {
     ['a path', { list: '/trending/all/week', language: 'en' }],
     ['a name of the prototype', { list: 'constructor', language: 'en' }],
     ['a language that is not a locale', { list: 'trending', language: 'x' }],
+    [
+      'a region that is not a country',
+      { list: 'now-playing', language: 'en', region: 'Brazil' },
+    ],
   ])('rejects %s', (_case, request) => {
     expect(parseListRequest(request)).toBeNull();
+  });
+
+  it('keeps the country of the theaters', () => {
+    expect(
+      parseListRequest({ list: 'now-playing', language: 'en', region: 'BR' }),
+    ).toEqual({ list: 'now-playing', language: 'en', region: 'BR' });
   });
 });
 
@@ -245,6 +366,24 @@ describe('parseDetailsRequest', () => {
     ['a region that is not a country', { ...valid, region: 'Brazil' }],
   ])('rejects %s', (_case, request) => {
     expect(parseDetailsRequest(request)).toBeNull();
+  });
+});
+
+describe('parsePersonRequest', () => {
+  const valid = { id: 6384, language: 'pt-BR' };
+
+  it('accepts the page of a person and drops fields it does not know', () => {
+    expect(parsePersonRequest({ ...valid, path: '/account' })).toEqual(valid);
+  });
+
+  it.each([
+    ['a missing request', undefined],
+    ['an id sent as text', { ...valid, id: '6384' }],
+    ['id zero', { ...valid, id: 0 }],
+    ['a huge id', { ...valid, id: 2 ** 40 }],
+    ['a language that is not a locale', { ...valid, language: 'pt_BR' }],
+  ])('rejects %s', (_case, request) => {
+    expect(parsePersonRequest(request)).toBeNull();
   });
 });
 

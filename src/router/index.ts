@@ -10,9 +10,13 @@ declare module 'vue-router' {
   interface RouteMeta {
     /** A page of the TMDB account, for whoever signed in. */
     signedIn?: boolean;
+    /** Its query only filters what it shows, which stays in place. */
+    filtersInQuery?: boolean;
   }
 }
 import DetailsPage from '@/views/DetailsPage.vue';
+import DiscoverPage from '@/views/DiscoverPage.vue';
+import PersonPage from '@/views/PersonPage.vue';
 import SearchPage from '@/views/Search/SearchPage.vue';
 import SettingsPage from '@/views/SettingsPage.vue';
 import WatchedPage from '@/views/WatchedPage.vue';
@@ -32,6 +36,12 @@ const routes: RouteRecordRaw[] = [
     path: '/search',
     name: 'search',
     component: SearchPage,
+  },
+  {
+    // Movies or tv shows by their filters, kept in the query.
+    path: '/discover',
+    name: 'discover',
+    component: DiscoverPage,
   },
   {
     path: '/settings',
@@ -85,6 +95,14 @@ const routes: RouteRecordRaw[] = [
       id: Number(route.params.id),
     }),
   },
+  {
+    // The page of a person, such as /person/6384.
+    path: '/person/:id(\\d+)',
+    name: 'person',
+    component: PersonPage,
+    props: (route) => ({ id: Number(route.params.id) }),
+    meta: { filtersInQuery: true },
+  },
 ];
 
 const router = createRouter({
@@ -93,8 +111,15 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes,
   // A new page starts at the top; going back returns to where the user
-  // was, such as the card they opened in a long list of results.
-  scrollBehavior: (_to, _from, savedPosition) => savedPosition ?? { top: 0 },
+  // was, such as the card they opened in a long list of results. A filter
+  // of the page itself leaves it where it is.
+  scrollBehavior: (to, from, savedPosition) => {
+    if (savedPosition) {
+      return savedPosition;
+    }
+
+    return to.meta.filtersInQuery && to.path === from.path ? false : { top: 0 };
+  },
 });
 
 // The pages of the account are for whoever signed in. Anyone else goes to

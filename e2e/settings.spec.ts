@@ -24,6 +24,12 @@ test.describe('settings', () => {
     await expect(
       page.getByRole('heading', { name: 'Where to watch in Brazil' }),
     ).toBeVisible();
+    // and the age rating of the country, in the orange of the ClassInd
+    await expect(
+      page.getByRole('img', {
+        name: 'Age rating: 14. Not recommended for anyone under 14',
+      }),
+    ).toHaveCSS('background-color', 'rgb(230, 120, 36)');
   });
 
   test('changes the language, and the theme of the window with the app', async ({
@@ -34,6 +40,8 @@ test.describe('settings', () => {
     await page.getByRole('radio', { name: 'Dark' }).check();
 
     await expect(page.locator('html')).toHaveClass(/dark/);
+    // the bars and fields of the system too
+    await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
     await expect
       .poll(() => app.evaluate(({ nativeTheme }) => nativeTheme.themeSource))
       .toBe('dark');

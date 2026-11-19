@@ -72,7 +72,7 @@ test.describe('web version', () => {
   }) => {
     await page.goto(site.url);
     await openPage(page, 'search');
-    await page.getByRole('radio', { name: 'All' }).check();
+    await page.getByRole('radio', { name: 'All', exact: true }).check();
     await searchBox(page).fill('keanu');
 
     await expect(cards(page)).toHaveCount(20);
@@ -106,7 +106,7 @@ test.describe('web version', () => {
       'Movie 2 [en]',
     ]);
     await expect(
-      page.getByRole('region', { name: 'Popular TV shows' }),
+      page.getByRole('region', { name: 'Popular TV shows', exact: true }),
     ).toContainText('Show 11 [en]');
     expect(tmdb.lists().every(({ credential }) => credential === 'app')).toBe(
       true,
@@ -137,12 +137,10 @@ test.describe('web version', () => {
         page.getByRole('heading', { name: 'Where to watch in United States' }),
       ).toBeVisible();
       await expect(page.getByText('Stream US')).toBeVisible();
+      // The trailer plays over the page (the policy test opens it).
       await expect(
-        page.getByRole('link', { name: 'Watch the trailer' }),
-      ).toHaveAttribute(
-        'href',
-        `https://www.youtube.com/watch?v=${TRAILER_KEY}`,
-      );
+        page.getByRole('button', { name: 'Watch the trailer' }),
+      ).toBeVisible();
       expect(tmdb.pages().at(-1)).toMatchObject({
         path: '/3/movie/1',
         credential: 'app',
@@ -262,7 +260,7 @@ test.describe('web version', () => {
 
     const toggle = page.getByRole('button', { name: 'Menú' });
     const homeInTheBar = page.locator('header nav a[href$="#/home"]');
-    const drawer = page.getByRole('dialog', { name: 'Media App' });
+    const drawer = page.getByRole('dialog', { name: 'MoviLedger' });
 
     await expect(toggle).toBeVisible();
     await expect(homeInTheBar).toBeHidden();
@@ -280,6 +278,64 @@ test.describe('web version', () => {
     await expect(toggle).toBeHidden();
     await expect(homeInTheBar).toBeVisible();
     expect((await page.locator('header nav').boundingBox())?.height).toBe(64);
+  });
+
+  test('takes the width of a big screen, a little bigger, in line with the bar', async ({
+    page,
+    site,
+  }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto(site.url);
+    await expect(
+      page.getByRole('region').first().getByRole('article').first(),
+    ).toBeVisible();
+
+    await expect(page.locator('html')).toHaveCSS('font-size', '18px');
+
+    // Where the bar and the rows start and end, inside their margins.
+    const [bar, row] = await page.evaluate(() =>
+      [
+        document.querySelector('header nav')!,
+        document.querySelector('section[aria-labelledby]')!.parentElement!,
+      ].map((element) => {
+        const box = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+
+        return {
+          start: box.left + parseFloat(style.paddingLeft),
+          width: box.width,
+        };
+      }),
+    );
+
+    expect(Math.round(bar.start)).toBe(Math.round(row.start));
+    expect(row.width).toBe(1920);
+    expect(bar.start).toBeLessThan(60);
+  });
+
+  test('keeps the size of the interface chosen, from the first paint', async ({
+    page,
+    site,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(`${site.url}#/settings`);
+    const html = page.locator('html');
+
+    await expect(html).toHaveCSS('font-size', '16px');
+
+    await page.getByRole('radio', { name: '125%' }).check();
+
+    await expect(html).toHaveCSS('font-size', '20px');
+
+    // Before the app starts, as the loading screen paints.
+    await page.reload();
+    await expect(html).toHaveAttribute('data-ui-size', '125');
+    await expect(html).toHaveCSS('font-size', '20px');
+
+    await page.getByRole('radio', { name: 'Automatic' }).check();
+
+    await expect(html).toHaveCSS('font-size', '16px');
+    await expect(html).not.toHaveAttribute('data-ui-size');
   });
 
   test('keeps the dark theme down to the end of a long page', async ({
@@ -317,6 +373,12 @@ test.describe('web version', () => {
     await expect(
       page.getByRole('heading', { name: 'Where to watch in Brazil' }),
     ).toBeVisible();
+    // and the age rating of the country, in the orange of the ClassInd
+    await expect(
+      page.getByRole('img', {
+        name: 'Age rating: 14. Not recommended for anyone under 14',
+      }),
+    ).toHaveCSS('background-color', 'rgb(230, 120, 36)');
   });
 
   test('drops the key that the old web version kept in the browser', async ({
@@ -397,7 +459,9 @@ test.describe('web version', () => {
 
       await page.goto(site.url, { waitUntil: 'commit' });
 
-      await expect(page.getByRole('status')).toContainText('Loading Media App');
+      await expect(page.getByRole('status')).toContainText(
+        'Loading MoviLedger',
+      );
       await expect(page.locator('html')).toHaveClass(/dark/);
       // Neither white nor transparent once the stylesheet applies.
       await expect
@@ -410,7 +474,7 @@ test.describe('web version', () => {
       await expect(
         page.getByRole('navigation', { name: 'Main menu' }),
       ).toBeVisible();
-      await expect(page.getByText('Loading Media App')).toHaveCount(0);
+      await expect(page.getByText('Loading MoviLedger')).toHaveCount(0);
       expect(await background(page)).toBe(dark);
     });
 
@@ -426,11 +490,53 @@ test.describe('web version', () => {
 
       await page.goto(site.url, { waitUntil: 'commit' });
 
-      await expect(page.getByRole('status')).toContainText('Loading Media App');
+      await expect(page.getByRole('status')).toContainText(
+        'Loading MoviLedger',
+      );
       await expect(page.locator('html')).not.toHaveClass(/dark/);
 
       release();
     });
+  });
+
+  test('explores through the site, with the filters in a drawer on a phone', async ({
+    page,
+    site,
+    tmdb,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${site.url}#/discover`);
+
+    await expect(cards(page)).toHaveCount(20);
+    await expect(cards(page).first()).toContainText('Movie 1 [en] (2020)');
+    await expect(
+      page.getByRole('complementary', { name: 'Filters' }),
+    ).toBeHidden();
+
+    await page.getByRole('button', { name: 'Filters' }).click();
+    const drawer = page.getByRole('dialog', { name: 'Filters' });
+    await drawer.getByRole('radio', { name: 'Newest' }).check();
+    await drawer.getByRole('checkbox', { name: 'Comedy' }).check();
+    await drawer.getByRole('radio', { name: '7+' }).check();
+
+    await expect(
+      drawer.getByRole('heading', { name: 'Filters (2)' }),
+    ).toBeVisible();
+    await drawer.getByRole('button', { name: 'Show 45 titles' }).click();
+    await expect(drawer).toBeHidden();
+    await expect(page).toHaveURL(
+      /#\/discover\?sort=newest&genres=35&rating=7$/,
+    );
+    await expect
+      .poll(() => tmdb.lastDiscovery())
+      .toMatchObject({
+        path: '/3/discover/movie',
+        credential: 'app',
+        sort_by: 'primary_release_date.desc',
+        with_genres: '35',
+        'vote_average.gte': '7',
+        'vote_count.gte': '300',
+      });
   });
 
   test('keeps to the Content-Security-Policy on every page', async ({
@@ -453,6 +559,34 @@ test.describe('web version', () => {
     await searchBox(page).fill('matrix');
     await cards(page).first().getByRole('link').click();
     await expect(heading(page)).toBeVisible();
+    // The trailer plays in a frame of YouTube, which the policy lets in (a
+    // stand-in here: nothing leaves the machine).
+    await page.route('https://www.youtube-nocookie.com/**', (route) =>
+      route.fulfill({ contentType: 'text/html', body: '<p>Player</p>' }),
+    );
+    await page.getByRole('button', { name: 'Watch the trailer' }).click();
+    await expect(page.locator('[role="dialog"] iframe')).toHaveAttribute(
+      'src',
+      `https://www.youtube-nocookie.com/embed/${TRAILER_KEY}?autoplay=1&rel=0`,
+    );
+    await expect(
+      page.frameLocator('[role="dialog"] iframe').getByText('Player'),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+    // The page of a person of the cast, through the function of the site.
+    await page.getByRole('link', { name: 'Ada Actor' }).click();
+    await expect(heading(page)).toHaveText('Ada Actor');
+    await expect(
+      page.getByRole('region', { name: 'Filmography' }).getByRole('article'),
+    ).toHaveCount(3);
+    // Explore, with the filters of the page.
+    await openPage(page, 'discover');
+    await expect(cards(page)).toHaveCount(20);
+    await page
+      .getByRole('complementary', { name: 'Filters' })
+      .getByRole('checkbox', { name: 'Comedy' })
+      .check();
+    await expect(page).toHaveURL(/genres=35/);
     for (const name of ['settings', 'about', 'account'] as const) {
       await openPage(page, name);
     }

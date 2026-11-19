@@ -18,6 +18,8 @@ export const SEARCH_DEBOUNCE_MS = 350;
 export const useSearchStore = defineStore('search', () => {
   const query = ref('');
   const mediaType = ref<SearchType>('movie');
+  /** Of release, for movies and tv shows; null for any year. */
+  const year = ref<number | null>(null);
   const results = ref<SearchItem[]>([]);
   // What the results were searched as, which mediaType no longer is while
   // a search of another type is loading.
@@ -54,6 +56,9 @@ export const useSearchStore = defineStore('search', () => {
         query: query.value.trim(),
         page,
         language: i18n.global.locale.value,
+        // People have no year.
+        ...(year.value !== null &&
+          mediaType.value !== 'multi' && { year: year.value }),
       })
       .catch((thrown: unknown) => ({
         ok: false as const,
@@ -145,6 +150,7 @@ export const useSearchStore = defineStore('search', () => {
   return {
     query,
     mediaType,
+    year,
     results,
     resultsType,
     totalResults,

@@ -4,6 +4,9 @@ export { TMDB_PROXY_PATH } from '../api';
 import { createTmdbClient, TmdbError, type FetchLike } from './client';
 import {
   parseDetailsRequest,
+  parseDiscoverFiltersRequest,
+  parseDiscoverRequest,
+  parsePersonRequest,
   parseLanguage,
   parseListRequest,
   parseSearchRequest,
@@ -83,17 +86,32 @@ export function toFailure(error: unknown): TmdbFailure {
   return { code: 'server' };
 }
 
+/** A number of the query, or nothing when it is not there. */
+const optionalNumber = (value: string | null) =>
+  value === null ? undefined : Number(value);
+
+/** Ids joined by commas, or nothing when they are not there. */
+const optionalIds = (value: string | null) =>
+  value === null ? undefined : value.split(',').map(Number);
+
 /**
  * Answers the TMDB requests of the web version with the server's credential
  * (a browser cannot hold one). Not a general proxy: only what the app does,
  * validated like the desktop IPC.
  *
  *   GET ?resource=search&type=movie&query=matrix&page=1&language=en
+ *   GET ?resource=search&type=tv&query=office&page=1&language=en&year=2005
  *   GET ?resource=search&type=multi&query=keanu&page=1&language=en
+ *   GET ?resource=discover&type=tv&page=1&language=en&region=BR&sort=rating
+ *       &genres=18,80&from=1990&to=1999&rating=7&original=ko&age=14
+ *       &providers=8,119
+ *   GET ?resource=discover-filters&type=tv&language=en&region=BR
  *   GET ?resource=genres&language=en
  *   GET ?resource=regions
  *   GET ?resource=details&type=movie&id=603&language=en&region=US
+ *   GET ?resource=person&id=6384&language=en
  *   GET ?resource=list&list=trending&language=en
+ *   GET ?resource=list&list=now-playing&language=pt-BR&region=BR
  */
 export function createTmdbProxy(options: TmdbProxyOptions) {
   const credential = options.credential?.trim() || null;
@@ -120,6 +138,7 @@ export function createTmdbProxy(options: TmdbProxyOptions) {
             query: params.get('query'),
             page: Number(params.get('page')),
             language: params.get('language'),
+            year: optionalNumber(params.get('year')),
           });
 
           return search
@@ -127,6 +146,48 @@ export function createTmdbProxy(options: TmdbProxyOptions) {
                 200,
                 { ok: true, data: await client.search(search) },
                 SEARCH_CACHE,
+              )
+            : errorResponse({ code: 'invalid-request' });
+        }
+
+        case 'discover': {
+          const discover = parseDiscoverRequest({
+            type: params.get('type'),
+            page: Number(params.get('page')),
+            language: params.get('language'),
+            region: params.get('region'),
+            sort: params.get('sort'),
+            genres: optionalIds(params.get('genres')),
+            fromYear: optionalNumber(params.get('from')),
+            toYear: optionalNumber(params.get('to')),
+            minRating: optionalNumber(params.get('rating')),
+            originalLanguage: params.get('original') ?? undefined,
+            ageRating: params.get('age') ?? undefined,
+            providers: optionalIds(params.get('providers')),
+          });
+
+          return discover
+            ? jsonResponse(
+                200,
+                { ok: true, data: await client.discover(discover) },
+                SEARCH_CACHE,
+              )
+            : errorResponse({ code: 'invalid-request' });
+        }
+
+        // Change as rarely as the genres.
+        case 'discover-filters': {
+          const filters = parseDiscoverFiltersRequest({
+            type: params.get('type'),
+            language: params.get('language'),
+            region: params.get('region'),
+          });
+
+          return filters
+            ? jsonResponse(
+                200,
+                { ok: true, data: await client.discoverFilters(filters) },
+                GENRES_CACHE,
               )
             : errorResponse({ code: 'invalid-request' });
         }
@@ -168,10 +229,26 @@ export function createTmdbProxy(options: TmdbProxyOptions) {
             : errorResponse({ code: 'invalid-request' });
         }
 
+        case 'person': {
+          const person = parsePersonRequest({
+            id: Number(params.get('id')),
+            language: params.get('language'),
+          });
+
+          return person
+            ? jsonResponse(
+                200,
+                { ok: true, data: await client.person(person) },
+                DETAILS_CACHE,
+              )
+            : errorResponse({ code: 'invalid-request' });
+        }
+
         case 'list': {
           const list = parseListRequest({
             list: params.get('list'),
             language: params.get('language'),
+            region: params.get('region') ?? undefined,
           });
 
           return list

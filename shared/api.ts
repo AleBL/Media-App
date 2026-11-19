@@ -34,10 +34,19 @@ export interface MediaItem {
   poster_path?: string | null;
   genre_ids?: number[];
   vote_average?: number;
+  /** The synopsis, for the list view. */
+  overview?: string;
   /** Only in the list of rated titles. */
   rating?: number;
   /** YYYY-MM-DD, only in the list of watched titles. */
   watchedAt?: string;
+  /** Only in the cast of a person: who they played, as TMDB names them. */
+  character?: string;
+  /**
+   * Only in the crew of a person: what they did, as the departments of TMDB
+   * in English (Directing, Writing), for the app to translate.
+   */
+  departments?: string[];
 }
 
 export interface PersonItem {
@@ -68,14 +77,87 @@ export interface SearchRequest {
   query: string;
   page: number;
   language: string;
+  /** Of release, or of the first episode. Movies and tv shows only. */
+  year?: number;
 }
 
-/** The lists of the home page. */
-export type MediaList = 'trending' | 'popular-movies' | 'popular-tv';
+/** How the titles of a discovery come in order. */
+export type DiscoverSort = 'popularity' | 'rating' | 'newest';
+
+export const DISCOVER_SORTS: readonly DiscoverSort[] = [
+  'popularity',
+  'rating',
+  'newest',
+];
+
+/**
+ * The votes a title needs for its average to count, wherever the average
+ * matters in a discovery (a minimum rating, the best rated first): with
+ * fewer, a title two people gave 10 comes first. Tried on TMDB on
+ * 2026-11-18, the best rated with fewer votes were mostly music videos and
+ * specials.
+ */
+export const MIN_VOTES: Record<MediaType, number> = { movie: 300, tv: 200 };
+
+/**
+ * Movies or tv shows that match every filter given: TMDB's own discovery,
+ * not a search by name.
+ */
+export interface DiscoverRequest {
+  type: MediaType;
+  page: number;
+  language: string;
+  /** Country code such as `BR`: of the services and of the age rating. */
+  region: string;
+  sort: DiscoverSort;
+  /** Titles with all of these genres. */
+  genres?: number[];
+  /** First and last year of release (or of the first episode), inclusive. */
+  fromYear?: number;
+  toYear?: number;
+  /** An average of at least this, from 1 to 9, out of enough votes. */
+  minRating?: number;
+  /** Such as `ko`. */
+  originalLanguage?: string;
+  /** An age rating of `region`: titles rated this or milder. */
+  ageRating?: string;
+  /** On any of these services in `region`. */
+  providers?: number[];
+}
+
+export interface DiscoverFiltersRequest {
+  type: MediaType;
+  language: string;
+  region: string;
+}
+
+/** What the filters of a discovery offer, for one type in one country. */
+export interface DiscoverFilters {
+  /** The genres of the type, in the language asked for. */
+  genres: Genre[];
+  /** The services of the country, the most watched first. */
+  providers: WatchProvider[];
+  /** The age ratings of the country, the mildest first; none for some. */
+  ageRatings: string[];
+  /** The original languages TMDB knows, such as `ko`. */
+  languages: string[];
+}
+
+/** The lists of TMDB the home page shows. */
+export type MediaList =
+  | 'trending'
+  | 'trending-movies'
+  | 'trending-tv'
+  | 'popular-movies'
+  | 'popular-tv'
+  /** The movies in the theaters of `region`. */
+  | 'now-playing';
 
 export interface ListRequest {
   list: MediaList;
   language: string;
+  /** Country code such as `BR`, for the movies in its theaters. */
+  region?: string;
 }
 
 export interface DetailsRequest {
@@ -89,6 +171,11 @@ export interface DetailsRequest {
 export interface TitleRequest {
   type: MediaType;
   id: number;
+}
+
+export interface PersonRequest {
+  id: number;
+  language: string;
 }
 
 export type AccountList = 'watchlist' | 'favorite';
@@ -188,6 +275,54 @@ export interface MediaDetails {
   trailer?: { key: string; name: string };
   cast: CastMember[];
   watch?: WatchOptions;
+  certification?: Certification;
+}
+
+/** Where someone is on the web besides TMDB: ids, and a whole url for the site. */
+export interface PersonLinks {
+  /** Such as `nm0000206`. */
+  imdb?: string;
+  instagram?: string;
+  /** Twitter, now X. */
+  x?: string;
+  facebook?: string;
+  tiktok?: string;
+  /** An https address. */
+  homepage?: string;
+}
+
+export interface PersonDetails {
+  id: number;
+  name: string;
+  /** What TMDB knows them for, in English: Acting, Directing, Writing. */
+  department?: string;
+  biography?: string;
+  /**
+   * The language of the biography, such as `en`, when TMDB has none in
+   * the language asked for.
+   */
+  biographyLanguage?: string;
+  /** YYYY-MM-DD. */
+  birthday?: string;
+  /** YYYY-MM-DD. */
+  deathday?: string;
+  placeOfBirth?: string;
+  profilePath?: string;
+  links: PersonLinks;
+  /**
+   * The titles they played in, each once, the best known first (by votes),
+   * with talk shows and the news last.
+   */
+  cast: MediaItem[];
+  /** The titles they worked on behind the camera, in the same order. */
+  crew: MediaItem[];
+}
+
+/** An age rating, such as `14` in Brazil or `PG-13` in the United States. */
+export interface Certification {
+  /** Who gave it: the region of the request, or else the United States. */
+  country: string;
+  code: string;
 }
 
 export type TmdbErrorCode =
@@ -298,6 +433,11 @@ export interface MediaAppApi {
     search(request: SearchRequest): Promise<Result<Paged<SearchItem>>>;
     genres(language: string): Promise<Result<Genre[]>>;
     details(request: DetailsRequest): Promise<Result<MediaDetails>>;
+    person(request: PersonRequest): Promise<Result<PersonDetails>>;
+    discover(request: DiscoverRequest): Promise<Result<Paged<MediaItem>>>;
+    discoverFilters(
+      request: DiscoverFiltersRequest,
+    ): Promise<Result<DiscoverFilters>>;
     /** The first page of a list, each title tagged with its type. */
     list(request: ListRequest): Promise<Result<MediaItem[]>>;
     /** Country codes with watch providers, such as `BR`, sorted. */
@@ -360,6 +500,9 @@ export const IPC = {
   tmdbSearch: 'tmdb:search',
   tmdbGenres: 'tmdb:genres',
   tmdbDetails: 'tmdb:details',
+  tmdbPerson: 'tmdb:person',
+  tmdbDiscover: 'tmdb:discover',
+  tmdbDiscoverFilters: 'tmdb:discover-filters',
   tmdbList: 'tmdb:list',
   tmdbRegions: 'tmdb:regions',
   clearCache: 'app:clear-cache',

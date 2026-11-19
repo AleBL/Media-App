@@ -56,14 +56,15 @@ describe('NavBar', () => {
     delete window.api;
   });
 
-  it('leads home and to the search, with the tools as named icons', async () => {
+  it('leads home, to the search and to Explore, with the tools as named icons', async () => {
     await mountNavBar();
 
     expect(wrapper.get('nav').attributes('aria-label')).toBe('Main menu');
     expect(links()).toEqual([
-      { href: '/', name: 'Media App' },
+      { href: '/', name: 'MoviLedger' },
       { href: '/home', name: 'Home' },
       { href: '/search', name: 'Search' },
+      { href: '/discover', name: 'Explore' },
       { href: '/settings', name: 'Settings' },
       { href: '/about', name: 'About' },
       { href: '/account', name: 'Sign in' },
@@ -170,12 +171,19 @@ describe('NavBar', () => {
 
     const drawer = layer('[role="dialog"]')!;
     expect(toggle.attributes('aria-expanded')).toBe('true');
-    expect(drawer.textContent).toContain('Media App');
+    expect(drawer.textContent).toContain('MoviLedger');
     expect(
       Array.from(drawer.querySelectorAll('nav a')).map((link) =>
         link.getAttribute('href'),
       ),
-    ).toEqual(['/home', '/search', '/settings', '/about', '/account']);
+    ).toEqual([
+      '/home',
+      '/search',
+      '/discover',
+      '/settings',
+      '/about',
+      '/account',
+    ]);
 
     await router.push('/about');
     await flushPromises();

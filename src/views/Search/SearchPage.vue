@@ -8,14 +8,14 @@
   import { useGenresStore } from '@/stores/genres';
   import { useSearchStore } from '@/stores/search';
   import { accessProblem } from '@/util/access';
-  import { isPerson, searchKey } from '@/util/media';
+  import { FIRST_YEAR, LAST_YEAR } from '@/components/Discover/query';
   import AppButton from '@/components/ui/AppButton.vue';
   import AppLoadMore from '@/components/ui/AppLoadMore.vue';
   import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
   import AppState from '@/components/ui/AppState.vue';
-  import PersonCard from '@/components/Search/PersonCard.vue';
-  import PosterCard from '@/components/Home/PosterCard.vue';
-  import PosterCardSkeleton from '@/components/Home/PosterCardSkeleton.vue';
+  import CardGrid from '@/components/Cards/CardGrid.vue';
+  import CardGridSkeleton from '@/components/Cards/CardGridSkeleton.vue';
+  import CardViewPicker from '@/components/Cards/CardViewPicker.vue';
   import SearchBar from '@/components/Search/SearchBar.vue';
 
   const { t, locale } = useI18n();
@@ -27,6 +27,7 @@
   const {
     query,
     mediaType,
+    year,
     results,
     resultsType,
     totalResults,
@@ -55,9 +56,9 @@
       : `access.${problem.value}`;
   });
 
-  // The search lives in the address too (#/search?q=matrix&type=tv), so a
-  // link, reloading and going back find it. A link with a search sets it;
-  // without one, the search already here goes into the address.
+  // The search lives in the address too (#/search?q=matrix&type=tv&year=1999),
+  // so a link, reloading and going back find it. A link with a search sets
+  // it; without one, the search already here goes into the address.
   const SEARCH_TYPES: SearchType[] = ['movie', 'tv', 'multi'];
 
   function toAddress() {
@@ -65,9 +66,15 @@
     const next = {
       ...(text && { q: text }),
       ...(mediaType.value !== 'movie' && { type: mediaType.value }),
+      ...(year.value !== null &&
+        mediaType.value !== 'multi' && { year: String(year.value) }),
     };
 
-    if (route.query.q !== next.q || route.query.type !== next.type) {
+    if (
+      route.query.q !== next.q ||
+      route.query.type !== next.type ||
+      route.query.year !== next.year
+    ) {
       void router.replace({ query: next });
     }
   }
@@ -75,19 +82,25 @@
   // First from the address, then into it: the other way round, an empty
   // search here would wipe the one of the link before it is read.
   onMounted(() => {
-    const { q, type } = route.query;
+    const { q, type, year: inAddress } = route.query;
 
     if (typeof q === 'string') {
+      const number = Number(inAddress);
+
       query.value = q;
       mediaType.value = SEARCH_TYPES.includes(type as SearchType)
         ? (type as SearchType)
         : 'movie';
+      year.value =
+        Number.isInteger(number) && number >= FIRST_YEAR && number <= LAST_YEAR
+          ? number
+          : null;
     } else {
       toAddress();
     }
   });
 
-  watch([query, mediaType], toAddress);
+  watch([query, mediaType, year], toAddress);
 
   // The user may be coming back from the settings, where the credential
   // changed: ask again instead of showing the old failure.
@@ -132,21 +145,11 @@
       {{ t('search.showing', { shown: results.length, total: totalResults }) }}
     </p>
 
-    <!-- A search of everything mixes movies, tv shows and people, and two
-         of them can have the same id. -->
-    <ul
-      class="m-0 grid list-none grid-cols-2 gap-4 p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-    >
-      <li v-for="item in results" :key="searchKey(item)">
-        <PersonCard v-if="isPerson(item)" :person="item" />
-        <PosterCard
-          v-else
-          :item="item"
-          grid
-          :show-type="resultsType === 'multi'"
-        />
-      </li>
-    </ul>
+    <div class="page flex justify-end pt-2">
+      <CardViewPicker name="search-view" />
+    </div>
+
+    <CardGrid :items="results" :show-type="resultsType === 'multi'" />
 
     <AppLoadMore
       :loading="loadingMore"
@@ -158,14 +161,7 @@
 
   <!-- The shape of the results until they come; the text is for screen
        readers. -->
-  <div
-    v-else-if="loading"
-    role="status"
-    class="grid grid-cols-2 gap-4 p-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-  >
-    <span class="sr-only">{{ t('search.loading') }}</span>
-    <PosterCardSkeleton v-for="index in 12" :key="index" />
-  </div>
+  <CardGridSkeleton v-else-if="loading" :label="t('search.loading')" />
 
   <AppState
     v-else-if="searched"

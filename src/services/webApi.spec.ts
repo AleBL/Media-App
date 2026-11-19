@@ -256,6 +256,15 @@ describe('web api', () => {
     expect(fetch.mock.calls[0][0]).toBe(
       '/api/tmdb?resource=list&list=trending&language=es',
     );
+
+    await createWebApi(fetch).tmdb.list({
+      list: 'now-playing',
+      language: 'pt-BR',
+      region: 'BR',
+    });
+    expect(fetch.mock.calls[1][0]).toBe(
+      '/api/tmdb?resource=list&list=now-playing&language=pt-BR&region=BR',
+    );
   });
 
   it('asks the site for the page of a title', async () => {
@@ -273,6 +282,59 @@ describe('web api', () => {
     expect(fetch.mock.calls[0][0]).toBe(
       '/api/tmdb?resource=details&type=tv&id=1396&language=pt-BR&region=BR',
     );
+  });
+
+  it('asks the site for the page of a person', async () => {
+    const person = { id: 6384, name: 'Keanu Reeves', cast: [], crew: [] };
+    const fetch = answering({ ok: true, data: person });
+
+    await expect(
+      createWebApi(fetch).tmdb.person({ id: 6384, language: 'es' }),
+    ).resolves.toEqual({ ok: true, data: person });
+    expect(fetch.mock.calls[0][0]).toBe(
+      '/api/tmdb?resource=person&id=6384&language=es',
+    );
+  });
+
+  it('asks the site for a year of a search, and for a discovery with its filters', async () => {
+    const fetch = answering({ ok: true, data: { results: [] } });
+    const api = createWebApi(fetch);
+
+    await api.tmdb.search({ ...search, year: 2005 });
+    await api.tmdb.discover({
+      type: 'movie',
+      page: 1,
+      language: 'en',
+      region: 'BR',
+      sort: 'newest',
+      genres: [28, 12],
+      fromYear: 1990,
+      toYear: 1999,
+      minRating: 7,
+      originalLanguage: 'ko',
+      ageRating: '14',
+      providers: [8, 119],
+    });
+    await api.tmdb.discover({
+      type: 'tv',
+      page: 2,
+      language: 'en',
+      region: 'US',
+      sort: 'popularity',
+      genres: [],
+    });
+    await api.tmdb.discoverFilters({
+      type: 'tv',
+      language: 'es',
+      region: 'MX',
+    });
+
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+      '/api/tmdb?resource=search&type=tv&query=tom+%26+jerry&page=3&language=pt-BR&year=2005',
+      '/api/tmdb?resource=discover&type=movie&page=1&language=en&region=BR&sort=newest&genres=28%2C12&from=1990&to=1999&rating=7&original=ko&age=14&providers=8%2C119',
+      '/api/tmdb?resource=discover&type=tv&page=2&language=en&region=US&sort=popularity',
+      '/api/tmdb?resource=discover-filters&type=tv&language=es&region=MX',
+    ]);
   });
 
   describe('lists of the account', () => {
@@ -488,6 +550,57 @@ describe('web api', () => {
       expect(new URL(tmdb.mock.calls[0][0]).searchParams.get('query')).toBe(
         'tom & jerry',
       );
+    });
+
+    it('discovers with every filter the way the site reads them', async () => {
+      const tmdb = vi.fn<FetchLike>(async (url) => {
+        const path = new URL(url).pathname;
+
+        return new Response(
+          JSON.stringify(
+            path === '/3/certification/movie/list'
+              ? {
+                  certifications: {
+                    BR: ['L', '10', '12'].map((certification, order) => ({
+                      certification,
+                      order,
+                    })),
+                  },
+                }
+              : { page: 1, results: [{ id: 603 }], total_results: 1 },
+          ),
+        );
+      });
+
+      await expect(
+        site(tmdb).tmdb.discover({
+          type: 'movie',
+          page: 1,
+          language: 'pt-BR',
+          region: 'BR',
+          sort: 'rating',
+          genres: [28, 12],
+          fromYear: 1990,
+          toYear: 1999,
+          minRating: 7,
+          originalLanguage: 'ko',
+          ageRating: '10',
+          providers: [8, 119],
+        }),
+      ).resolves.toMatchObject({ ok: true, data: { totalResults: 1 } });
+      const discovered = tmdb.mock.calls
+        .map(([url]) => new URL(url))
+        .find((url) => url.pathname === '/3/discover/movie')!;
+      expect(Object.fromEntries(discovered.searchParams)).toMatchObject({
+        with_genres: '28,12',
+        'primary_release_date.gte': '1990-01-01',
+        'primary_release_date.lte': '1999-12-31',
+        'vote_average.gte': '7',
+        with_original_language: 'ko',
+        certification_country: 'BR',
+        certification: 'L|10',
+        with_watch_providers: '8|119',
+      });
     });
 
     it('tells the page when the site has no credential', async () => {

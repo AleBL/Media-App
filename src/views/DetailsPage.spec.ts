@@ -59,6 +59,8 @@ describe('DetailsPage', () => {
 
   afterEach(() => {
     wrapper.unmount();
+    // What opened in a layer of its own, such as the trailer.
+    document.body.innerHTML = '';
     delete window.api;
   });
 
@@ -81,6 +83,46 @@ describe('DetailsPage', () => {
     );
   });
 
+  const ageRating = () => wrapper.find('[aria-label^="Age rating"]');
+
+  it('shows the age rating before the date, with what it means', async () => {
+    await open();
+
+    expect(ageRating().text()).toBe('R');
+    expect(ageRating().attributes('aria-label')).toBe(
+      'Age rating: R. Under 17 only with a parent or guardian',
+    );
+    expect(
+      ageRating().element.closest('li')!.nextElementSibling!.textContent,
+    ).toContain('Released March 31, 1999');
+  });
+
+  it('says whose age rating it is when the region of the user has none', async () => {
+    vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['pt-BR']);
+
+    await open();
+
+    expect(api.tmdb.details).toHaveBeenCalledWith(
+      expect.objectContaining({ region: 'BR' }),
+    );
+    expect(ageRating().text()).toBe('US R');
+    expect(ageRating().attributes('aria-label')).toContain(
+      'Age rating (United States): R.',
+    );
+  });
+
+  it('shows no age rating where TMDB has none', async () => {
+    api.tmdb.details.mockResolvedValue({
+      ok: true,
+      data: { ...MATRIX, certification: undefined },
+    });
+
+    await open();
+
+    expect(ageRating().exists()).toBe(false);
+    expect(wrapper.text()).toContain('Released March 31, 1999');
+  });
+
   it('shows a wide still of the title behind its top, as a picture only', async () => {
     api.tmdb.details.mockResolvedValue({
       ok: true,
@@ -96,23 +138,35 @@ describe('DetailsPage', () => {
     );
   });
 
-  it('links to the trailer and to IMDb, to open in the browser', async () => {
+  it('links to IMDb, to open in the browser, in its colors', async () => {
     await open();
 
-    const trailer = wrapper.get('a[href^="https://www.youtube.com/"]');
     const imdb = wrapper.get('a[href^="https://www.imdb.com/"]');
 
-    expect(trailer.attributes('href')).toBe(
-      'https://www.youtube.com/watch?v=vKQi3bBA1y8',
-    );
-    expect(trailer.text()).toBe('Watch the trailer');
     expect(imdb.attributes('href')).toBe(
       'https://www.imdb.com/title/tt0133093/',
     );
-    for (const link of [trailer, imdb]) {
-      expect(link.attributes('target')).toBe('_blank');
-      expect(link.attributes('rel')).toBe('noopener noreferrer');
-    }
+    expect(imdb.text()).toBe('See on IMDb');
+    expect(imdb.classes()).toEqual(
+      expect.arrayContaining(['bg-imdb', 'text-black']),
+    );
+    expect(imdb.attributes('target')).toBe('_blank');
+    expect(imdb.attributes('rel')).toBe('noopener noreferrer');
+  });
+
+  it('plays the trailer over the page, without leaving the app', async () => {
+    await open();
+
+    await button('Watch the trailer')!.trigger('click');
+    await flushPromises();
+
+    expect(
+      document.body
+        .querySelector('[role="dialog"] iframe')!
+        .getAttribute('src'),
+    ).toBe(
+      'https://www.youtube-nocookie.com/embed/vKQi3bBA1y8?autoplay=1&rel=0',
+    );
   });
 
   it('shows where to watch in the region of the user, from JustWatch', async () => {
@@ -128,9 +182,41 @@ describe('DetailsPage', () => {
     expect(wrapper.text()).toContain('Apple TV');
     expect(wrapper.text()).not.toContain('Buy');
     expect(wrapper.text()).toContain('Where to watch: data from JustWatch.');
-    expect(wrapper.get('a[href^="https://www.themoviedb.org/"]').text()).toBe(
-      'See the links on TMDB',
-    );
+    // after the services, which lead there too
+    expect(
+      wrapper.findAll('a[href^="https://www.themoviedb.org/"]').at(-1)!.text(),
+    ).toBe('See the links on TMDB');
+  });
+
+  it('leads from each service to the page of TMDB with the links to the title', async () => {
+    await open();
+
+    const link = MATRIX.watch!.link!;
+    const netflix = wrapper.get('img[alt="Netflix"]').element.closest('a')!;
+    const appleTv = wrapper
+      .findAll('a')
+      .find((found) => found.text() === 'Apple TV')!;
+
+    for (const service of [netflix, appleTv.element]) {
+      expect(service.getAttribute('href')).toBe(link);
+      expect(service.getAttribute('target')).toBe('_blank');
+      expect(service.getAttribute('rel')).toBe('noopener noreferrer');
+    }
+  });
+
+  it('shows the services without links when TMDB gives no page for them', async () => {
+    api.tmdb.details.mockResolvedValue({
+      ok: true,
+      data: { ...MATRIX, watch: { ...MATRIX.watch!, link: undefined } },
+    });
+
+    await open();
+
+    expect(wrapper.get('img[alt="Netflix"]').element.closest('a')).toBeNull();
+    expect(wrapper.text()).toContain('Apple TV');
+    expect(
+      wrapper.find('a[href^="https://www.themoviedb.org/"]').exists(),
+    ).toBe(false);
   });
 
   it('says so when nothing offers the title in the region', async () => {
@@ -163,6 +249,19 @@ describe('DetailsPage', () => {
     expect(people[1].find('img').exists()).toBe(false);
   });
 
+  it('leads from each person of the cast to their page', async () => {
+    await open();
+
+    const links = wrapper.findAll('[aria-labelledby="cast-title"] li a');
+
+    expect(links.map((link) => [link.text(), link.attributes('href')])).toEqual(
+      [
+        ['Keanu Reeves', '/person/6384'],
+        ['Laurence Fishburne', '/person/2975'],
+      ],
+    );
+  });
+
   it('shows the seasons and episodes of a tv show', async () => {
     api.tmdb.details.mockResolvedValue({ ok: true, data: BREAKING_BAD });
 
@@ -178,10 +277,8 @@ describe('DetailsPage', () => {
     expect(wrapper.text()).toContain('47 min per episode');
     expect(wrapper.text()).toContain('5 seasons');
     expect(wrapper.text()).toContain('62 episodes');
-    // nothing to link to
-    expect(wrapper.find('a[href^="https://www.youtube.com/"]').exists()).toBe(
-      false,
-    );
+    // no trailer to play
+    expect(button('Watch the trailer')).toBeUndefined();
   });
 
   it('asks again in the language chosen in the menu', async () => {

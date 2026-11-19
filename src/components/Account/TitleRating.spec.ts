@@ -58,7 +58,9 @@ describe('TitleRating', () => {
   const removeButton = () =>
     wrapper
       .findAll('button')
-      .find((button) => button.text() === 'Remove the rating');
+      .find(
+        (button) => button.attributes('aria-label') === 'Remove the rating',
+      );
 
   beforeEach(() => {
     i18n.global.locale.value = 'en';
@@ -116,6 +118,18 @@ describe('TitleRating', () => {
     expect(wrapper.find('[role="alert"]').exists()).toBe(false);
   });
 
+  it('shows the rating with the way to take it away, together', async () => {
+    await mountRating(8.5);
+
+    const button = removeButton()!;
+    const pill = button.element.parentElement!;
+
+    expect(pill.textContent?.trim()).toBe('8.5');
+    expect(pill.className).toContain('rounded-full');
+    expect(button.find('.pi-times').exists()).toBe(true);
+    expect(wrapper.text()).not.toContain('Not rated');
+  });
+
   it('takes the rating away with its own button', async () => {
     await mountRating(6);
 
@@ -167,6 +181,9 @@ describe('TitleRating', () => {
 
     expect(checked()).toBe('8,5');
     expect(removeButton()).toBeUndefined();
-    expect(wrapper.text()).toContain('Tirar a nota');
+    expect(wrapper.find('button[aria-label="Tirar a nota"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.text()).toContain('8,5');
   });
 });

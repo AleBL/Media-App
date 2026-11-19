@@ -42,6 +42,15 @@
   /* The yellow of IMDb, for the link that leads there. */
   --color-imdb: rgb(245 197 24);
 
+  /* The colors of the ClassInd, the age ratings of Brazil (L, 10 to 18).
+     The green and the blue a little darker, for white text to read. */
+  --color-classind-l: rgb(11 136 65);
+  --color-classind-10: rgb(15 123 190);
+  --color-classind-12: rgb(248 196 17);
+  --color-classind-14: rgb(230 120 36);
+  --color-classind-16: rgb(219 40 39);
+  --color-classind-18: rgb(29 24 21);
+
   /* A page coming in fades in (App.vue). */
   --animate-page-in: page-in 150ms ease-out;
 

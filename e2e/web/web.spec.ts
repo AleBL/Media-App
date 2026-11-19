@@ -373,6 +373,12 @@ test.describe('web version', () => {
     await expect(
       page.getByRole('heading', { name: 'Where to watch in Brazil' }),
     ).toBeVisible();
+    // and the age rating of the country, in the orange of the ClassInd
+    await expect(
+      page.getByRole('img', {
+        name: 'Age rating: 14. Not recommended for anyone under 14',
+      }),
+    ).toHaveCSS('background-color', 'rgb(230, 120, 36)');
   });
 
   test('drops the key that the old web version kept in the browser', async ({

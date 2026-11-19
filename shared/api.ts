@@ -190,6 +190,14 @@ export interface MediaDetails {
   trailer?: { key: string; name: string };
   cast: CastMember[];
   watch?: WatchOptions;
+  certification?: Certification;
+}
+
+/** An age rating, such as `14` in Brazil or `PG-13` in the United States. */
+export interface Certification {
+  /** Who gave it: the region of the request, or else the United States. */
+  country: string;
+  code: string;
 }
 
 export type TmdbErrorCode =

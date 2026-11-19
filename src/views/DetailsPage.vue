@@ -4,6 +4,7 @@
   import { storeToRefs } from 'pinia';
   import type { MediaType, WatchProvider } from '@shared/api';
   import AccountButtons from '@/components/Account/AccountButtons.vue';
+  import AgeRating from '@/components/Details/AgeRating.vue';
   import TrailerDialog from '@/components/Details/TrailerDialog.vue';
   import AppButton from '@/components/ui/AppButton.vue';
   import AppImage from '@/components/ui/AppImage.vue';
@@ -17,6 +18,7 @@
   import { useDetailsStore } from '@/stores/details';
   import { accessProblem } from '@/util/access';
   import { backdropUrl, logoUrl, posterUrl, profileUrl } from '@/util/images';
+  import { countryName } from '@/util/region';
 
   const props = defineProps<{ type: MediaType; id: number }>();
 
@@ -149,17 +151,7 @@
       : null,
   );
 
-  const regionName = computed(() => {
-    try {
-      return (
-        new Intl.DisplayNames([locale.value], { type: 'region' }).of(
-          region.value,
-        ) ?? region.value
-      );
-    } catch {
-      return region.value;
-    }
-  });
+  const regionName = computed(() => countryName(region.value, locale.value));
 
   const watchGroups = computed(() => {
     const watch = details.value?.watch;
@@ -302,9 +294,15 @@
           </p>
 
           <ul
-            v-if="facts.length"
-            class="mt-4 flex list-none flex-wrap gap-x-3 gap-y-1 p-0 text-sm text-surface-600 dark:text-surface-300"
+            v-if="facts.length || details.certification"
+            class="mt-4 flex list-none flex-wrap items-center gap-x-3 gap-y-1 p-0 text-sm text-surface-600 dark:text-surface-300"
           >
+            <li v-if="details.certification" class="flex">
+              <AgeRating
+                :certification="details.certification"
+                :region="region"
+              />
+            </li>
             <li
               v-for="(fact, index) in facts"
               :key="fact"

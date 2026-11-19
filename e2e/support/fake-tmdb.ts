@@ -828,6 +828,30 @@ export async function startFakeTmdb() {
           },
         },
         external_ids: { imdb_id: tv ? 'tt0903747' : 'tt0133093' },
+        // the age ratings, in Brazil and in the United States
+        ...(tv
+          ? {
+              content_ratings: {
+                results: [
+                  { iso_3166_1: 'BR', rating: '16', descriptors: [] },
+                  { iso_3166_1: 'US', rating: 'TV-MA', descriptors: [] },
+                ],
+              },
+            }
+          : {
+              release_dates: {
+                results: [
+                  {
+                    iso_3166_1: 'BR',
+                    release_dates: [{ type: 3, certification: '14' }],
+                  },
+                  {
+                    iso_3166_1: 'US',
+                    release_dates: [{ type: 3, certification: 'PG-13' }],
+                  },
+                ],
+              },
+            }),
       });
     }
 

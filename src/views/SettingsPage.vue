@@ -13,7 +13,7 @@
   import { useCredentialsStore } from '@/stores/credentials';
   import { useGenresStore } from '@/stores/genres';
   import { UI_SIZES, useSettingsStore } from '@/stores/settings';
-  import { userRegion } from '@/util/region';
+  import { countryName as nameOfCountry, userRegion } from '@/util/region';
 
   const { t, locale, availableLocales } = useI18n();
   const { loaded, builtIn } = storeToRefs(useCredentialsStore());
@@ -22,16 +22,7 @@
   const desktop = isDesktop();
 
   /** A country by its name in the language of the app. */
-  function countryName(code: string) {
-    try {
-      return (
-        new Intl.DisplayNames([locale.value], { type: 'region' }).of(code) ??
-        code
-      );
-    } catch {
-      return code;
-    }
-  }
+  const countryName = (code: string) => nameOfCountry(code, locale.value);
 
   // The same as choosing in the menu: kept for the next launch.
   const language = computed({

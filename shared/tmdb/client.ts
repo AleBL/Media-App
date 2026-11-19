@@ -4,6 +4,7 @@ import {
   type Account,
   type AccountListRequest,
   type CastMember,
+  type Certification,
   type DetailsRequest,
   type Genre,
   type ListRequest,
@@ -131,6 +132,8 @@ type DetailsBody = {
   videos?: { results?: unknown } | null;
   credits?: { cast?: unknown } | null;
   'watch/providers'?: { results?: unknown } | null;
+  release_dates?: { results?: unknown } | null;
+  content_ratings?: { results?: unknown } | null;
 };
 
 type JsonObject = Record<string, unknown>;
@@ -416,6 +419,59 @@ function toWatch(results: unknown, region: string): WatchOptions | undefined {
   return providerCount > 0 ? options : undefined;
 }
 
+/** Where a fallback rating comes from: the country TMDB knows best. */
+const FALLBACK_COUNTRY = 'US';
+
+/** Theatrical, then limited theatrical: the release a rating is made for. */
+const THEATRICAL_RELEASES = [3, 2];
+
+/** A code to show. "NR" (not rated) says there is none. */
+const ratingCode = (value: unknown) => {
+  const code = nonEmptyText(value)?.trim();
+
+  return code && code !== 'NR' && code.length <= 12 ? code : undefined;
+};
+
+/**
+ * A movie is rated once per release (in theaters, on a streaming service,
+ * on disc): the rating of the theaters first, then any rating given.
+ */
+function releaseCertification(country: JsonObject): string | undefined {
+  const rank = (release: JsonObject) => {
+    const index = THEATRICAL_RELEASES.indexOf(release.type as number);
+
+    return index === -1 ? THEATRICAL_RELEASES.length : index;
+  };
+
+  return objectArray(country.release_dates)
+    .filter((release) => ratingCode(release.certification))
+    .sort((a, b) => rank(a) - rank(b))
+    .map((release) => ratingCode(release.certification))[0];
+}
+
+/** The rating in `region`, or else in the United States. */
+function toCertification(
+  body: DetailsBody,
+  movie: boolean,
+  region: string,
+): Certification | undefined {
+  const countries = objectArray(
+    movie ? body.release_dates?.results : body.content_ratings?.results,
+  );
+
+  for (const country of new Set([region, FALLBACK_COUNTRY])) {
+    const entry = countries.find((item) => item.iso_3166_1 === country);
+    const code =
+      entry && (movie ? releaseCertification(entry) : ratingCode(entry.rating));
+
+    if (code) {
+      return { country, code };
+    }
+  }
+
+  return undefined;
+}
+
 function toDetails(body: DetailsBody, request: DetailsRequest): MediaDetails {
   const { type, language, region } = request;
   const movie = type === 'movie';
@@ -469,6 +525,7 @@ function toDetails(body: DetailsBody, request: DetailsRequest): MediaDetails {
     trailer: pickTrailer(body.videos?.results, language),
     cast: toCast(body.credits?.cast),
     watch: toWatch(body['watch/providers']?.results, region),
+    certification: toCertification(body, movie, region),
   };
 }
 
@@ -649,7 +706,10 @@ export function createTmdbClient(options: TmdbClientOptions) {
       );
     },
 
-    /** The page of a title, with cast, trailer and where to watch. */
+    /**
+     * The page of a title, with cast, trailer, where to watch and the age
+     * rating.
+     */
     async details(details: DetailsRequest): Promise<MediaDetails> {
       const baseLanguage = details.language.slice(0, 2);
       // TMDB only sends videos in the requested language unless told which
@@ -666,7 +726,14 @@ export function createTmdbClient(options: TmdbClientOptions) {
         {
           params: {
             language: details.language,
-            append_to_response: 'credits,videos,watch/providers,external_ids',
+            append_to_response: [
+              'credits',
+              'videos',
+              'watch/providers',
+              'external_ids',
+              // movies are rated per release, tv shows once per country
+              details.type === 'movie' ? 'release_dates' : 'content_ratings',
+            ].join(','),
             include_video_language: [...videoLanguages].join(','),
           },
         },

@@ -82,6 +82,7 @@ export const MATRIX: MediaDetails = {
     rent: [{ id: 2, name: 'Apple TV' }],
     buy: [],
   },
+  certification: { country: 'US', code: 'R' },
 };
 
 export function pageOf(

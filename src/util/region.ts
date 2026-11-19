@@ -30,3 +30,12 @@ export function userRegion(
 
   return BY_LANGUAGE[appLocale] ?? 'US';
 }
+
+/** A country by its name in `locale`, or by its code when it has none. */
+export function countryName(code: string, locale: string): string {
+  try {
+    return new Intl.DisplayNames([locale], { type: 'region' }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}

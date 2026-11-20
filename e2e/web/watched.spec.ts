@@ -64,7 +64,7 @@ test.describe('watched titles on the web version', () => {
 
     await expect
       .poll(() => Object.values(tmdb.episodes() ?? {}))
-      .toEqual([expect.stringMatching(/^\d{4}-\d{2}-\d{2};1:1$/)]);
+      .toEqual([expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2};1:1$/)]);
 
     await page.reload();
 

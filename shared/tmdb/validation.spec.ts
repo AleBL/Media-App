@@ -77,6 +77,12 @@ describe('requests about the episodes watched', () => {
     ).toEqual({ ...save, seasons: { 2: [1, 3] } });
   });
 
+  it('accepts the time of the change with the day', () => {
+    expect(
+      parseProgressRequest({ ...save, date: '2026-11-20T21:05' }),
+    ).toMatchObject({ date: '2026-11-20T21:05' });
+  });
+
   it('accepts no episode at all, which takes the show out', () => {
     expect(parseProgressRequest({ ...save, seasons: {} })).toEqual({
       ...save,
@@ -106,6 +112,9 @@ describe('requests about the episodes watched', () => {
   it.each([
     ['a show without an id', { ...save, id: 0 }],
     ['a day that does not exist', { ...save, date: '2026-02-30' }],
+    ['a time that does not exist', { ...save, date: '2026-11-20T24:00' }],
+    ['a time with seconds', { ...save, date: '2026-11-20T21:05:09' }],
+    ['two times', { ...save, date: '2026-11-20T21:05T21:06' }],
     ['a language that is not a locale', { ...save, language: '../x' }],
     ['nothing', null],
   ])('refuses a request with %s', (_case, request) => {

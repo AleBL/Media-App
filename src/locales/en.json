@@ -88,7 +88,10 @@
     "addRowHint": "To add a row, choose its filters in Explore and press “On the home page”.",
     "openExplore": "Open Explore",
     "noRows": "No rows here",
-    "noRowsHint": "Add rows from Explore, or restore the default ones."
+    "noRowsHint": "Add rows from Explore, or restore the default ones.",
+    "continueWatching": "Continue watching",
+    "continuePrevious": "Previous shows",
+    "continueNext": "More shows"
   },
 
   "cards": {
@@ -312,6 +315,14 @@
     "progressFailed": "The episodes you watched could not be loaded."
   },
 
+  "continue": {
+    "new": "New",
+    "mark": "Mark {episode} watched",
+    "markLabel": "Mark {episode} of {show} as watched",
+    "marked": "{episode} of {show} marked as watched.",
+    "loadFailed": "Your shows in progress could not be loaded."
+  },
+
   "person": {
     "notFound": "This person was not found on TMDB.",
     "error": "The page could not be loaded. Check your connection and try again.",
@@ -385,7 +396,9 @@
     "addedFavorite": "Added to Favorites.",
     "removedFavorite": "Removed from Favorites.",
     "markedWatched": "Marked as watched.",
-    "unmarkedWatched": "No longer marked as watched."
+    "unmarkedWatched": "No longer marked as watched.",
+    "inProgress": "In progress",
+    "finished": "Finished"
   },
 
   "account": {

@@ -240,7 +240,7 @@ export type WatchedEpisodes = Record<number, number[]>;
 export interface ShowProgress {
   id: number;
   seasons: WatchedEpisodes;
-  /** YYYY-MM-DD of the last change. */
+  /** The last change: YYYY-MM-DDTHH:MM, or the day alone. */
   changedAt: string;
 }
 
@@ -249,7 +249,7 @@ export interface ProgressRequest {
   id: number;
   /** None takes the show out of the list. */
   seasons: WatchedEpisodes;
-  /** The user's local day, YYYY-MM-DD. */
+  /** The user's local day and time, YYYY-MM-DDTHH:MM. */
   date: string;
   /** Names the list when it has to be created. */
   language: string;

@@ -88,7 +88,10 @@
     "addRowHint": "Para acrescentar uma fileira, escolha os filtros dela no Explorar e toque em “Na página inicial”.",
     "openExplore": "Abrir o Explorar",
     "noRows": "Nenhuma fileira aqui",
-    "noRowsHint": "Acrescente fileiras pelo Explorar, ou restaure as do padrão."
+    "noRowsHint": "Acrescente fileiras pelo Explorar, ou restaure as do padrão.",
+    "continueWatching": "Continuar assistindo",
+    "continuePrevious": "Séries anteriores",
+    "continueNext": "Mais séries"
   },
 
   "cards": {
@@ -312,6 +315,14 @@
     "progressFailed": "Não foi possível carregar os episódios assistidos."
   },
 
+  "continue": {
+    "new": "Novo",
+    "mark": "Assisti {episode}",
+    "markLabel": "Marcar {episode} de {show} como assistido",
+    "marked": "{episode} de {show} marcado como assistido.",
+    "loadFailed": "Não foi possível carregar suas séries em andamento."
+  },
+
   "person": {
     "notFound": "Esta pessoa não foi encontrada no TMDB.",
     "error": "Não foi possível carregar a página. Verifique sua conexão e tente novamente.",
@@ -385,7 +396,9 @@
     "addedFavorite": "Adicionado aos Favoritos.",
     "removedFavorite": "Tirado dos Favoritos.",
     "markedWatched": "Marcado como assistido.",
-    "unmarkedWatched": "Desmarcado como assistido."
+    "unmarkedWatched": "Desmarcado como assistido.",
+    "inProgress": "Em andamento",
+    "finished": "Terminados"
   },
 
   "account": {

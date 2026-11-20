@@ -88,7 +88,10 @@
     "addRowHint": "Para añadir una fila, elige sus filtros en Explorar y toca “En la página de inicio”.",
     "openExplore": "Abrir Explorar",
     "noRows": "Ninguna fila aquí",
-    "noRowsHint": "Añade filas desde Explorar, o restaura las predeterminadas."
+    "noRowsHint": "Añade filas desde Explorar, o restaura las predeterminadas.",
+    "continueWatching": "Seguir viendo",
+    "continuePrevious": "Series anteriores",
+    "continueNext": "Más series"
   },
 
   "cards": {
@@ -312,6 +315,14 @@
     "progressFailed": "No se pudieron cargar los episodios vistos."
   },
 
+  "continue": {
+    "new": "Nuevo",
+    "mark": "Vi {episode}",
+    "markLabel": "Marcar {episode} de {show} como visto",
+    "marked": "{episode} de {show} marcado como visto.",
+    "loadFailed": "No se pudieron cargar tus series en curso."
+  },
+
   "person": {
     "notFound": "Esta persona no se encontró en TMDB.",
     "error": "No se pudo cargar la página. Comprueba tu conexión e inténtalo de nuevo.",
@@ -385,7 +396,9 @@
     "addedFavorite": "Añadido a Favoritos.",
     "removedFavorite": "Quitado de Favoritos.",
     "markedWatched": "Marcado como visto.",
-    "unmarkedWatched": "Desmarcado como visto."
+    "unmarkedWatched": "Desmarcado como visto.",
+    "inProgress": "En curso",
+    "finished": "Terminados"
   },
 
   "account": {

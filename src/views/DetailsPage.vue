@@ -19,7 +19,10 @@
   import { useDetailsStore } from '@/stores/details';
   import { accessProblem } from '@/util/access';
   import { backdropUrl, logoUrl, posterUrl, profileUrl } from '@/util/images';
+  import { seasonPage } from '@/util/media';
   import { personPage } from '@/util/people';
+  import { airedCounts, showCount, watchedOf } from '@/util/progress';
+  import { useShowProgress } from '@/util/showProgress';
   import { countryName } from '@/util/region';
 
   const props = defineProps<{ type: MediaType; id: number }>();
@@ -154,6 +157,84 @@
   );
 
   const regionName = computed(() => countryName(region.value, locale.value));
+
+  // A day as TMDB sends it (YYYY-MM-DD), written the way of the language,
+  // read as UTC on both ends so no timezone moves it to another day.
+  function longDay(day: string) {
+    const [year, month, date] = day.split('-').map(Number);
+
+    return new Intl.DateTimeFormat(locale.value, {
+      dateStyle: 'long',
+      timeZone: 'UTC',
+    }).format(Date.UTC(year, month - 1, date));
+  }
+
+  // "Next episode: S3 E1 · Back, January 15, 2027".
+  const nextEpisode = computed(() => {
+    const next = details.value?.nextEpisode;
+
+    if (!next) {
+      return null;
+    }
+
+    const code = t('season.code', {
+      season: next.season,
+      episode: next.number,
+    });
+    const episode = next.name ? `${code} · ${next.name}` : code;
+
+    return next.airDate
+      ? t('details.nextEpisode', { episode, date: longDay(next.airDate) })
+      : t('details.nextEpisodeSoon', { episode });
+  });
+
+  // What the user watched of a show, in all and in each season, once they
+  // started it. The buttons of the title ask whether it is marked watched.
+  const watchedSeasons = useShowProgress(
+    () =>
+      details.value?.type === 'tv' && details.value.id === props.id
+        ? details.value
+        : null,
+    { askMark: false },
+  );
+
+  const started = computed(
+    () =>
+      !!watchedSeasons.value && Object.keys(watchedSeasons.value).length > 0,
+  );
+
+  const watchedCount = computed(() =>
+    started.value && details.value
+      ? showCount(details.value, watchedSeasons.value!)
+      : null,
+  );
+
+  /** "3 of 7 watched", by season; the specials count among themselves. */
+  const seasonProgress = computed(() => {
+    const show = details.value;
+    const seasons = watchedSeasons.value;
+    const progress: Record<number, { watched: number; out: number }> = {};
+
+    if (!show || !seasons || !started.value) {
+      return progress;
+    }
+
+    const aired = airedCounts(show);
+
+    for (const season of show.seasonList ?? []) {
+      const out =
+        season.number === 0 ? season.episodeCount : (aired[season.number] ?? 0);
+
+      if (out) {
+        progress[season.number] = {
+          watched: watchedOf(seasons, season.number, out),
+          out,
+        };
+      }
+    }
+
+    return progress;
+  });
 
   const watchGroups = computed(() => {
     const watch = details.value?.watch;
@@ -412,6 +493,81 @@
           </p>
         </section>
       </div>
+
+      <!-- The seasons of a show, each one to its page with its episodes,
+           the specials last. -->
+      <section
+        v-if="details.seasonList?.length"
+        class="mt-10"
+        aria-labelledby="seasons-title"
+      >
+        <h2 id="seasons-title" class="text-xl font-semibold">
+          {{ t('details.seasonsTitle') }}
+        </h2>
+        <p
+          v-if="nextEpisode"
+          class="mt-1 text-sm text-surface-600 dark:text-surface-300"
+        >
+          {{ nextEpisode }}
+        </p>
+        <p v-if="watchedCount?.out" class="mt-1 text-sm font-medium">
+          {{ t('details.episodesWatched', watchedCount) }}
+        </p>
+        <AppScrollRow
+          :previous-label="t('details.seasonsPrevious')"
+          :next-label="t('details.seasonsNext')"
+        >
+          <li
+            v-for="season in details.seasonList"
+            :key="season.number"
+            class="group relative w-32 shrink-0 snap-start sm:w-36"
+          >
+            <AppImage
+              :src="
+                season.posterPath ? posterUrl(season.posterPath, 'w185') : null
+              "
+              class="w-full rounded-md shadow-sm ring-1 ring-black/5 transition-shadow duration-200 group-hover:shadow-md group-has-[a:focus-visible]:ring-2 group-has-[a:focus-visible]:ring-primary-500 dark:group-has-[a:focus-visible]:ring-primary-400"
+            />
+            <p class="mt-2 text-sm font-medium">
+              <RouterLink
+                :to="seasonPage(details.id, season.number)"
+                class="text-surface-900 no-underline outline-hidden after:absolute after:inset-0 group-hover:underline dark:text-surface-0"
+              >
+                {{ season.name || t('season.number', { n: season.number }) }}
+              </RouterLink>
+            </p>
+            <p class="text-xs text-surface-500 dark:text-surface-400">
+              {{
+                [
+                  season.airDate?.slice(0, 4),
+                  t('details.episodes', season.episodeCount),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              }}
+            </p>
+            <template v-if="seasonProgress[season.number]">
+              <div
+                class="mt-1.5 h-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"
+                aria-hidden="true"
+              >
+                <div
+                  class="h-full rounded-full bg-primary-600 dark:bg-primary-400"
+                  :style="{
+                    width: `${
+                      (100 * seasonProgress[season.number].watched) /
+                      seasonProgress[season.number].out
+                    }%`,
+                  }"
+                />
+              </div>
+              <p class="mt-1 text-xs text-surface-600 dark:text-surface-300">
+                {{ t('season.progress', seasonProgress[season.number]) }}
+              </p>
+            </template>
+          </li>
+        </AppScrollRow>
+      </section>
 
       <section
         v-if="details.cast.length"

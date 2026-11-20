@@ -23,6 +23,11 @@ import {
   type PersonItem,
   type PersonLinks,
   type PersonRequest,
+  type Episode,
+  type EpisodeSummary,
+  type SeasonDetails,
+  type SeasonRequest,
+  type SeasonSummary,
   type RateRequest,
   type SearchItem,
   type SearchRequest,
@@ -162,7 +167,9 @@ type DetailsBody = {
   first_air_date?: unknown;
   runtime?: unknown;
   episode_run_time?: unknown;
-  last_episode_to_air?: { runtime?: unknown } | null;
+  last_episode_to_air?: JsonObject | null;
+  next_episode_to_air?: JsonObject | null;
+  seasons?: unknown;
   number_of_seasons?: unknown;
   number_of_episodes?: unknown;
   genres?: unknown;
@@ -215,6 +222,11 @@ export interface UserList {
   id: number;
   name: string;
   description: string;
+}
+
+/** A title of a user's list and what the comment beside it says. */
+export interface ListComment extends TitleRequest {
+  comment?: string;
 }
 
 /**
@@ -652,6 +664,133 @@ function toDetails(body: DetailsBody, request: DetailsRequest): MediaDetails {
     cast: toCast(body.credits?.cast),
     watch: toWatch(body['watch/providers']?.results, region),
     certification: toCertification(body, movie, region),
+    ...(!movie && {
+      seasonList: nonEmptyList(toSeasons(body.seasons)),
+      nextEpisode: toEpisodeSummary(body.next_episode_to_air),
+      lastEpisode: toEpisodeSummary(body.last_episode_to_air),
+    }),
+  };
+}
+
+const nonEmptyList = <T>(list: T[]) => (list.length ? list : undefined);
+
+/** A whole number from 0, such as the number of a season or an episode. */
+const count = (value: unknown) =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 0
+    ? value
+    : undefined;
+
+const day = (value: unknown) =>
+  typeof value === 'string' && DATE.test(value) ? value : undefined;
+
+/** The seasons with episodes, in order, the specials (season 0) last. */
+function toSeasons(seasons: unknown): SeasonSummary[] {
+  return objectArray(seasons)
+    .flatMap((season) => {
+      const number = count(season.season_number);
+      const episodeCount = count(season.episode_count);
+
+      return number !== undefined && episodeCount
+        ? [
+            {
+              number,
+              name: nonEmptyText(season.name) ?? '',
+              episodeCount,
+              airDate: day(season.air_date),
+              posterPath: nonEmptyText(season.poster_path),
+            },
+          ]
+        : [];
+    })
+    .sort((a, b) => (a.number || Infinity) - (b.number || Infinity));
+}
+
+function toEpisodeSummary(
+  episode: JsonObject | null | undefined,
+): EpisodeSummary | undefined {
+  const season = count(episode?.season_number);
+  const number = count(episode?.episode_number);
+
+  return episode && season !== undefined && number
+    ? {
+        season,
+        number,
+        name: nonEmptyText(episode.name),
+        airDate: day(episode.air_date),
+      }
+    : undefined;
+}
+
+/**
+ * A season with its episodes. A synopsis missing in the language asked for
+ * comes from `english`, the same season in English, saying so.
+ */
+function toSeason(
+  body: JsonObject,
+  english: JsonObject | null,
+  showId: number,
+): SeasonDetails {
+  const number = count(body.season_number);
+
+  if (number === undefined) {
+    return invalidResponse();
+  }
+
+  const inEnglish = (value: unknown) => {
+    const text = nonEmptyText(value)?.trim();
+
+    return text ? { text, language: 'en' } : undefined;
+  };
+  const overviewOf = (own: unknown, other: unknown) => {
+    const text = nonEmptyText(own)?.trim();
+    const fallback = text ? undefined : inEnglish(other);
+
+    return text
+      ? { overview: text }
+      : fallback
+        ? { overview: fallback.text, overviewLanguage: fallback.language }
+        : {};
+  };
+  const englishEpisodes = new Map(
+    objectArray(english?.episodes).map((episode) => [
+      episode.episode_number,
+      episode,
+    ]),
+  );
+  const episodes: Episode[] = objectArray(body.episodes).flatMap((episode) => {
+    const episodeNumber = count(episode.episode_number);
+
+    if (!episodeNumber) {
+      return [];
+    }
+
+    const votes = positiveNumber(episode.vote_count);
+
+    return [
+      {
+        number: episodeNumber,
+        name: nonEmptyText(episode.name)?.trim(),
+        ...overviewOf(
+          episode.overview,
+          englishEpisodes.get(episodeNumber)?.overview,
+        ),
+        airDate: day(episode.air_date),
+        runtime: positiveNumber(episode.runtime),
+        stillPath: nonEmptyText(episode.still_path),
+        voteAverage: votes ? positiveNumber(episode.vote_average) : undefined,
+        finale: episode.episode_type === 'finale' || undefined,
+      },
+    ];
+  });
+
+  return {
+    showId,
+    number,
+    name: nonEmptyText(body.name)?.trim() ?? '',
+    ...overviewOf(body.overview, english?.overview),
+    airDate: day(body.air_date),
+    posterPath: nonEmptyText(body.poster_path),
+    episodes: episodes.sort((a, b) => a.number - b.number),
   };
 }
 
@@ -987,6 +1126,44 @@ export function createTmdbClient(options: TmdbClientOptions) {
     }
   }
 
+  async function addItem(
+    accessToken: string,
+    listId: number,
+    { type, id }: TitleRequest,
+  ): Promise<void> {
+    await request(`/list/${listId}/items`, {
+      method: 'POST',
+      body: { items: [{ media_type: type, media_id: id }] },
+      v4: true,
+      userToken: accessToken,
+    });
+  }
+
+  /**
+   * The comment of a title already in the list. TMDB answers for each title
+   * whether it took it: one it did not is a failure.
+   */
+  async function commentOn(
+    accessToken: string,
+    listId: number,
+    { type, id }: TitleRequest,
+    comment: string,
+  ): Promise<void> {
+    const body = await request<JsonObject>(`/list/${listId}/items`, {
+      method: 'PUT',
+      body: { items: [{ media_type: type, media_id: id, comment }] },
+      v4: true,
+      userToken: accessToken,
+    });
+    const answer = objectArray(body.results).find(
+      (item) => Number(item.media_id) === id,
+    );
+
+    if (body.success === false || answer?.success === false) {
+      throw new TmdbError('server', 200, 'The comment was not taken');
+    }
+  }
+
   return {
     async search(search: SearchRequest): Promise<Paged<SearchItem>> {
       const params: Record<string, string | number> = {
@@ -1202,6 +1379,35 @@ export function createTmdbClient(options: TmdbClientOptions) {
       });
 
       return toPerson(body, language);
+    },
+
+    /**
+     * A season with its episodes. Out of English, the same season comes in
+     * English too, for the synopses TMDB lacks in the language asked for;
+     * if that one fails, the season shows without them.
+     */
+    async season({
+      id,
+      season,
+      language,
+    }: SeasonRequest): Promise<SeasonDetails> {
+      const path = `/tv/${id}/season/${season}`;
+      const [own, english] = await Promise.allSettled([
+        request<JsonObject>(path, { params: { language } }),
+        language.startsWith('en')
+          ? Promise.resolve(null)
+          : request<JsonObject>(path, { params: { language: 'en-US' } }),
+      ]);
+
+      if (own.status === 'rejected') {
+        throw own.reason;
+      }
+
+      return toSeason(
+        own.value,
+        english.status === 'fulfilled' ? english.value : null,
+        id,
+      );
     },
 
     /**
@@ -1460,26 +1666,53 @@ export function createTmdbClient(options: TmdbClientOptions) {
       }
     },
 
+    /** Without a comment: TMDB takes it in a second request (`commentOn`). */
+    addItem,
+
+    commentOn,
+
     /** The comment is a second request: if it fails, the title stays without it. */
     async addToList(
       accessToken: string,
       listId: number,
-      { type, id }: TitleRequest,
+      title: TitleRequest,
       comment: string,
     ): Promise<void> {
-      const item = { media_type: type, media_id: id };
-      const user = { v4: true, userToken: accessToken };
+      await addItem(accessToken, listId, title);
+      await commentOn(accessToken, listId, title, comment).catch(() => {});
+    },
 
-      await request(`/list/${listId}/items`, {
-        method: 'POST',
-        body: { items: [item] },
-        ...user,
-      });
-      await request(`/list/${listId}/items`, {
-        method: 'PUT',
-        body: { items: [{ ...item, comment }] },
-        ...user,
-      }).catch(() => {});
+    /** One page of a list: each title and its comment, if it has one. */
+    async listComments(
+      accessToken: string,
+      listId: number,
+      page: number,
+    ): Promise<{ items: ListComment[]; totalPages: number }> {
+      const body = await request<SearchBody & { comments?: unknown }>(
+        `/list/${listId}`,
+        { params: { page }, v4: true, userToken: accessToken },
+      );
+      const comments: JsonObject =
+        typeof body.comments === 'object' && body.comments !== null
+          ? (body.comments as JsonObject)
+          : {};
+
+      return {
+        items: objectArray(body.results).flatMap((item) => {
+          const { media_type: type, id } = item;
+
+          if ((type !== 'movie' && type !== 'tv') || typeof id !== 'number') {
+            return [];
+          }
+
+          const comment = comments[`${type}:${id}`];
+
+          return [
+            typeof comment === 'string' ? { type, id, comment } : { type, id },
+          ];
+        }),
+        totalPages: body.total_pages ?? 1,
+      };
     },
 
     async removeFromList(

@@ -333,6 +333,51 @@ describe('tmdb proxy', () => {
     });
   });
 
+  describe('season', () => {
+    const SEASON = '?resource=season&id=1396&season=2&language=en';
+
+    it('answers with the season, kept as long as a title', async () => {
+      const fetch = tmdbAnswers(200, {
+        season_number: 2,
+        name: 'Season 2',
+        episodes: [{ episode_number: 1, name: 'Seven Thirty-Seven' }],
+      });
+
+      const { response, body } = await ask(SEASON, fetch);
+
+      expect(response.status).toBe(200);
+      expect(body).toEqual({
+        ok: true,
+        data: {
+          showId: 1396,
+          number: 2,
+          name: 'Season 2',
+          episodes: [{ number: 1, name: 'Seven Thirty-Seven' }],
+        },
+      });
+      expect(new URL(fetch.mock.calls[0][0]).pathname).toBe(
+        '/3/tv/1396/season/2',
+      );
+      expect(response.headers.get('Cache-Control')).toBe(
+        'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400',
+      );
+    });
+
+    it.each([
+      ['no season', '?resource=season&id=1396&language=en'],
+      [
+        'a season that is a path',
+        SEASON.replace('season=2', 'season=2%2Fimages'),
+      ],
+      ['no language', '?resource=season&id=1396&season=2'],
+    ])('refuses %s without asking TMDB', async (_case, query) => {
+      const { response, fetch } = await ask(query, tmdbAnswers(200, {}));
+
+      expect(response.status).toBe(400);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  });
+
   describe('person', () => {
     const PERSON = '?resource=person&id=6384&language=pt-BR';
 

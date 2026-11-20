@@ -88,7 +88,10 @@
     "addRowHint": "Para añadir una fila, elige sus filtros en Explorar y toca “En la página de inicio”.",
     "openExplore": "Abrir Explorar",
     "noRows": "Ninguna fila aquí",
-    "noRowsHint": "Añade filas desde Explorar, o restaura las predeterminadas."
+    "noRowsHint": "Añade filas desde Explorar, o restaura las predeterminadas.",
+    "continueWatching": "Seguir viendo",
+    "continuePrevious": "Series anteriores",
+    "continueNext": "Más series"
   },
 
   "cards": {
@@ -271,7 +274,53 @@
     "allOptions": "Ver los enlaces en TMDB",
     "cast": "Reparto",
     "castPrevious": "Personas anteriores del reparto",
-    "castNext": "Más personas del reparto"
+    "castNext": "Más personas del reparto",
+    "seasonsTitle": "Temporadas",
+    "seasonsPrevious": "Temporadas anteriores",
+    "seasonsNext": "Más temporadas",
+    "nextEpisode": "Próximo episodio: {episode}, {date}",
+    "nextEpisodeSoon": "Próximo episodio: {episode}, fecha por anunciar",
+    "episodesWatched": "{watched} de {out} episodios vistos"
+  },
+
+  "season": {
+    "number": "Temporada {n}",
+    "notFound": "Esta temporada no se encontró en TMDB.",
+    "error": "No se pudo cargar la temporada. Comprueba tu conexión e inténtalo de nuevo.",
+    "toShow": "Ir a la serie",
+    "backTo": "Volver a {show}",
+    "episodes": "Episodios",
+    "noEpisodes": "TMDB aún no tiene episodios de esta temporada.",
+    "episode": "Episodio {n}",
+    "code": "T{season} E{episode}",
+    "finale": "Final de temporada",
+    "premieres": "Se estrena el {date}",
+    "rating": "Puntuación",
+    "overviewInEnglish": "TMDB solo tiene esta sinopsis en inglés.",
+    "previous": "Temporada anterior",
+    "next": "Temporada siguiente",
+    "choose": "Temporada",
+    "seasonsOf": "Temporadas de {show}",
+    "progress": "{watched} de {out} vistos",
+    "markSeason": "Marcar temporada",
+    "unmarkSeason": "Desmarcar temporada",
+    "markedSeason": "Episodios de {season} marcados como vistos.",
+    "unmarkedSeason": "Episodios de {season} desmarcados.",
+    "watched": "Visto",
+    "watchedEpisode": "Visto: {episode}",
+    "upTo": "Hasta aquí",
+    "upToLabel": "Marcar todos los episodios hasta {episode} como vistos",
+    "markedUpTo": "Episodios hasta {episode} marcados como vistos.",
+    "signInToMark": "Inicia sesión para marcar los episodios que viste",
+    "progressFailed": "No se pudieron cargar los episodios vistos."
+  },
+
+  "continue": {
+    "new": "Nuevo",
+    "mark": "Vi {episode}",
+    "markLabel": "Marcar {episode} de {show} como visto",
+    "marked": "{episode} de {show} marcado como visto.",
+    "loadFailed": "No se pudieron cargar tus series en curso."
   },
 
   "person": {
@@ -347,7 +396,9 @@
     "addedFavorite": "Añadido a Favoritos.",
     "removedFavorite": "Quitado de Favoritos.",
     "markedWatched": "Marcado como visto.",
-    "unmarkedWatched": "Desmarcado como visto."
+    "unmarkedWatched": "Desmarcado como visto.",
+    "inProgress": "En curso",
+    "finished": "Terminados"
   },
 
   "account": {

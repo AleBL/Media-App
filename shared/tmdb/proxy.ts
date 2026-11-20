@@ -7,6 +7,7 @@ import {
   parseDiscoverFiltersRequest,
   parseDiscoverRequest,
   parsePersonRequest,
+  parseSeasonRequest,
   parseLanguage,
   parseListRequest,
   parseSearchRequest,
@@ -110,6 +111,7 @@ const optionalIds = (value: string | null) =>
  *   GET ?resource=regions
  *   GET ?resource=details&type=movie&id=603&language=en&region=US
  *   GET ?resource=person&id=6384&language=en
+ *   GET ?resource=season&id=1396&season=2&language=pt-BR
  *   GET ?resource=list&list=trending&language=en
  *   GET ?resource=list&list=now-playing&language=pt-BR&region=BR
  */
@@ -239,6 +241,23 @@ export function createTmdbProxy(options: TmdbProxyOptions) {
             ? jsonResponse(
                 200,
                 { ok: true, data: await client.person(person) },
+                DETAILS_CACHE,
+              )
+            : errorResponse({ code: 'invalid-request' });
+        }
+
+        case 'season': {
+          const season = parseSeasonRequest({
+            id: Number(params.get('id')),
+            // Missing is no season: Number(null) would be the specials.
+            season: optionalNumber(params.get('season')),
+            language: params.get('language'),
+          });
+
+          return season
+            ? jsonResponse(
+                200,
+                { ok: true, data: await client.season(season) },
                 DETAILS_CACHE,
               )
             : errorResponse({ code: 'invalid-request' });

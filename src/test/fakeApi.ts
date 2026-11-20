@@ -8,6 +8,7 @@ import type {
   MediaItem,
   Paged,
   PersonDetails,
+  SeasonDetails,
   SearchItem,
   SessionPersistence,
   SessionState,
@@ -89,6 +90,76 @@ export const MATRIX: MediaDetails = {
 };
 
 /** The page of a person with everything filled in. */
+/** The page of a tv show with its seasons, the specials last. */
+export const BREAKING_BAD: MediaDetails = {
+  type: 'tv',
+  id: 1396,
+  title: 'Breaking Bad',
+  overview: 'A chemistry teacher turns to making meth.',
+  date: '2008-01-20',
+  runtime: 47,
+  seasons: 5,
+  episodes: 62,
+  genres: [{ id: 18, name: 'Drama' }],
+  posterPath: '/bb.jpg',
+  voteAverage: 8.9,
+  voteCount: 15000,
+  cast: [{ id: 17419, name: 'Bryan Cranston', character: 'Walter White' }],
+  seasonList: [
+    {
+      number: 1,
+      name: 'Season 1',
+      episodeCount: 7,
+      airDate: '2008-01-20',
+      posterPath: '/s1.jpg',
+    },
+    { number: 2, name: 'Season 2', episodeCount: 13, airDate: '2009-03-08' },
+    { number: 0, name: 'Specials', episodeCount: 9, airDate: '2009-02-17' },
+  ],
+  lastEpisode: {
+    season: 5,
+    number: 16,
+    name: 'Felina',
+    airDate: '2013-09-29',
+  },
+};
+
+/** The first season of BREAKING_BAD, one synopsis only in English. */
+export const SEASON_ONE: SeasonDetails = {
+  showId: 1396,
+  number: 1,
+  name: 'Season 1',
+  overview: 'High school chemistry teacher Walter White learns he is ill.',
+  airDate: '2008-01-20',
+  posterPath: '/s1.jpg',
+  episodes: [
+    {
+      number: 1,
+      name: 'Pilot',
+      overview: 'Walter White gets a diagnosis.',
+      airDate: '2008-01-20',
+      runtime: 59,
+      stillPath: '/e1.jpg',
+      voteAverage: 8.3,
+    },
+    {
+      number: 2,
+      name: "Cat's in the Bag...",
+      overview: 'Walt and Jesse clean up.',
+      overviewLanguage: 'en',
+      airDate: '2008-01-27',
+      runtime: 49,
+    },
+    {
+      number: 7,
+      name: 'A No-Rough-Stuff-Type Deal',
+      airDate: '2008-03-09',
+      runtime: 48,
+      finale: true,
+    },
+  ],
+};
+
 export const KEANU: PersonDetails = {
   id: 6384,
   name: 'Keanu Reeves',
@@ -209,6 +280,10 @@ export function installFakeApi() {
         ok: true,
         data: { ...KEANU, id },
       })),
+      season: vi.fn<MediaAppApi['tmdb']['season']>(async ({ id, season }) => ({
+        ok: true,
+        data: { ...SEASON_ONE, showId: id, number: season },
+      })),
       discover: vi.fn<MediaAppApi['tmdb']['discover']>(async () => ({
         ok: true,
         data: pageOf() as Paged<MediaItem>,
@@ -261,6 +336,14 @@ export function installFakeApi() {
       list: vi.fn<MediaAppApi['watched']['list']>(async () => ({
         ok: true,
         data: pageOf() as Paged<MediaItem>,
+      })),
+      progress: vi.fn<MediaAppApi['watched']['progress']>(async () => ({
+        ok: true,
+        data: [],
+      })),
+      saveProgress: vi.fn<MediaAppApi['watched']['saveProgress']>(async () => ({
+        ok: true,
+        data: null,
       })),
     },
     credentials: {

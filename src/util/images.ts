@@ -23,5 +23,8 @@ export const avatarUrl = (path: string) => `${TMDB_IMAGES}w45${path}`;
 /** A wide still of a title, for the top of its page. */
 export const backdropUrl = (path: string) => `${TMDB_IMAGES}w1280${path}`;
 
+/** A still of an episode, about twice the width of the list shows it. */
+export const stillUrl = (path: string) => `${TMDB_IMAGES}w300${path}`;
+
 /** The logo of a streaming service or store. */
 export const logoUrl = (path: string) => `${TMDB_IMAGES}${LOGO_SIZE}${path}`;

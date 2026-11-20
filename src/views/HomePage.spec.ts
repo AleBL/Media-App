@@ -7,7 +7,7 @@ import i18n from '@/plugins/i18n';
 import router from '@/router';
 import { useSessionStore } from '@/stores/session';
 import { useToastsStore } from '@/stores/toasts';
-import { installFakeApi, SIGNED_IN } from '@/test/fakeApi';
+import { BREAKING_BAD, installFakeApi, SIGNED_IN } from '@/test/fakeApi';
 import HomePage from '@/views/HomePage.vue';
 
 const TITLES: Partial<Record<MediaList, MediaItem[]>> = {
@@ -294,6 +294,25 @@ describe('HomePage', () => {
       language: 'en',
     });
     expect(section('Trending this week').findAll('article')).toHaveLength(1);
+  });
+
+  it('shows first the shows the user is watching, but not among the movies', async () => {
+    useSessionStore().state = SIGNED_IN;
+    api.tmdb.details.mockResolvedValue({ ok: true, data: BREAKING_BAD });
+    api.watched.progress.mockResolvedValue({
+      ok: true,
+      data: [{ id: 1396, seasons: { 1: [1] }, changedAt: '2026-11-19' }],
+    });
+
+    await mountPage();
+
+    expect(headings()[0]).toBe('Continue watching');
+    expect(section('Continue watching').text()).toContain('Breaking Bad');
+
+    await wrapper.get('input[name="home-kind"][value="movie"]').setValue(true);
+    await flushPromises();
+
+    expect(headings()).not.toContain('Continue watching');
   });
 
   it('shows a row made in Explore, with its filters', async () => {

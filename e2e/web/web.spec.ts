@@ -579,6 +579,9 @@ test.describe('web version', () => {
     await expect(
       page.getByRole('region', { name: 'Filmography' }).getByRole('article'),
     ).toHaveCount(3);
+    // The page of a season, through the function of the site.
+    await page.evaluate(() => (location.hash = '#/tv/9001/season/1'));
+    await expect(heading(page)).toHaveText('Season 1 [en]');
     // Explore, with the filters of the page.
     await openPage(page, 'discover');
     await expect(cards(page)).toHaveCount(20);

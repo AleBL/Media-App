@@ -7,6 +7,7 @@ import {
   type Result,
   type SessionState,
 } from '@shared/api';
+import { encodeSeasons } from '@shared/tmdb/episodes';
 
 const TIMEOUT_MS = 12_000;
 
@@ -225,6 +226,13 @@ export function createWebApi(
         }),
       person: ({ id, language }) =>
         callSite({ resource: 'person', id: String(id), language }),
+      season: ({ id, season, language }) =>
+        callSite({
+          resource: 'season',
+          id: String(id),
+          season: String(season),
+          language,
+        }),
       list: ({ list, language, region }) =>
         callSite({
           resource: 'list',
@@ -286,6 +294,20 @@ export function createWebApi(
         callSite(
           { resource: 'watched-list', page: String(page), language },
           ACCOUNT_PATH,
+        ),
+      progress: () => callSite({ resource: 'watched-progress' }, ACCOUNT_PATH),
+      // The seasons as TMDB keeps them in the comment: short in an address.
+      saveProgress: ({ id, seasons, date, language }) =>
+        callSite(
+          {
+            resource: 'watched-save-progress',
+            id: String(id),
+            seasons: encodeSeasons(seasons),
+            date,
+            language,
+          },
+          ACCOUNT_PATH,
+          'POST',
         ),
     },
     credentials: {

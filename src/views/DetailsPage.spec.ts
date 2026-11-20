@@ -6,7 +6,13 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 import type { MediaDetails, MediaType } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import appRouter from '@/router';
-import { installFakeApi, MATRIX } from '@/test/fakeApi';
+import { useSessionStore } from '@/stores/session';
+import {
+  BREAKING_BAD as WITH_SEASONS,
+  installFakeApi,
+  MATRIX,
+  SIGNED_IN,
+} from '@/test/fakeApi';
 import DetailsPage from '@/views/DetailsPage.vue';
 
 const BREAKING_BAD: MediaDetails = {
@@ -304,6 +310,90 @@ describe('DetailsPage', () => {
 
     expect(alert().text()).toContain('This title was not found on TMDB.');
     expect(button('Try again')).toBeUndefined();
+  });
+
+  it('lists the seasons of a show, each to its page, the specials last', async () => {
+    api.tmdb.details.mockResolvedValue({ ok: true, data: WITH_SEASONS });
+
+    await open('/tv/1396', 'tv', 1396);
+
+    const seasons = wrapper.get('section[aria-labelledby="seasons-title"]');
+    expect(seasons.get('h2').text()).toBe('Seasons');
+    expect(
+      seasons
+        .findAll('li a')
+        .map((link) => [link.text(), link.attributes('href')]),
+    ).toEqual([
+      ['Season 1', '/tv/1396/season/1'],
+      ['Season 2', '/tv/1396/season/2'],
+      ['Specials', '/tv/1396/season/0'],
+    ]);
+    expect(seasons.findAll('li')[0].text()).toContain('2008 · 7 episodes');
+    // ended: no next episode
+    expect(seasons.text()).not.toContain('Next episode');
+  });
+
+  it('says when the next episode of a show airs', async () => {
+    api.tmdb.details.mockResolvedValue({
+      ok: true,
+      data: {
+        ...WITH_SEASONS,
+        nextEpisode: {
+          season: 6,
+          number: 1,
+          name: 'Return',
+          airDate: '2027-01-15',
+        },
+      },
+    });
+
+    await open('/tv/1396', 'tv', 1396);
+
+    expect(wrapper.text()).toContain(
+      'Next episode: S6 E1 · Return, January 15, 2027',
+    );
+  });
+
+  it('shows how much of the show and of each season the user watched', async () => {
+    useSessionStore().state = SIGNED_IN;
+    api.tmdb.details.mockResolvedValue({ ok: true, data: WITH_SEASONS });
+    api.watched.progress.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: 1396,
+          seasons: { 1: [1, 2, 3, 4, 5, 6, 7], 2: [1, 2], 0: [1] },
+          changedAt: '2026-11-19',
+        },
+      ],
+    });
+
+    await open('/tv/1396', 'tv', 1396);
+
+    const seasons = wrapper.get('section[aria-labelledby="seasons-title"]');
+    // the specials apart
+    expect(seasons.text()).toContain('9 of 20 episodes watched');
+    expect(
+      seasons.findAll('li').map((season) => season.text().split('episodes')[1]),
+    ).toEqual(['7 of 7 watched', '2 of 13 watched', '1 of 9 watched']);
+  });
+
+  it('shows no progress of a show the user did not start', async () => {
+    useSessionStore().state = SIGNED_IN;
+    api.tmdb.details.mockResolvedValue({ ok: true, data: WITH_SEASONS });
+
+    await open('/tv/1396', 'tv', 1396);
+
+    expect(api.watched.progress).toHaveBeenCalledOnce();
+    expect(
+      wrapper.get('section[aria-labelledby="seasons-title"]').text(),
+    ).not.toContain('watched');
+  });
+
+  it('has no seasons for a movie', async () => {
+    await open();
+
+    expect(wrapper.find('#seasons-title').exists()).toBe(false);
   });
 
   it('offers to try again after a failure of the connection', async () => {

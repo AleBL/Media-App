@@ -4,7 +4,7 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import i18n from '@/plugins/i18n';
 import router from '@/router';
 import { useSessionStore } from '@/stores/session';
-import { installFakeApi, SIGNED_IN } from '@/test/fakeApi';
+import { BREAKING_BAD, installFakeApi, SIGNED_IN } from '@/test/fakeApi';
 import WatchedPage from '@/views/WatchedPage.vue';
 
 describe('WatchedPage', () => {
@@ -64,6 +64,50 @@ describe('WatchedPage', () => {
     expect(cards[0].text()).toContain('Watched on Nov 16, 2026');
     expect(cards[1].text()).toContain('TV Show');
     expect(cards[1].get('a').attributes('href')).toBe('#/tv/603');
+  });
+
+  it('shows the shows in progress first, then what was watched in full', async () => {
+    api.tmdb.details.mockResolvedValue({ ok: true, data: BREAKING_BAD });
+    api.watched.progress.mockResolvedValue({
+      ok: true,
+      data: [{ id: 1396, seasons: { 1: [1] }, changedAt: '2026-11-19' }],
+    });
+    api.watched.list.mockResolvedValue({
+      ok: true,
+      data: {
+        page: 1,
+        results: [{ id: 603, media_type: 'movie', title: 'The Matrix' }],
+        totalPages: 1,
+        totalResults: 1,
+      },
+    });
+
+    await mountPage();
+
+    expect(wrapper.findAll('h2').map((heading) => heading.text())).toEqual([
+      'In progress',
+      'Finished',
+    ]);
+    const inProgress = wrapper.get(
+      'section[aria-labelledby="in-progress-title"]',
+    );
+    expect(inProgress.text()).toContain('Breaking Bad');
+    expect(inProgress.text()).toContain("S1 E2 · Cat's in the Bag...");
+    expect(wrapper.findAll('article')).toHaveLength(1);
+  });
+
+  it('shows the shows in progress alone, without saying nothing was watched', async () => {
+    api.tmdb.details.mockResolvedValue({ ok: true, data: BREAKING_BAD });
+    api.watched.progress.mockResolvedValue({
+      ok: true,
+      data: [{ id: 1396, seasons: { 1: [1] }, changedAt: '2026-11-19' }],
+    });
+
+    await mountPage();
+
+    expect(wrapper.text()).toContain('In progress');
+    expect(wrapper.text()).not.toContain('Nothing watched yet.');
+    expect(wrapper.find('[role="status"]').exists()).toBe(false);
   });
 
   it('says when nothing was watched yet', async () => {

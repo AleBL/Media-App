@@ -271,7 +271,32 @@
     "allOptions": "Ver os links no TMDB",
     "cast": "Elenco",
     "castPrevious": "Pessoas anteriores do elenco",
-    "castNext": "Mais pessoas do elenco"
+    "castNext": "Mais pessoas do elenco",
+    "seasonsTitle": "Temporadas",
+    "seasonsPrevious": "Temporadas anteriores",
+    "seasonsNext": "Mais temporadas",
+    "nextEpisode": "Próximo episódio: {episode}, {date}",
+    "nextEpisodeSoon": "Próximo episódio: {episode}, data a anunciar"
+  },
+
+  "season": {
+    "number": "Temporada {n}",
+    "notFound": "Esta temporada não foi encontrada no TMDB.",
+    "error": "Não foi possível carregar a temporada. Verifique sua conexão e tente novamente.",
+    "toShow": "Ir para a série",
+    "backTo": "Voltar para {show}",
+    "episodes": "Episódios",
+    "noEpisodes": "O TMDB ainda não tem episódios desta temporada.",
+    "episode": "Episódio {n}",
+    "code": "T{season} E{episode}",
+    "finale": "Final da temporada",
+    "premieres": "Estreia em {date}",
+    "rating": "Nota",
+    "overviewInEnglish": "O TMDB só tem esta sinopse em inglês.",
+    "previous": "Temporada anterior",
+    "next": "Próxima temporada",
+    "choose": "Temporada",
+    "seasonsOf": "Temporadas de {show}"
   },
 
   "person": {

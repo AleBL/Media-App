@@ -233,6 +233,28 @@ export interface WatchedListRequest {
   language: string;
 }
 
+/** Episode numbers watched, by season number (0 is the specials). */
+export type WatchedEpisodes = Record<number, number[]>;
+
+/** The episodes watched of one show. */
+export interface ShowProgress {
+  id: number;
+  seasons: WatchedEpisodes;
+  /** YYYY-MM-DD of the last change. */
+  changedAt: string;
+}
+
+export interface ProgressRequest {
+  /** The show. */
+  id: number;
+  /** None takes the show out of the list. */
+  seasons: WatchedEpisodes;
+  /** The user's local day, YYYY-MM-DD. */
+  date: string;
+  /** Names the list when it has to be created. */
+  language: string;
+}
+
 export interface CastMember {
   id: number;
   name: string;
@@ -531,6 +553,13 @@ export interface MediaAppApi {
     state(request: TitleRequest): Promise<Result<boolean>>;
     mark(request: WatchedRequest): Promise<Result<null>>;
     list(request: WatchedListRequest): Promise<Result<Paged<MediaItem>>>;
+    /**
+     * Every show with an episode watched, from a second private list, kept
+     * apart so that the first one goes on meaning "watched all of it".
+     */
+    progress(): Promise<Result<ShowProgress[]>>;
+    /** Replaces the episodes watched of a show; none takes it out. */
+    saveProgress(request: ProgressRequest): Promise<Result<null>>;
   };
   /** A saved key is never sent back to the renderer. */
   credentials: {
@@ -584,6 +613,8 @@ export const IPC = {
   watchedState: 'watched:state',
   watchedMark: 'watched:mark',
   watchedList: 'watched:list',
+  watchedProgress: 'watched:progress',
+  watchedSaveProgress: 'watched:save-progress',
   credentialStatus: 'credentials:status',
   credentialSave: 'credentials:save',
   credentialClear: 'credentials:clear',

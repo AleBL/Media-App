@@ -276,7 +276,8 @@
     "seasonsPrevious": "Temporadas anteriores",
     "seasonsNext": "Mais temporadas",
     "nextEpisode": "Próximo episódio: {episode}, {date}",
-    "nextEpisodeSoon": "Próximo episódio: {episode}, data a anunciar"
+    "nextEpisodeSoon": "Próximo episódio: {episode}, data a anunciar",
+    "episodesWatched": "{watched} de {out} episódios assistidos"
   },
 
   "season": {
@@ -296,7 +297,19 @@
     "previous": "Temporada anterior",
     "next": "Próxima temporada",
     "choose": "Temporada",
-    "seasonsOf": "Temporadas de {show}"
+    "seasonsOf": "Temporadas de {show}",
+    "progress": "{watched} de {out} assistidos",
+    "markSeason": "Marcar temporada",
+    "unmarkSeason": "Desmarcar temporada",
+    "markedSeason": "Episódios de {season} marcados como assistidos.",
+    "unmarkedSeason": "Episódios de {season} desmarcados.",
+    "watched": "Assistido",
+    "watchedEpisode": "Assistido: {episode}",
+    "upTo": "Até aqui",
+    "upToLabel": "Marcar todos os episódios até {episode} como assistidos",
+    "markedUpTo": "Episódios até {episode} marcados como assistidos.",
+    "signInToMark": "Entre para marcar os episódios que assistiu",
+    "progressFailed": "Não foi possível carregar os episódios assistidos."
   },
 
   "person": {

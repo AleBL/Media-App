@@ -3,8 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { TmdbError, type TmdbClient, type UserList } from './client';
 import {
   createWatched,
+  EPISODES_MARKER,
   MAX_LIST_PAGES,
   MAX_LIST_TRIES,
+  MAX_PROGRESS_PAGES,
   createMemoryListCache,
   requireUserAccess,
   WATCHED_MARKER,
@@ -37,6 +39,12 @@ function setup(pages: UserList[][] = [[OTHER]]) {
     updateList: vi.fn<TmdbClient['updateList']>(async () => {}),
     listItemStatus: vi.fn<TmdbClient['listItemStatus']>(async () => true),
     addToList: vi.fn<TmdbClient['addToList']>(async () => {}),
+    addItem: vi.fn<TmdbClient['addItem']>(async () => {}),
+    commentOn: vi.fn<TmdbClient['commentOn']>(async () => {}),
+    listComments: vi.fn<TmdbClient['listComments']>(async () => ({
+      items: [],
+      totalPages: 1,
+    })),
     removeFromList: vi.fn<TmdbClient['removeFromList']>(async () => {}),
     listItems: vi.fn<TmdbClient['listItems']>(async (_token, _id, page) => ({
       page,
@@ -310,6 +318,152 @@ describe('watched titles', () => {
 
     await expect(watched.state(ACCESS, cache, MATRIX)).rejects.toMatchObject({
       code: 'sign-in-again',
+    });
+  });
+
+  describe('the episodes watched', () => {
+    const EPISODES: UserList = {
+      id: 99,
+      name: 'MoviLedger: episódios',
+      description: `MoviLedger (${EPISODES_MARKER})`,
+    };
+    const BREAKING_BAD = { type: 'tv', id: 1396 } as const;
+    const save = (seasons: Record<number, number[]>) => ({
+      id: 1396,
+      seasons,
+      date: '2026-11-20',
+      language: 'pt-BR',
+    });
+
+    it('come from their own list, not the one of the watched titles', async () => {
+      const { watched, tmdb, cache } = setup([[WATCHED, EPISODES]]);
+      tmdb.listComments.mockResolvedValue({
+        items: [
+          { ...BREAKING_BAD, comment: '2026-11-20;1:1-7;2:1' },
+          { type: 'movie', id: 603, comment: '2026-11-16;1:1' },
+          { type: 'tv', id: 1399, comment: 'a note of the user' },
+          { type: 'tv', id: 1400 },
+        ],
+        totalPages: 1,
+      });
+
+      await expect(watched.progress(ACCESS, cache)).resolves.toEqual([
+        {
+          id: 1396,
+          seasons: { 1: [1, 2, 3, 4, 5, 6, 7], 2: [1] },
+          changedAt: '2026-11-20',
+        },
+      ]);
+      expect(tmdb.listComments).toHaveBeenCalledExactlyOnceWith(
+        ACCESS.accessToken,
+        EPISODES.id,
+        1,
+      );
+      expect(cache.get()).toBe(EPISODES.id);
+    });
+
+    it(`are read from every page, ${MAX_PROGRESS_PAGES} at most, each show once`, async () => {
+      const { watched, tmdb, cache } = setup([[EPISODES]]);
+      tmdb.listComments.mockImplementation(async (_token, _id, page) => ({
+        items: [
+          { type: 'tv', id: page === 3 ? 7 : page, comment: '2026-11-20;1:1' },
+        ],
+        totalPages: MAX_PROGRESS_PAGES + 5,
+      }));
+
+      const shows = await watched.progress(ACCESS, cache);
+
+      expect(tmdb.listComments).toHaveBeenCalledTimes(MAX_PROGRESS_PAGES);
+      expect(shows.map(({ id }) => id)).toHaveLength(MAX_PROGRESS_PAGES - 1);
+    });
+
+    it('are none while there is no list, and none is made for reading', async () => {
+      const { watched, tmdb, cache } = setup([[WATCHED]]);
+
+      await expect(watched.progress(ACCESS, cache)).resolves.toEqual([]);
+      expect(tmdb.createList).not.toHaveBeenCalled();
+    });
+
+    it('make their list, private and named in the language of the app, with the first episode', async () => {
+      const { watched, tmdb, cache } = setup([[WATCHED]]);
+      tmdb.listItemStatus.mockResolvedValue(false);
+
+      await watched.saveProgress(ACCESS, cache, save({ 1: [1] }));
+
+      const list = {
+        name: 'MoviLedger: episódios',
+        description: `MoviLedger (${EPISODES_MARKER})`,
+      };
+
+      expect(tmdb.createList).toHaveBeenCalledExactlyOnceWith(
+        ACCESS.accessToken,
+        { ...list, language: 'pt-BR' },
+      );
+      expect(tmdb.addItem).toHaveBeenCalledExactlyOnceWith(
+        ACCESS.accessToken,
+        88,
+        BREAKING_BAD,
+      );
+      expect(tmdb.commentOn).toHaveBeenCalledExactlyOnceWith(
+        ACCESS.accessToken,
+        88,
+        BREAKING_BAD,
+        '2026-11-20;1:1',
+      );
+      expect(tmdb.updateList).toHaveBeenCalledExactlyOnceWith(
+        ACCESS.accessToken,
+        88,
+        list,
+      );
+    });
+
+    it('of a show already in the list change its comment alone', async () => {
+      const { watched, tmdb, cache } = setup([[EPISODES]]);
+
+      await watched.saveProgress(ACCESS, cache, save({ 2: [3, 1, 2], 1: [1] }));
+
+      expect(tmdb.addItem).not.toHaveBeenCalled();
+      expect(tmdb.commentOn).toHaveBeenCalledExactlyOnceWith(
+        ACCESS.accessToken,
+        EPISODES.id,
+        BREAKING_BAD,
+        '2026-11-20;1:1;2:1-3',
+      );
+    });
+
+    it('fail when TMDB does not take the comment', async () => {
+      const { watched, tmdb, cache } = setup([[EPISODES]]);
+      tmdb.commentOn.mockRejectedValue(new TmdbError('server', 200));
+
+      await expect(
+        watched.saveProgress(ACCESS, cache, save({ 1: [1] })),
+      ).rejects.toMatchObject({ code: 'server' });
+    });
+
+    it('take the show out when none is left', async () => {
+      const { watched, tmdb, cache } = setup([[EPISODES]]);
+
+      await watched.saveProgress(ACCESS, cache, save({ 1: [] }));
+
+      expect(tmdb.removeFromList).toHaveBeenCalledExactlyOnceWith(
+        ACCESS.accessToken,
+        EPISODES.id,
+        BREAKING_BAD,
+      );
+      expect(tmdb.commentOn).not.toHaveBeenCalled();
+    });
+
+    it('leave alone a show that is not in the list, or a list that is not there', async () => {
+      const listed = setup([[EPISODES]]);
+      listed.tmdb.listItemStatus.mockResolvedValue(false);
+      const none = setup([[WATCHED]]);
+
+      await listed.watched.saveProgress(ACCESS, listed.cache, save({}));
+      await none.watched.saveProgress(ACCESS, none.cache, save({}));
+
+      expect(listed.tmdb.removeFromList).not.toHaveBeenCalled();
+      expect(none.tmdb.createList).not.toHaveBeenCalled();
+      expect(none.tmdb.removeFromList).not.toHaveBeenCalled();
     });
   });
 

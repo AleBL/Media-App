@@ -422,6 +422,29 @@ describe('web api', () => {
       );
     });
 
+    it('reads the episodes watched, and saves those of a show with a POST', async () => {
+      const fetch = answering({ ok: true, data: null });
+      const api = createWebApi(fetch);
+
+      await api.watched.progress();
+      await api.watched.saveProgress({
+        id: 1396,
+        seasons: { 2: [1], 1: [1, 2, 3, 5] },
+        date: '2026-11-20',
+        language: 'pt-BR',
+      });
+
+      expect(fetch.mock.calls.map(([url, init]) => [url, init.method])).toEqual(
+        [
+          ['/api/account?resource=watched-progress', undefined],
+          [
+            '/api/account?resource=watched-save-progress&id=1396&seasons=1%3A1-3%2C5%3B2%3A1&date=2026-11-20&language=pt-BR',
+            'POST',
+          ],
+        ],
+      );
+    });
+
     it('rates a title, and takes the rating away, with a POST', async () => {
       const fetch = answering({ ok: true, data: null });
       const api = createWebApi(fetch);

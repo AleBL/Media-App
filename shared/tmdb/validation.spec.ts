@@ -10,6 +10,7 @@ import {
   parseListRequest,
   parseMarkRequest,
   parsePersonRequest,
+  parseProgressRequest,
   parseRateRequest,
   parseRegion,
   parseSearchRequest,
@@ -58,6 +59,57 @@ describe('requests about the watched titles', () => {
     ['nothing', null],
   ])('refuses a page with %s', (_case, request) => {
     expect(parseWatchedListRequest(request)).toBeNull();
+  });
+});
+
+describe('requests about the episodes watched', () => {
+  const save = {
+    id: 1396,
+    seasons: { 1: [1, 2, 3], 0: [2] },
+    date: '2026-11-20',
+    language: 'pt-BR',
+  };
+
+  it('accepts them, each episode once and in order', () => {
+    expect(parseProgressRequest({ ...save, value: true })).toEqual(save);
+    expect(
+      parseProgressRequest({ ...save, seasons: { 2: [3, 1, 3], 4: [] } }),
+    ).toEqual({ ...save, seasons: { 2: [1, 3] } });
+  });
+
+  it('accepts no episode at all, which takes the show out', () => {
+    expect(parseProgressRequest({ ...save, seasons: {} })).toEqual({
+      ...save,
+      seasons: {},
+    });
+  });
+
+  it.each([
+    ['a season that is not a number', { x: [1] }],
+    ['a season past any show', { 1001: [1] }],
+    ['an episode 0', { 1: [0] }],
+    ['an episode that is not a number', { 1: ['1'] }],
+    ['an episode past any season', { 1: [10_001] }],
+    ['episodes that are not a list', { 1: 1 }],
+    ['seasons that are a list', [[1]]],
+    ['no seasons', undefined],
+    [
+      'more than the comment can hold',
+      Object.fromEntries(
+        Array.from({ length: 900 }, (_, season) => [season + 1, [1, 3]]),
+      ),
+    ],
+  ])('refuses %s', (_case, seasons) => {
+    expect(parseProgressRequest({ ...save, seasons })).toBeNull();
+  });
+
+  it.each([
+    ['a show without an id', { ...save, id: 0 }],
+    ['a day that does not exist', { ...save, date: '2026-02-30' }],
+    ['a language that is not a locale', { ...save, language: '../x' }],
+    ['nothing', null],
+  ])('refuses a request with %s', (_case, request) => {
+    expect(parseProgressRequest(request)).toBeNull();
   });
 });
 

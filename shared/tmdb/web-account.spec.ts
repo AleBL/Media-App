@@ -239,6 +239,7 @@ describe('web account', () => {
         '__Host-media-app-access',
         '__Host-media-app-account',
         '__Host-media-app-watched-list',
+        '__Host-media-app-episodes-list',
       ].map(
         (name) => `${name}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`,
       ),
@@ -372,6 +373,87 @@ describe('web account', () => {
 
       expect(response.status).toBe(400);
       expect(fetch).not.toHaveBeenCalled();
+    });
+
+    describe('their episodes', () => {
+      const EPISODES_COOKIE = '__Host-media-app-episodes-list';
+      const EPISODE_STATUS = 'GET /4/list/99/item_status';
+      const EPISODE_COMMENT = 'PUT /4/list/99/items';
+      const withEpisodes = () =>
+        tmdbWith({
+          [EPISODE_STATUS]: [200, { success: true, media_id: 1396 }],
+          [EPISODE_COMMENT]: [
+            200,
+            { success: true, results: [{ media_id: 1396, success: true }] },
+          ],
+          'GET /4/list/99': [
+            200,
+            {
+              page: 1,
+              results: [{ id: 1396, media_type: 'tv', name: 'Breaking Bad' }],
+              comments: { 'tv:1396': '2026-11-20;1:1-3' },
+              total_pages: 1,
+            },
+          ],
+        });
+      const SAVE_QUERY =
+        'resource=watched-save-progress&id=1396&seasons=1%3A1-3%2C5%3B2%3A1&date=2026-11-20&language=en';
+
+      it('reads every show with an episode watched, from their own list', async () => {
+        const { body, fetch } = await visit('resource=watched-progress', {
+          cookies: { ...v4, [LIST_COOKIE]: '77', [EPISODES_COOKIE]: '99' },
+          fetch: withEpisodes(),
+        });
+
+        expect(body).toEqual({
+          ok: true,
+          data: [
+            { id: 1396, seasons: { 1: [1, 2, 3] }, changedAt: '2026-11-20' },
+          ],
+        });
+        expect(asked(fetch)).toEqual(['GET /4/list/99']);
+      });
+
+      it('saves the episodes of a show, with a change from the site', async () => {
+        const { body, fetch } = await visit(SAVE_QUERY, {
+          ...change,
+          cookies: { ...v4, [EPISODES_COOKIE]: '99' },
+          fetch: withEpisodes(),
+        });
+
+        expect(body).toEqual({ ok: true, data: null });
+        expect(asked(fetch)).toEqual([EPISODE_STATUS, EPISODE_COMMENT]);
+        expect(JSON.parse(fetch.mock.calls[1][1].body!)).toEqual({
+          items: [
+            {
+              media_type: 'tv',
+              media_id: 1396,
+              comment: '2026-11-20;1:1-3,5;2:1',
+            },
+          ],
+        });
+      });
+
+      it.each([
+        ['seasons it cannot read', SAVE_QUERY.replace('1%3A1-3', '1%3Ax')],
+        ['more than a comment holds', `${SAVE_QUERY}${'%2C9'.repeat(2000)}`],
+        ['no show', SAVE_QUERY.replace('id=1396', 'id=0')],
+      ])('refuses %s, without asking TMDB', async (_case, query) => {
+        const { response, fetch } = await visit(query, {
+          ...change,
+          cookies: v4,
+        });
+
+        expect(response.status).toBe(400);
+        expect(fetch).not.toHaveBeenCalled();
+      });
+
+      it('changes nothing for a GET', async () => {
+        const { response, fetch } = await visit(SAVE_QUERY, { cookies: v4 });
+
+        expect(response.status).toBe(405);
+        expect(fetch).not.toHaveBeenCalled();
+      });
     });
   });
 

@@ -141,6 +141,10 @@ describe('ipc handlers', () => {
           totalPages: 1,
           totalResults: 1,
         })),
+        progress: vi.fn(async () => [
+          { id: 1396, seasons: { 1: [1, 2] }, changedAt: '2026-11-20' },
+        ]),
+        saveProgress: vi.fn(async () => null),
       },
       credentials: {
         status: vi.fn(() => NONE),
@@ -292,6 +296,48 @@ describe('ipc handlers', () => {
         });
       }
       expect(services.watched.mark).not.toHaveBeenCalled();
+    });
+
+    describe('their episodes', () => {
+      const save = {
+        id: 1396,
+        seasons: { 1: [1, 2] },
+        date: '2026-11-20',
+        language: 'en',
+      };
+
+      it('reads every show with an episode watched, and saves one', async () => {
+        await expect(call(IPC.watchedProgress, fromApp)).resolves.toEqual({
+          ok: true,
+          data: [{ id: 1396, seasons: { 1: [1, 2] }, changedAt: '2026-11-20' }],
+        });
+        await expect(
+          call(IPC.watchedSaveProgress, fromApp, save),
+        ).resolves.toEqual({ ok: true, data: null });
+        expect(services.watched.saveProgress).toHaveBeenCalledWith(save);
+      });
+
+      it.each([
+        ['episodes that are not numbers', { ...save, seasons: { 1: ['1'] } }],
+        ['a day that does not exist', { ...save, date: '2026-02-30' }],
+        ['no show', { ...save, id: undefined }],
+      ])('rejects a save with %s', async (_case, request) => {
+        await expect(
+          call(IPC.watchedSaveProgress, fromApp, request),
+        ).resolves.toEqual({ ok: false, error: { code: 'invalid-request' } });
+        expect(services.watched.saveProgress).not.toHaveBeenCalled();
+      });
+
+      it('rejects a sender that is not the app', async () => {
+        await expect(call(IPC.watchedProgress, fromElsewhere)).resolves.toEqual(
+          { ok: false, error: { code: 'invalid-request' } },
+        );
+        await expect(
+          call(IPC.watchedSaveProgress, fromElsewhere, save),
+        ).resolves.toEqual({ ok: false, error: { code: 'invalid-request' } });
+        expect(services.watched.progress).not.toHaveBeenCalled();
+        expect(services.watched.saveProgress).not.toHaveBeenCalled();
+      });
     });
   });
 

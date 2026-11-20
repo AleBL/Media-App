@@ -21,6 +21,8 @@
   import { backdropUrl, logoUrl, posterUrl, profileUrl } from '@/util/images';
   import { seasonPage } from '@/util/media';
   import { personPage } from '@/util/people';
+  import { airedCounts, showCount, watchedOf } from '@/util/progress';
+  import { useShowProgress } from '@/util/showProgress';
   import { countryName } from '@/util/region';
 
   const props = defineProps<{ type: MediaType; id: number }>();
@@ -184,6 +186,54 @@
     return next.airDate
       ? t('details.nextEpisode', { episode, date: longDay(next.airDate) })
       : t('details.nextEpisodeSoon', { episode });
+  });
+
+  // What the user watched of a show, in all and in each season, once they
+  // started it. The buttons of the title ask whether it is marked watched.
+  const watchedSeasons = useShowProgress(
+    () =>
+      details.value?.type === 'tv' && details.value.id === props.id
+        ? details.value
+        : null,
+    { askMark: false },
+  );
+
+  const started = computed(
+    () =>
+      !!watchedSeasons.value && Object.keys(watchedSeasons.value).length > 0,
+  );
+
+  const watchedCount = computed(() =>
+    started.value && details.value
+      ? showCount(details.value, watchedSeasons.value!)
+      : null,
+  );
+
+  /** "3 of 7 watched", by season; the specials count among themselves. */
+  const seasonProgress = computed(() => {
+    const show = details.value;
+    const seasons = watchedSeasons.value;
+    const progress: Record<number, { watched: number; out: number }> = {};
+
+    if (!show || !seasons || !started.value) {
+      return progress;
+    }
+
+    const aired = airedCounts(show);
+
+    for (const season of show.seasonList ?? []) {
+      const out =
+        season.number === 0 ? season.episodeCount : (aired[season.number] ?? 0);
+
+      if (out) {
+        progress[season.number] = {
+          watched: watchedOf(seasons, season.number, out),
+          out,
+        };
+      }
+    }
+
+    return progress;
   });
 
   const watchGroups = computed(() => {
@@ -460,6 +510,9 @@
         >
           {{ nextEpisode }}
         </p>
+        <p v-if="watchedCount?.out" class="mt-1 text-sm font-medium">
+          {{ t('details.episodesWatched', watchedCount) }}
+        </p>
         <AppScrollRow
           :previous-label="t('details.seasonsPrevious')"
           :next-label="t('details.seasonsNext')"
@@ -493,6 +546,25 @@
                   .join(' · ')
               }}
             </p>
+            <template v-if="seasonProgress[season.number]">
+              <div
+                class="mt-1.5 h-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"
+                aria-hidden="true"
+              >
+                <div
+                  class="h-full rounded-full bg-primary-600 dark:bg-primary-400"
+                  :style="{
+                    width: `${
+                      (100 * seasonProgress[season.number].watched) /
+                      seasonProgress[season.number].out
+                    }%`,
+                  }"
+                />
+              </div>
+              <p class="mt-1 text-xs text-surface-600 dark:text-surface-300">
+                {{ t('season.progress', seasonProgress[season.number]) }}
+              </p>
+            </template>
           </li>
         </AppScrollRow>
       </section>

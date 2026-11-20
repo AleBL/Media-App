@@ -337,6 +337,14 @@ export function installFakeApi() {
         ok: true,
         data: pageOf() as Paged<MediaItem>,
       })),
+      progress: vi.fn<MediaAppApi['watched']['progress']>(async () => ({
+        ok: true,
+        data: [],
+      })),
+      saveProgress: vi.fn<MediaAppApi['watched']['saveProgress']>(async () => ({
+        ok: true,
+        data: null,
+      })),
     },
     credentials: {
       status: vi.fn<MediaAppApi['credentials']['status']>(async () => NO_KEY),

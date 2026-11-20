@@ -1,21 +1,27 @@
 <script setup lang="ts">
-  import { computed, watch } from 'vue';
-  import { useRouter } from 'vue-router';
+  import { computed, ref, watch } from 'vue';
+  import { useRoute, useRouter } from 'vue-router';
   import { storeToRefs } from 'pinia';
-  import type { Episode } from '@shared/api';
+  import type { Episode, WatchedEpisodes } from '@shared/api';
   import AppButton from '@/components/ui/AppButton.vue';
   import AppImage from '@/components/ui/AppImage.vue';
   import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
   import AppSkeleton from '@/components/ui/AppSkeleton.vue';
   import AppState from '@/components/ui/AppState.vue';
+  import AppToggleButton from '@/components/ui/AppToggleButton.vue';
   import { isDesktop } from '@/services/api';
   import { useCredentialsStore } from '@/stores/credentials';
   import { useDetailsStore } from '@/stores/details';
+  import { useEpisodesStore } from '@/stores/episodes';
   import { useSeasonStore } from '@/stores/season';
-  import { today } from '@/stores/watched';
+  import { useSessionStore } from '@/stores/session';
+  import { useToastsStore } from '@/stores/toasts';
+  import { today, useWatchedStore } from '@/stores/watched';
   import { accessProblem } from '@/util/access';
   import { posterUrl, stillUrl } from '@/util/images';
   import { seasonPage } from '@/util/media';
+  import { airedCounts, upTo, watchedOf, withEpisodes } from '@/util/progress';
+  import { useShowProgress } from '@/util/showProgress';
 
   const props = defineProps<{ id: number; season: number }>();
 
@@ -159,6 +165,149 @@
       episode.runtime && t('details.minutes', { minutes: episode.runtime }),
     ].filter((part): part is string => !!part);
   }
+
+  // What the user watched: each episode out by now can be marked, the
+  // season at once, or every episode up to one.
+  const route = useRoute();
+  const session = useSessionStore();
+  const episodes = useEpisodesStore();
+  const watched = useWatchedStore();
+  const toasts = useToastsStore();
+  const watchedSeasons = useShowProgress(() => showDetails.value);
+  const marked = computed(() => new Set(watchedSeasons.value?.[props.season]));
+
+  /** Out by now: by its date, or without one, by the last episode aired. */
+  function isOut(episode: Episode) {
+    const last = showDetails.value?.lastEpisode;
+
+    if (episode.airDate) {
+      return episode.airDate <= today();
+    }
+
+    return (
+      !!last &&
+      last.season !== 0 &&
+      (props.season < last.season ||
+        (props.season === last.season && episode.number <= last.number))
+    );
+  }
+
+  const out = computed(() => current.value?.episodes.filter(isOut) ?? []);
+  const watchedHere = computed(
+    () =>
+      out.value.filter((episode) => marked.value.has(episode.number)).length,
+  );
+  const seasonDone = computed(
+    () => out.value.length > 0 && watchedHere.value === out.value.length,
+  );
+
+  // "Up to here" changes something from the first episode not watched on,
+  // or anywhere while a season before has one.
+  const firstMissing = computed(
+    () =>
+      out.value.find((episode) => !marked.value.has(episode.number))?.number ??
+      Infinity,
+  );
+  const seasonsBeforeDone = computed(() => {
+    const details = showDetails.value;
+
+    return (
+      props.season === 0 ||
+      !details ||
+      Object.entries(airedCounts(details)).every(
+        ([number, count]) =>
+          Number(number) >= props.season ||
+          watchedOf(watchedSeasons.value ?? {}, Number(number), count) ===
+            count,
+      )
+    );
+  });
+
+  const changesUpTo = (episode: Episode) =>
+    !seasonsBeforeDone.value || episode.number >= firstMissing.value;
+
+  const codeOf = (episode: Episode) =>
+    t('season.code', { season: props.season, episode: episode.number });
+
+  const seasonName = computed(
+    () => current.value?.name || t('season.number', { n: props.season }),
+  );
+
+  // A change TMDB did not take; nothing to say when the page says it
+  // otherwise (signed out, or the v4 login is missing).
+  const saveFailed = ref(false);
+  const told = (code: string) =>
+    code === 'signed-out' || code === 'sign-in-again';
+
+  async function save(next: WatchedEpisodes, notice?: string) {
+    const details = showDetails.value;
+    const before = details && episodes.snapshot(details);
+
+    if (!details || !before) {
+      return;
+    }
+
+    saveFailed.value = false;
+
+    const answer = await episodes.change(details, next);
+
+    if (answer?.ok && notice) {
+      // Many episodes at once: said in a notice, with a way back.
+      toasts.show(notice, {
+        label: t('toast.undo'),
+        run: () => void episodes.restore(details, before),
+      });
+    } else if (answer && !answer.ok && !told(answer.error.code)) {
+      saveFailed.value = true;
+    }
+  }
+
+  function toggleEpisode(episode: Episode) {
+    if (watchedSeasons.value) {
+      void save(
+        withEpisodes(
+          watchedSeasons.value,
+          props.season,
+          [episode.number],
+          !marked.value.has(episode.number),
+        ),
+      );
+    }
+  }
+
+  function toggleSeason() {
+    if (watchedSeasons.value) {
+      const done = seasonDone.value;
+
+      void save(
+        withEpisodes(
+          watchedSeasons.value,
+          props.season,
+          out.value.map((episode) => episode.number),
+          !done,
+        ),
+        t(done ? 'season.unmarkedSeason' : 'season.markedSeason', {
+          season: seasonName.value,
+        }),
+      );
+    }
+  }
+
+  function markUpTo(episode: Episode) {
+    if (watchedSeasons.value && showDetails.value) {
+      void save(
+        upTo(
+          showDetails.value,
+          watchedSeasons.value,
+          props.season,
+          out.value
+            .filter((one) => one.number <= episode.number)
+            .map((one) => one.number),
+        ),
+        t('season.markedUpTo', { episode: codeOf(episode) }),
+      );
+    }
+  }
 </script>
 
 <template>
@@ -267,6 +416,69 @@
               </p>
             </template>
 
+            <!-- What the user watched of the season, and all of it at once.
+                 Marking needs the v4 login, like the watched titles. -->
+            <div
+              v-if="session.account && !watched.needsSignIn && out.length"
+              class="mt-5 flex flex-wrap items-center gap-3"
+            >
+              <AppButton
+                size="sm"
+                :severity="seasonDone ? 'secondary' : 'primary'"
+                :icon="seasonDone ? 'pi pi-eye-slash' : 'pi pi-check'"
+                :label="
+                  t(seasonDone ? 'season.unmarkSeason' : 'season.markSeason')
+                "
+                :disabled="!watchedSeasons"
+                @click="toggleSeason"
+              />
+              <p v-if="watchedSeasons" class="text-sm font-medium">
+                {{
+                  t('season.progress', {
+                    watched: watchedHere,
+                    out: out.length,
+                  })
+                }}
+              </p>
+            </div>
+            <p
+              v-if="saveFailed"
+              role="alert"
+              class="mt-2 text-sm text-red-600 dark:text-red-400"
+            >
+              {{ t('lists.saveFailed') }}
+            </p>
+            <p
+              v-if="session.account && episodes.error && !watched.needsSignIn"
+              role="alert"
+              class="mt-2 flex flex-wrap items-center gap-2 text-sm text-red-600 dark:text-red-400"
+            >
+              {{ t('season.progressFailed') }}
+              <AppButton
+                severity="ghost"
+                size="sm"
+                icon="pi pi-refresh"
+                :label="t('details.tryAgain')"
+                @click="episodes.load()"
+              />
+            </p>
+            <p
+              v-if="session.account && watched.needsSignIn"
+              class="mt-4 text-sm"
+            >
+              {{ t('lists.signInAgain') }}
+              <RouterLink :to="{ name: 'account' }">
+                {{ t('pageTitles.account') }}
+              </RouterLink>
+            </p>
+            <p v-else-if="!session.account" class="mt-4 text-sm">
+              <RouterLink
+                :to="{ name: 'account', query: { next: route.fullPath } }"
+              >
+                {{ t('season.signInToMark') }}
+              </RouterLink>
+            </p>
+
             <!-- The other seasons of the show: the one before, the one
                  after, and any of them. -->
             <nav
@@ -371,6 +583,38 @@
                   {{ t('season.overviewInEnglish') }}
                 </p>
               </template>
+              <!-- Toggle buttons: the name stays, aria-pressed says whether
+                   it was watched. An episode to come has none. -->
+              <div
+                v-if="session.account && !watched.needsSignIn && isOut(episode)"
+                class="mt-3 flex flex-wrap gap-2"
+              >
+                <AppToggleButton
+                  size="sm"
+                  :label="t('season.watched')"
+                  :aria-label="
+                    t('season.watchedEpisode', { episode: codeOf(episode) })
+                  "
+                  icon="pi pi-eye"
+                  pressed-icon="pi pi-check-circle"
+                  :pressed="
+                    watchedSeasons ? marked.has(episode.number) : undefined
+                  "
+                  :disabled="!watchedSeasons"
+                  @click="toggleEpisode(episode)"
+                />
+                <AppButton
+                  v-if="watchedSeasons && changesUpTo(episode)"
+                  severity="ghost"
+                  size="sm"
+                  icon="pi pi-angle-double-up"
+                  :label="t('season.upTo')"
+                  :aria-label="
+                    t('season.upToLabel', { episode: codeOf(episode) })
+                  "
+                  @click="markUpTo(episode)"
+                />
+              </div>
             </div>
           </li>
         </ol>

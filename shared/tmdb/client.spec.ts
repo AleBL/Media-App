@@ -1965,6 +1965,85 @@ describe('lists of the user (v4)', () => {
       language: 'pt-BR',
     });
   });
+
+  it('writes the comment of a title in a list on its own', async () => {
+    const { client, fetch } = setup([
+      answer(200, {
+        success: true,
+        results: [{ media_type: 'tv', media_id: 1396, success: true }],
+      }),
+    ]);
+
+    await client.commentOn(
+      USER,
+      77,
+      { type: 'tv', id: 1396 },
+      '2026-11-20;1:1',
+    );
+
+    expect(asked(fetch)).toMatchObject({
+      method: 'PUT',
+      body: {
+        items: [
+          { media_type: 'tv', media_id: 1396, comment: '2026-11-20;1:1' },
+        ],
+      },
+      authorization: `Bearer ${USER}`,
+    });
+  });
+
+  it.each([
+    ['for the title', { results: [{ media_id: 1396, success: false }] }],
+    ['for all of it', { success: false }],
+  ])(
+    'fails when TMDB says it did not take the comment %s',
+    async (_case, body) => {
+      const { client } = setup([answer(200, body)]);
+
+      await expect(
+        client.commentOn(USER, 77, { type: 'tv', id: 1396 }, '2026-11-20;1:1'),
+      ).rejects.toMatchObject({ code: 'server' });
+    },
+  );
+
+  it('puts a title in a list without a comment', async () => {
+    const { client, fetch } = setup([answer(200, { success: true })]);
+
+    await client.addItem(USER, 77, { type: 'tv', id: 1396 });
+
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(asked(fetch)).toMatchObject({
+      method: 'POST',
+      body: { items: [{ media_type: 'tv', media_id: 1396 }] },
+    });
+  });
+
+  it('reads the comments of a page of a list, whatever they say', async () => {
+    const { client, fetch } = setup([
+      answer(200, {
+        page: 2,
+        results: [
+          { id: 1396, media_type: 'tv', name: 'Breaking Bad' },
+          { id: 603, media_type: 'movie', title: 'The Matrix' },
+          { id: 31, media_type: 'person', name: 'Tom Hanks' },
+          { media_type: 'tv' },
+        ],
+        comments: { 'tv:1396': '2026-11-20;1:1-3', 'movie:603': null },
+        total_pages: 3,
+      }),
+    ]);
+
+    await expect(client.listComments(USER, 77, 2)).resolves.toEqual({
+      items: [
+        { type: 'tv', id: 1396, comment: '2026-11-20;1:1-3' },
+        { type: 'movie', id: 603 },
+      ],
+      totalPages: 3,
+    });
+    expect(Object.fromEntries(asked(fetch).url.searchParams)).toEqual({
+      page: '2',
+    });
+  });
 });
 
 describe('signing in', () => {

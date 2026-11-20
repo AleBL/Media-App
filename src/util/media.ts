@@ -34,6 +34,12 @@ export function mediaYear(item: MediaItem): string | null {
   return /^\d{4}/.exec(date)?.[0] ?? null;
 }
 
+/** The page of a season of a tv show, such as /tv/1396/season/2. */
+export const seasonPage = (id: number, season: number): RouteLocationRaw => ({
+  name: 'season',
+  params: { id, season },
+});
+
 export function mediaPage(item: MediaItem): RouteLocationRaw {
   return { name: 'details', params: { type: mediaType(item), id: item.id } };
 }

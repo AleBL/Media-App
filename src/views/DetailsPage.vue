@@ -19,6 +19,7 @@
   import { useDetailsStore } from '@/stores/details';
   import { accessProblem } from '@/util/access';
   import { backdropUrl, logoUrl, posterUrl, profileUrl } from '@/util/images';
+  import { seasonPage } from '@/util/media';
   import { personPage } from '@/util/people';
   import { countryName } from '@/util/region';
 
@@ -154,6 +155,36 @@
   );
 
   const regionName = computed(() => countryName(region.value, locale.value));
+
+  // A day as TMDB sends it (YYYY-MM-DD), written the way of the language,
+  // read as UTC on both ends so no timezone moves it to another day.
+  function longDay(day: string) {
+    const [year, month, date] = day.split('-').map(Number);
+
+    return new Intl.DateTimeFormat(locale.value, {
+      dateStyle: 'long',
+      timeZone: 'UTC',
+    }).format(Date.UTC(year, month - 1, date));
+  }
+
+  // "Next episode: S3 E1 · Back, January 15, 2027".
+  const nextEpisode = computed(() => {
+    const next = details.value?.nextEpisode;
+
+    if (!next) {
+      return null;
+    }
+
+    const code = t('season.code', {
+      season: next.season,
+      episode: next.number,
+    });
+    const episode = next.name ? `${code} · ${next.name}` : code;
+
+    return next.airDate
+      ? t('details.nextEpisode', { episode, date: longDay(next.airDate) })
+      : t('details.nextEpisodeSoon', { episode });
+  });
 
   const watchGroups = computed(() => {
     const watch = details.value?.watch;
@@ -412,6 +443,59 @@
           </p>
         </section>
       </div>
+
+      <!-- The seasons of a show, each one to its page with its episodes,
+           the specials last. -->
+      <section
+        v-if="details.seasonList?.length"
+        class="mt-10"
+        aria-labelledby="seasons-title"
+      >
+        <h2 id="seasons-title" class="text-xl font-semibold">
+          {{ t('details.seasonsTitle') }}
+        </h2>
+        <p
+          v-if="nextEpisode"
+          class="mt-1 text-sm text-surface-600 dark:text-surface-300"
+        >
+          {{ nextEpisode }}
+        </p>
+        <AppScrollRow
+          :previous-label="t('details.seasonsPrevious')"
+          :next-label="t('details.seasonsNext')"
+        >
+          <li
+            v-for="season in details.seasonList"
+            :key="season.number"
+            class="group relative w-32 shrink-0 snap-start sm:w-36"
+          >
+            <AppImage
+              :src="
+                season.posterPath ? posterUrl(season.posterPath, 'w185') : null
+              "
+              class="w-full rounded-md shadow-sm ring-1 ring-black/5 transition-shadow duration-200 group-hover:shadow-md group-has-[a:focus-visible]:ring-2 group-has-[a:focus-visible]:ring-primary-500 dark:group-has-[a:focus-visible]:ring-primary-400"
+            />
+            <p class="mt-2 text-sm font-medium">
+              <RouterLink
+                :to="seasonPage(details.id, season.number)"
+                class="text-surface-900 no-underline outline-hidden after:absolute after:inset-0 group-hover:underline dark:text-surface-0"
+              >
+                {{ season.name || t('season.number', { n: season.number }) }}
+              </RouterLink>
+            </p>
+            <p class="text-xs text-surface-500 dark:text-surface-400">
+              {{
+                [
+                  season.airDate?.slice(0, 4),
+                  t('details.episodes', season.episodeCount),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              }}
+            </p>
+          </li>
+        </AppScrollRow>
+      </section>
 
       <section
         v-if="details.cast.length"

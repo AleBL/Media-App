@@ -6,7 +6,11 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 import type { MediaDetails, MediaType } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import appRouter from '@/router';
-import { installFakeApi, MATRIX } from '@/test/fakeApi';
+import {
+  BREAKING_BAD as WITH_SEASONS,
+  installFakeApi,
+  MATRIX,
+} from '@/test/fakeApi';
 import DetailsPage from '@/views/DetailsPage.vue';
 
 const BREAKING_BAD: MediaDetails = {
@@ -304,6 +308,54 @@ describe('DetailsPage', () => {
 
     expect(alert().text()).toContain('This title was not found on TMDB.');
     expect(button('Try again')).toBeUndefined();
+  });
+
+  it('lists the seasons of a show, each to its page, the specials last', async () => {
+    api.tmdb.details.mockResolvedValue({ ok: true, data: WITH_SEASONS });
+
+    await open('/tv/1396', 'tv', 1396);
+
+    const seasons = wrapper.get('section[aria-labelledby="seasons-title"]');
+    expect(seasons.get('h2').text()).toBe('Seasons');
+    expect(
+      seasons
+        .findAll('li a')
+        .map((link) => [link.text(), link.attributes('href')]),
+    ).toEqual([
+      ['Season 1', '/tv/1396/season/1'],
+      ['Season 2', '/tv/1396/season/2'],
+      ['Specials', '/tv/1396/season/0'],
+    ]);
+    expect(seasons.findAll('li')[0].text()).toContain('2008 · 7 episodes');
+    // ended: no next episode
+    expect(seasons.text()).not.toContain('Next episode');
+  });
+
+  it('says when the next episode of a show airs', async () => {
+    api.tmdb.details.mockResolvedValue({
+      ok: true,
+      data: {
+        ...WITH_SEASONS,
+        nextEpisode: {
+          season: 6,
+          number: 1,
+          name: 'Return',
+          airDate: '2027-01-15',
+        },
+      },
+    });
+
+    await open('/tv/1396', 'tv', 1396);
+
+    expect(wrapper.text()).toContain(
+      'Next episode: S6 E1 · Return, January 15, 2027',
+    );
+  });
+
+  it('has no seasons for a movie', async () => {
+    await open();
+
+    expect(wrapper.find('#seasons-title').exists()).toBe(false);
   });
 
   it('offers to try again after a failure of the connection', async () => {

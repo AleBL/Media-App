@@ -225,6 +225,13 @@ export function createWebApi(
         }),
       person: ({ id, language }) =>
         callSite({ resource: 'person', id: String(id), language }),
+      season: ({ id, season, language }) =>
+        callSite({
+          resource: 'season',
+          id: String(id),
+          season: String(season),
+          language,
+        }),
       list: ({ list, language, region }) =>
         callSite({
           resource: 'list',

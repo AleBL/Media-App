@@ -18,6 +18,9 @@ export const QUERY_WITHOUT_RESULTS = 'nothing like this';
 /** The one movie that TMDB does not have. */
 export const MISSING_MOVIE = 404404;
 
+/** How many episodes the first season of every show has. */
+export const SEASON_ONE_EPISODES = 8;
+
 /** A genre of movies that the discovery has no titles of (Documentary). */
 export const GENRE_WITHOUT_TITLES = 99;
 
@@ -922,9 +925,43 @@ export async function startFakeTmdb() {
               original_name: `Show ${number}`,
               first_air_date: '2008-01-20',
               episode_run_time: [47],
-              number_of_seasons: 5,
-              number_of_episodes: 62,
+              number_of_seasons: 2,
+              number_of_episodes: 15,
               genres: [{ id: 18, name: 'Drama' }],
+              // in no order, with an announced season without episodes
+              seasons: [
+                {
+                  season_number: 2,
+                  name: `Season 2 [${language}]`,
+                  episode_count: 5,
+                  air_date: '2009-03-08',
+                },
+                {
+                  season_number: 0,
+                  name: `Specials [${language}]`,
+                  episode_count: 2,
+                  air_date: '2009-02-17',
+                },
+                {
+                  season_number: 1,
+                  name: `Season 1 [${language}]`,
+                  episode_count: SEASON_ONE_EPISODES,
+                  air_date: '2008-01-20',
+                },
+                { season_number: 3, name: 'Season 3', episode_count: 0 },
+              ],
+              last_episode_to_air: {
+                season_number: 2,
+                episode_number: 5,
+                name: `Finale [${language}]`,
+                air_date: '2009-05-31',
+              },
+              next_episode_to_air: {
+                season_number: 3,
+                episode_number: 1,
+                name: 'Back',
+                air_date: '2027-01-15',
+              },
             }
           : {
               title: `Movie ${number} [${language}]`,
@@ -992,6 +1029,49 @@ export async function startFakeTmdb() {
                 ],
               },
             }),
+      });
+    }
+
+    // A season of a show: its episodes, named in the language asked for,
+    // the synopsis of the second only in English, the last a finale.
+    const season = /^\/3\/tv\/(\d+)\/season\/(\d+)$/.exec(url.pathname);
+
+    if (season) {
+      const number = Number(season[2]);
+      const language = query.language;
+      const english = language.startsWith('en');
+      const episodes = number === 1 ? SEASON_ONE_EPISODES : 5;
+
+      if (number > 2) {
+        return send(404, {
+          success: false,
+          status_code: 34,
+          status_message: 'The resource you requested could not be found.',
+        });
+      }
+
+      return send(200, {
+        id: Number(season[1]) * 10 + number,
+        season_number: number,
+        name: `Season ${number} [${language}]`,
+        overview: `Season ${number}, told in ${language}.`,
+        air_date: number === 1 ? '2008-01-20' : '2009-03-08',
+        poster_path: null,
+        episodes: Array.from({ length: episodes }, (_, index) => ({
+          episode_number: index + 1,
+          season_number: number,
+          name: `Episode ${index + 1} [${language}]`,
+          overview:
+            index === 1 && !english
+              ? ''
+              : `Episode ${index + 1}, told in ${language}.`,
+          air_date: `200${7 + number}-0${index + 1}-20`,
+          runtime: 47,
+          still_path: null,
+          vote_average: 8,
+          vote_count: 100,
+          episode_type: index === episodes - 1 ? 'finale' : 'standard',
+        })),
       });
     }
 

@@ -13,6 +13,7 @@ import {
   type MediaType,
   type PersonRequest,
   type RateRequest,
+  type SeasonRequest,
   type SearchRequest,
   type SearchType,
   type TitleList,
@@ -273,6 +274,28 @@ export function parseDiscoverFiltersRequest(
 
   return isMediaType(type) && locale !== null && country !== null
     ? { type, language: locale, region: country }
+    : null;
+}
+
+/** The specials are season 0; no show has anywhere near this many. */
+const MAX_SEASON = 1000;
+
+/** A season of a tv show, by the show and its number. */
+export function parseSeasonRequest(value: unknown): SeasonRequest | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const { id, season, language } = value as Record<string, unknown>;
+  const locale = parseLanguage(language);
+
+  return isId(id) &&
+    typeof season === 'number' &&
+    Number.isInteger(season) &&
+    season >= 0 &&
+    season <= MAX_SEASON &&
+    locale !== null
+    ? { id, season, language: locale }
     : null;
 }
 

@@ -971,6 +971,77 @@ describe('details', () => {
     );
   });
 
+  it('lists the seasons of a show in order, the specials last, and its episodes next and last', async () => {
+    const { client } = setup([
+      answer(200, {
+        ...show,
+        seasons: [
+          { season_number: 2, name: 'Season 2', episode_count: 13 },
+          {
+            season_number: 0,
+            name: 'Specials',
+            episode_count: 9,
+            air_date: '2009-02-17',
+          },
+          {
+            season_number: 1,
+            name: 'Season 1',
+            episode_count: 7,
+            air_date: '2008-01-20',
+            poster_path: '/s1.jpg',
+          },
+          // announced, without episodes yet
+          { season_number: 3, name: 'Season 3', episode_count: 0 },
+          { name: 'Without a number', episode_count: 4 },
+        ],
+        last_episode_to_air: {
+          season_number: 2,
+          episode_number: 13,
+          name: 'ABQ',
+          air_date: '2009-05-31',
+          runtime: 47,
+        },
+        next_episode_to_air: {
+          season_number: 3,
+          episode_number: 1,
+          name: '',
+          air_date: 'soon',
+        },
+      }),
+    ]);
+
+    const details = await client.details({
+      type: 'tv',
+      id: 1396,
+      language: 'en',
+      region: 'US',
+    });
+
+    expect(details.seasonList).toEqual([
+      {
+        number: 1,
+        name: 'Season 1',
+        episodeCount: 7,
+        airDate: '2008-01-20',
+        posterPath: '/s1.jpg',
+      },
+      { number: 2, name: 'Season 2', episodeCount: 13 },
+      {
+        number: 0,
+        name: 'Specials',
+        episodeCount: 9,
+        airDate: '2009-02-17',
+      },
+    ]);
+    expect(details.lastEpisode).toEqual({
+      season: 2,
+      number: 13,
+      name: 'ABQ',
+      airDate: '2009-05-31',
+    });
+    expect(details.nextEpisode).toEqual({ season: 3, number: 1 });
+  });
+
   it('has nowhere to watch in a region JustWatch knows nothing about', async () => {
     const { client } = setup([answer(200, movie)]);
 
@@ -1105,6 +1176,134 @@ describe('details', () => {
     await expect(client.details(inBrazil)).rejects.toMatchObject({
       code: 'server',
     });
+  });
+});
+
+describe('season', () => {
+  const episode = (number: number, overview: string, extra = {}) => ({
+    episode_number: number,
+    name: `Episode ${number}`,
+    overview,
+    air_date: '2008-01-20',
+    runtime: 47,
+    still_path: `/e${number}.jpg`,
+    vote_average: 8.1,
+    vote_count: 12,
+    episode_type: 'standard',
+    ...extra,
+  });
+  const season = (overview: string, episodes: unknown[]) => ({
+    id: 3572,
+    season_number: 1,
+    name: 'Temporada 1',
+    overview,
+    air_date: '2008-01-20',
+    poster_path: '/s1.jpg',
+    episodes,
+  });
+
+  it('brings the episodes, completing in English the synopses it lacks', async () => {
+    const { client, requestedUrl } = setup([
+      answer(
+        200,
+        season('', [
+          episode(2, '', { name: '', episode_type: 'finale' }),
+          episode(1, 'Walter recebe um diagnóstico.'),
+          { name: 'Without a number' },
+        ]),
+      ),
+      answer(
+        200,
+        season('Walter White learns he is ill.', [
+          episode(1, 'Walter gets a diagnosis.'),
+          episode(2, 'Walt and Jesse clean up.'),
+        ]),
+      ),
+    ]);
+
+    await expect(
+      client.season({ id: 1396, season: 1, language: 'pt-BR' }),
+    ).resolves.toEqual({
+      showId: 1396,
+      number: 1,
+      name: 'Temporada 1',
+      overview: 'Walter White learns he is ill.',
+      overviewLanguage: 'en',
+      airDate: '2008-01-20',
+      posterPath: '/s1.jpg',
+      episodes: [
+        {
+          number: 1,
+          name: 'Episode 1',
+          overview: 'Walter recebe um diagnóstico.',
+          airDate: '2008-01-20',
+          runtime: 47,
+          stillPath: '/e1.jpg',
+          voteAverage: 8.1,
+        },
+        {
+          number: 2,
+          overview: 'Walt and Jesse clean up.',
+          overviewLanguage: 'en',
+          airDate: '2008-01-20',
+          runtime: 47,
+          stillPath: '/e2.jpg',
+          voteAverage: 8.1,
+          finale: true,
+        },
+      ],
+    });
+    expect(requestedUrl(0).pathname).toBe('/3/tv/1396/season/1');
+    expect(requestedUrl(0).searchParams.get('language')).toBe('pt-BR');
+    expect(requestedUrl(1).searchParams.get('language')).toBe('en-US');
+  });
+
+  it('asks once in English', async () => {
+    const { client, fetch } = setup([
+      answer(200, season('', [episode(1, '')])),
+    ]);
+
+    const { episodes } = await client.season({
+      id: 1396,
+      season: 1,
+      language: 'en',
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(episodes[0].overview).toBeUndefined();
+  });
+
+  it('shows the season without the English synopses when they fail', async () => {
+    const { client } = setup([
+      answer(200, season('Uma temporada.', [episode(1, '')])),
+      answer(500, {}),
+    ]);
+
+    await expect(
+      client.season({ id: 1396, season: 1, language: 'es' }),
+    ).resolves.toMatchObject({
+      overview: 'Uma temporada.',
+      episodes: [{ number: 1 }],
+    });
+  });
+
+  it('reports a season TMDB does not have', async () => {
+    const { client } = setup([
+      answer(404, { status_code: 34 }),
+      answer(404, { status_code: 34 }),
+    ]);
+
+    await expect(
+      client.season({ id: 1396, season: 9, language: 'pt-BR' }),
+    ).rejects.toMatchObject({ code: 'not-found' });
+  });
+
+  it('reports an answer without a season number as unreadable', async () => {
+    const { client } = setup([answer(200, { episodes: [] })]);
+
+    await expect(
+      client.season({ id: 1396, season: 1, language: 'en' }),
+    ).rejects.toMatchObject({ code: 'server' });
   });
 });
 

@@ -16,6 +16,8 @@ import {
   type PersonDetails,
   type PersonRequest,
   type RateRequest,
+  type SeasonDetails,
+  type SeasonRequest,
   type Result,
   type SearchItem,
   type SearchRequest,
@@ -39,6 +41,7 @@ import {
   parseListRequest,
   parseMarkRequest,
   parsePersonRequest,
+  parseSeasonRequest,
   parseRateRequest,
   parseSearchRequest,
   parseTitleRequest,
@@ -73,6 +76,7 @@ export interface IpcServices {
     search(request: SearchRequest): Promise<Paged<SearchItem>>;
     details(request: DetailsRequest): Promise<MediaDetails>;
     person(request: PersonRequest): Promise<PersonDetails>;
+    season(request: SeasonRequest): Promise<SeasonDetails>;
     discover(request: DiscoverRequest): Promise<Paged<MediaItem>>;
     discoverFilters(request: DiscoverFiltersRequest): Promise<DiscoverFilters>;
     list(request: ListRequest): Promise<MediaItem[]>;
@@ -189,6 +193,14 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
 
     return request
       ? toResult(() => services.tmdb.person(request))
+      : invalidRequest();
+  });
+
+  ipc.handle(IPC.tmdbSeason, (event, value) => {
+    const request = isTrusted(event) ? parseSeasonRequest(value) : null;
+
+    return request
+      ? toResult(() => services.tmdb.season(request))
       : invalidRequest();
   });
 

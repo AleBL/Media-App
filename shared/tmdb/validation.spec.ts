@@ -13,6 +13,7 @@ import {
   parseRateRequest,
   parseRegion,
   parseSearchRequest,
+  parseSeasonRequest,
   parseTitleRequest,
   parseWatchedListRequest,
   parseWatchedRequest,
@@ -366,6 +367,30 @@ describe('parseDetailsRequest', () => {
     ['a region that is not a country', { ...valid, region: 'Brazil' }],
   ])('rejects %s', (_case, request) => {
     expect(parseDetailsRequest(request)).toBeNull();
+  });
+});
+
+describe('parseSeasonRequest', () => {
+  const valid = { id: 1396, season: 2, language: 'pt-BR' };
+
+  it('accepts a season, the specials too, and drops fields it does not know', () => {
+    expect(parseSeasonRequest({ ...valid, path: '/account' })).toEqual(valid);
+    expect(parseSeasonRequest({ ...valid, season: 0 })).toEqual({
+      ...valid,
+      season: 0,
+    });
+  });
+
+  it.each([
+    ['a missing request', undefined],
+    ['an id that is no id', { ...valid, id: 0 }],
+    ['a season sent as text', { ...valid, season: '2' }],
+    ['a negative season', { ...valid, season: -1 }],
+    ['a fractional season', { ...valid, season: 1.5 }],
+    ['a season past any show', { ...valid, season: 1001 }],
+    ['a language that is not a locale', { ...valid, language: 'pt_BR' }],
+  ])('rejects %s', (_case, request) => {
+    expect(parseSeasonRequest(request)).toBeNull();
   });
 });
 

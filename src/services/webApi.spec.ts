@@ -284,6 +284,18 @@ describe('web api', () => {
     );
   });
 
+  it('asks the site for a season of a show', async () => {
+    const season = { showId: 1396, number: 0, name: 'Specials', episodes: [] };
+    const fetch = answering({ ok: true, data: season });
+
+    await expect(
+      createWebApi(fetch).tmdb.season({ id: 1396, season: 0, language: 'es' }),
+    ).resolves.toEqual({ ok: true, data: season });
+    expect(fetch.mock.calls[0][0]).toBe(
+      '/api/tmdb?resource=season&id=1396&season=0&language=es',
+    );
+  });
+
   it('asks the site for the page of a person', async () => {
     const person = { id: 6384, name: 'Keanu Reeves', cast: [], crew: [] };
     const fetch = answering({ ok: true, data: person });

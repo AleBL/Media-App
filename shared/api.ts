@@ -160,6 +160,13 @@ export interface ListRequest {
   region?: string;
 }
 
+/** A season of a tv show, by the show and its number (0 for the specials). */
+export interface SeasonRequest {
+  id: number;
+  season: number;
+  language: string;
+}
+
 export interface DetailsRequest {
   type: MediaType;
   id: number;
@@ -276,6 +283,67 @@ export interface MediaDetails {
   cast: CastMember[];
   watch?: WatchOptions;
   certification?: Certification;
+  /** Tv shows only: their seasons in order, the specials last. */
+  seasonList?: SeasonSummary[];
+  /** Tv shows only: the episode announced next, with its day. */
+  nextEpisode?: EpisodeSummary;
+  /** Tv shows only: the last episode that aired. */
+  lastEpisode?: EpisodeSummary;
+}
+
+/** A season as the page of its show lists it. */
+export interface SeasonSummary {
+  /** 0 for the specials. */
+  number: number;
+  name: string;
+  episodeCount: number;
+  /** YYYY-MM-DD: of its first episode. */
+  airDate?: string;
+  posterPath?: string;
+}
+
+/** An episode by where it is in the show, such as the next one to air. */
+export interface EpisodeSummary {
+  season: number;
+  number: number;
+  name?: string;
+  /** YYYY-MM-DD. */
+  airDate?: string;
+}
+
+export interface Episode {
+  number: number;
+  /** Some have none at TMDB. */
+  name?: string;
+  overview?: string;
+  /**
+   * The language of the synopsis, such as `en`, when TMDB has none in the
+   * language asked for.
+   */
+  overviewLanguage?: string;
+  /** YYYY-MM-DD. */
+  airDate?: string;
+  /** Minutes. */
+  runtime?: number;
+  stillPath?: string;
+  /** Only with votes. */
+  voteAverage?: number;
+  /** The last of its season. */
+  finale?: boolean;
+}
+
+/** A season with its episodes, in order. */
+export interface SeasonDetails {
+  showId: number;
+  number: number;
+  name: string;
+  overview?: string;
+  /** As in Episode. */
+  overviewLanguage?: string;
+  /** YYYY-MM-DD. */
+  airDate?: string;
+  posterPath?: string;
+  episodes: Episode[];
 }
 
 /** Where someone is on the web besides TMDB: ids, and a whole url for the site. */
@@ -434,6 +502,8 @@ export interface MediaAppApi {
     genres(language: string): Promise<Result<Genre[]>>;
     details(request: DetailsRequest): Promise<Result<MediaDetails>>;
     person(request: PersonRequest): Promise<Result<PersonDetails>>;
+    /** A season with its episodes; synopses it lacks come in English. */
+    season(request: SeasonRequest): Promise<Result<SeasonDetails>>;
     discover(request: DiscoverRequest): Promise<Result<Paged<MediaItem>>>;
     discoverFilters(
       request: DiscoverFiltersRequest,
@@ -501,6 +571,7 @@ export const IPC = {
   tmdbGenres: 'tmdb:genres',
   tmdbDetails: 'tmdb:details',
   tmdbPerson: 'tmdb:person',
+  tmdbSeason: 'tmdb:season',
   tmdbDiscover: 'tmdb:discover',
   tmdbDiscoverFilters: 'tmdb:discover-filters',
   tmdbList: 'tmdb:list',

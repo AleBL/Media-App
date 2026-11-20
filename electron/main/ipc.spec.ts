@@ -6,6 +6,7 @@ import {
   type DiscoverFilters,
   type MediaDetails,
   type PersonDetails,
+  type SeasonDetails,
   type SessionState,
 } from '../../shared/api';
 import { registerIpc, type IpcEvent, type IpcServices } from './ipc';
@@ -58,6 +59,13 @@ const MOVIE_FILTERS: DiscoverFilters = {
   languages: ['en'],
 };
 
+const SEASON: SeasonDetails = {
+  showId: 1396,
+  number: 1,
+  name: 'Season 1',
+  episodes: [{ number: 1, name: 'Pilot' }],
+};
+
 const MATRIX: MediaDetails = {
   type: 'movie',
   id: 603,
@@ -91,6 +99,7 @@ describe('ipc handlers', () => {
         })),
         details: vi.fn(async () => MATRIX),
         person: vi.fn(async () => KEANU),
+        season: vi.fn(async () => SEASON),
         discover: vi.fn(async () => ({
           page: 1,
           results: [{ id: 603, media_type: 'movie' as const }],
@@ -469,6 +478,37 @@ describe('ipc handlers', () => {
         call(IPC.tmdbDetails, fromElsewhere, details),
       ).resolves.toEqual({ ok: false, error: { code: 'invalid-request' } });
       expect(services.tmdb.details).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('season of a show', () => {
+    const season = { id: 1396, season: 1, language: 'pt-BR' };
+
+    it('answers with the season, from the app', async () => {
+      await expect(call(IPC.tmdbSeason, fromApp, season)).resolves.toEqual({
+        ok: true,
+        data: SEASON,
+      });
+      expect(services.tmdb.season).toHaveBeenCalledWith(season);
+    });
+
+    it.each([
+      ['a season that is not a number', { ...season, season: '1' }],
+      ['a negative season', { ...season, season: -1 }],
+      ['nothing', undefined],
+    ])('rejects %s without asking', async (_case, request) => {
+      await expect(call(IPC.tmdbSeason, fromApp, request)).resolves.toEqual({
+        ok: false,
+        error: { code: 'invalid-request' },
+      });
+      expect(services.tmdb.season).not.toHaveBeenCalled();
+    });
+
+    it('rejects a sender that is not the app', async () => {
+      await expect(
+        call(IPC.tmdbSeason, fromElsewhere, season),
+      ).resolves.toEqual({ ok: false, error: { code: 'invalid-request' } });
+      expect(services.tmdb.season).not.toHaveBeenCalled();
     });
   });
 

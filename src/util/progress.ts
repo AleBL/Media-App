@@ -150,6 +150,45 @@ export function isComplete(details: MediaDetails, seasons: WatchedEpisodes) {
   return out > 0 && watched === out;
 }
 
+/** A season and an episode of it, such as S2 E5. */
+export interface EpisodeCode {
+  season: number;
+  number: number;
+}
+
+/**
+ * The episode after the furthest one watched, among those out: the next of
+ * its season, or the first of the next season out. A gap before it was
+ * skipped on purpose. None when every episode out after it was watched.
+ * The specials apart.
+ */
+export function nextToWatch(
+  details: MediaDetails,
+  seasons: WatchedEpisodes,
+): EpisodeCode | null {
+  const aired = Object.entries(airedCounts(details))
+    .map(([season, count]) => [Number(season), count] as const)
+    .sort(([a], [b]) => a - b);
+  const furthest = Object.entries(seasons)
+    .map(([season, episodes]) => [Number(season), episodes] as const)
+    .filter(([season, episodes]) => season > 0 && episodes.length > 0)
+    .sort(([a], [b]) => b - a)[0];
+
+  for (const [season, count] of aired) {
+    if (!furthest || season > furthest[0]) {
+      return { season, number: 1 };
+    }
+
+    const last = Math.max(...furthest[1]);
+
+    if (season === furthest[0] && last < count) {
+      return { season, number: last + 1 };
+    }
+  }
+
+  return null;
+}
+
 /** Some episode of a regular season of `before` is not in `after`. */
 export function tookAway(before: WatchedEpisodes, after: WatchedEpisodes) {
   return Object.entries(before).some(([season, episodes]) => {

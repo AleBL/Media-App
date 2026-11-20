@@ -3,7 +3,7 @@ import { nextTick } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import type { Result } from '@shared/api';
 import i18n from '@/plugins/i18n';
-import { useEpisodesStore } from '@/stores/episodes';
+import { momentOf, useEpisodesStore } from '@/stores/episodes';
 import { useSessionStore } from '@/stores/session';
 import { today, useWatchedStore } from '@/stores/watched';
 import { BREAKING_BAD, installFakeApi, SIGNED_IN } from '@/test/fakeApi';
@@ -97,7 +97,11 @@ describe('episodes store', () => {
     expect(store.seasonsOf(BREAKING_BAD)).toEqual(ALL);
   });
 
-  it('shows a change at once, then saves it with the day and the language', async () => {
+  it('writes the day and time of the user, so the changes of a day keep their order', () => {
+    expect(momentOf(new Date(2026, 0, 5, 9, 7))).toBe('2026-01-05T09:07');
+  });
+
+  it('shows a change at once, then saves it with the time and the language', async () => {
     await setup({ 1: [1] });
 
     const saving = store.change(BREAKING_BAD, { 1: [1, 2] });
@@ -107,7 +111,7 @@ describe('episodes store', () => {
     expect(lastSave()).toEqual({
       id: BREAKING_BAD.id,
       seasons: { 1: [1, 2] },
-      date: today(),
+      date: expect.stringMatching(new RegExp(`^${today()}T\\d{2}:\\d{2}$`)),
       language: 'pt-BR',
     });
     // without Vue's proxies, which IPC cannot send

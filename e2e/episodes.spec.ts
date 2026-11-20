@@ -12,6 +12,16 @@ import { signIn } from './support/login';
 /** The day of the user, as the app writes it: YYYY-MM-DD. */
 const today = () => new Date().toLocaleDateString('sv-SE');
 
+/** What the list of episodes has, each change by its day, without the time. */
+const byDay = (kept: Record<string, string | null> | null) =>
+  kept &&
+  Object.fromEntries(
+    Object.entries(kept).map(([title, comment]) => [
+      title,
+      comment?.replace(/^(\d{4}-\d{2}-\d{2})T\d{2}:\d{2};/, '$1;') ?? null,
+    ]),
+  );
+
 /** Signed in, on the page of the first show a search finds. */
 async function openShow({ page }: { page: Page }) {
   await openPage(page, 'search');
@@ -54,7 +64,7 @@ test.describe('episodes watched', () => {
       'true',
     );
     await expect
-      .poll(() => tmdb.episodes())
+      .poll(() => byDay(tmdb.episodes()))
       .toEqual({ 'tv:9001': `${today()};1:1` });
     await expect
       .poll(() => tmdb.userLists())
@@ -74,7 +84,7 @@ test.describe('episodes watched', () => {
       .click();
 
     await expect
-      .poll(() => tmdb.episodes())
+      .poll(() => byDay(tmdb.episodes()))
       .toEqual({ 'tv:9001': `${today()};1:1-3` });
     await expect(
       page.getByText('Episodes up to S1 E3 marked as watched.', {
@@ -85,7 +95,7 @@ test.describe('episodes watched', () => {
     await page.getByRole('button', { name: 'Undo' }).click();
 
     await expect
-      .poll(() => tmdb.episodes())
+      .poll(() => byDay(tmdb.episodes()))
       .toEqual({ 'tv:9001': `${today()};1:1` });
     await expect(watchedEpisode(page, 'S1 E3')).toHaveAttribute(
       'aria-pressed',
@@ -96,7 +106,7 @@ test.describe('episodes watched', () => {
 
     await expect(page.getByText('8 of 8 watched')).toBeVisible();
     await expect
-      .poll(() => tmdb.episodes())
+      .poll(() => byDay(tmdb.episodes()))
       .toEqual({ 'tv:9001': `${today()};1:1-8` });
     // a season of two: the show is not watched yet
     expect(tmdb.watched()).toBeNull();
@@ -121,7 +131,7 @@ test.describe('episodes watched', () => {
       .click();
 
     await expect
-      .poll(() => tmdb.episodes())
+      .poll(() => byDay(tmdb.episodes()))
       .toEqual({ 'tv:9001': `${today()};1:1-8;2:1-5` });
     await expect.poll(() => tmdb.watched()).toEqual({ 'tv:9001': today() });
 
@@ -138,8 +148,52 @@ test.describe('episodes watched', () => {
 
     await expect.poll(() => tmdb.watched()).toEqual({});
     await expect
-      .poll(() => tmdb.episodes())
+      .poll(() => byDay(tmdb.episodes()))
       .toEqual({ 'tv:9001': `${today()};1:1-8;2:1-4` });
+  });
+
+  test('goes on from the home page with the next episode, and lists the show in progress', async ({
+    running,
+    tmdb,
+  }) => {
+    const { page } = running;
+    await page
+      .getByRole('region', { name: 'Seasons' })
+      .getByRole('link', { name: 'Season 1 [en]' })
+      .click();
+    await page
+      .getByRole('button', {
+        name: 'Mark every episode up to S1 E3 as watched',
+      })
+      .click();
+    await expect
+      .poll(() => byDay(tmdb.episodes()))
+      .toEqual({ 'tv:9001': `${today()};1:1-3` });
+
+    await openPage(page, 'home');
+
+    const row = page.getByRole('region', { name: 'Continue watching' });
+    await expect(row).toContainText('Show 1 [en]');
+    await expect(row).toContainText('S1 E4 · Episode 4 [en]');
+    await expect(row).toContainText('3 of 13 episodes watched');
+
+    await row
+      .getByRole('button', { name: 'Mark S1 E4 of Show 1 [en] as watched' })
+      .click();
+
+    await expect(row).toContainText('S1 E5 · Episode 5 [en]');
+    await expect
+      .poll(() => byDay(tmdb.episodes()))
+      .toEqual({ 'tv:9001': `${today()};1:1-4` });
+
+    // the card leads to the season of the episode
+    await row.getByRole('link', { name: 'Show 1 [en]' }).click();
+    await expect(heading(page)).toHaveText('Season 1 [en]');
+
+    await openPage(page, 'watched');
+
+    const inProgress = page.getByRole('region', { name: 'In progress' });
+    await expect(inProgress).toContainText('S1 E5 · Episode 5 [en]');
   });
 
   test('marks every episode out with the button of the show, and takes them away', async ({
@@ -153,7 +207,7 @@ test.describe('episodes watched', () => {
 
     await expect(watched).toHaveAttribute('aria-pressed', 'true');
     await expect
-      .poll(() => tmdb.episodes())
+      .poll(() => byDay(tmdb.episodes()))
       .toEqual({ 'tv:9001': `${today()};1:1-8;2:1-5` });
     await expect(page.getByText('13 of 13 episodes watched')).toBeVisible();
 
@@ -161,7 +215,7 @@ test.describe('episodes watched', () => {
 
     await expect(watched).toHaveAttribute('aria-pressed', 'false');
     // no episode left: the show leaves the list
-    await expect.poll(() => tmdb.episodes()).toEqual({});
+    await expect.poll(() => byDay(tmdb.episodes())).toEqual({});
     await expect.poll(() => tmdb.watched()).toEqual({});
   });
 });

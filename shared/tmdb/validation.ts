@@ -399,6 +399,21 @@ function parseWatchedEpisodes(value: unknown): WatchedEpisodes | null {
   return seasons;
 }
 
+/** A day, or a day and a time of it: YYYY-MM-DDTHH:MM. */
+function isMoment(value: unknown): value is string {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  const [day, time, ...rest] = value.split('T');
+
+  return (
+    isDay(day) &&
+    rest.length === 0 &&
+    (time === undefined || /^([01]\d|2[0-3]):[0-5]\d$/.test(time))
+  );
+}
+
 /** The episodes watched of a show, as long as the comment can hold them. */
 export function parseProgressRequest(value: unknown): ProgressRequest | null {
   if (typeof value !== 'object' || value === null) {
@@ -411,7 +426,7 @@ export function parseProgressRequest(value: unknown): ProgressRequest | null {
 
   return isId(id) &&
     episodes &&
-    isDay(date) &&
+    isMoment(date) &&
     locale &&
     encodeProgress(date, episodes).length <= MAX_PROGRESS_LENGTH
     ? { id, seasons: episodes, date, language: locale }

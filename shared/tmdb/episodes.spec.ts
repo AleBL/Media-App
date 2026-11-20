@@ -61,6 +61,13 @@ describe('the episodes watched, as a comment', () => {
     });
   });
 
+  it('reads the time of the change, when the comment has it', () => {
+    expect(decodeProgress('2026-11-20T21:05;1:1')).toEqual({
+      changedAt: '2026-11-20T21:05',
+      seasons: { 1: [1] },
+    });
+  });
+
   it('leaves out a season it cannot read, not the whole show', () => {
     expect(decodeProgress('2026-11-20;1:1-2;x9:abc')).toEqual({
       changedAt: '2026-11-20',

@@ -1,5 +1,6 @@
 import { computed, watch } from 'vue';
 import type { MediaDetails } from '@shared/api';
+import { useContinueStore } from '@/stores/continue';
 import { useEpisodesStore } from '@/stores/episodes';
 import { useSessionStore } from '@/stores/session';
 import { useWatchedStore } from '@/stores/watched';
@@ -38,4 +39,36 @@ export function useShowProgress(
 
     return details ? episodes.seasonsOf(details) : undefined;
   });
+}
+
+/**
+ * The shows in progress (stores/continue.ts), asked for once signed in, and
+ * again whenever what they need changes, such as after an episode marked.
+ */
+export function useInProgress() {
+  const session = useSessionStore();
+  const episodes = useEpisodesStore();
+  const progress = useContinueStore();
+
+  watch(
+    () => session.account?.id,
+    (signedIn) => {
+      if (signedIn !== undefined) {
+        void episodes.load();
+      }
+    },
+    { immediate: true },
+  );
+
+  watch(
+    [() => episodes.loaded, () => progress.wanted],
+    ([loaded]) => {
+      if (loaded) {
+        void progress.load();
+      }
+    },
+    { immediate: true },
+  );
+
+  return progress;
 }

@@ -6,6 +6,7 @@ import {
   allAired,
   isComplete,
   joined,
+  nextToWatch,
   showCount,
   tookAway,
   upTo,
@@ -101,6 +102,30 @@ describe('what the episodes watched add up to', () => {
       isComplete(ON_AIR, withEpisodes(allAired(ON_AIR), 3, [4], false)),
     ).toBe(false);
     expect(isComplete({ ...ON_AIR, lastEpisode: undefined }, {})).toBe(false);
+  });
+
+  it('goes on after the furthest episode watched, past a gap', () => {
+    expect(nextToWatch(ON_AIR, { 1: [1, 2, 3, 5] })).toEqual({
+      season: 1,
+      number: 6,
+    });
+  });
+
+  it('goes on to the next season out after the last of one', () => {
+    expect(nextToWatch(ON_AIR, { 1: numbers(7) })).toEqual({
+      season: 2,
+      number: 1,
+    });
+  });
+
+  it('starts at the first episode with nothing watched but specials', () => {
+    expect(nextToWatch(ON_AIR, { 0: [1] })).toEqual({ season: 1, number: 1 });
+  });
+
+  it('has nothing next with the last episode out watched', () => {
+    // the fourth season is still to come
+    expect(nextToWatch(ON_AIR, { 3: [4] })).toBeNull();
+    expect(nextToWatch({ ...ON_AIR, lastEpisode: undefined }, {})).toBeNull();
   });
 
   it('tells when an episode of a season was taken away, not a special', () => {

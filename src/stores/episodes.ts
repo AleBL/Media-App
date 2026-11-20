@@ -16,6 +16,16 @@ import { allAired, isComplete, joined, tookAway } from '@/util/progress';
 
 const OK: Result<null> = { ok: true, data: null };
 
+/**
+ * The local day and time of a change, YYYY-MM-DDTHH:MM: the shows changed
+ * on the same day keep their order.
+ */
+export function momentOf(now = new Date()) {
+  const pad = (value: number) => String(value).padStart(2, '0');
+
+  return `${today(now)}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
 /** The episodes watched of a show and whether it is marked watched. */
 export interface Snapshot {
   seasons: WatchedEpisodes;
@@ -44,6 +54,8 @@ export const useEpisodesStore = defineStore('episodes', () => {
   const watched = useWatchedStore();
   /** By show: what the pages show, changes included. */
   const shows = ref<Record<number, WatchedEpisodes>>({});
+  /** By show: the day of its last change (YYYY-MM-DD). */
+  const changedAt = ref<Record<number, string>>({});
   const loaded = ref(false);
   const error = ref<TmdbFailure | null>(null);
   // What TMDB has, to go back to when a change fails.
@@ -59,6 +71,7 @@ export const useEpisodesStore = defineStore('episodes', () => {
     () => session.account?.id,
     () => {
       shows.value = {};
+      changedAt.value = {};
       loaded.value = false;
       error.value = null;
       saved = {};
@@ -111,6 +124,9 @@ export const useEpisodesStore = defineStore('episodes', () => {
 
       shows.value = Object.fromEntries(
         result.data.map((show) => [show.id, show.seasons]),
+      );
+      changedAt.value = Object.fromEntries(
+        result.data.map((show) => [show.id, show.changedAt]),
       );
       saved = { ...shows.value };
       loaded.value = true;
@@ -169,7 +185,7 @@ export const useEpisodesStore = defineStore('episodes', () => {
             getApi().watched.saveProgress({
               id,
               seasons,
-              date: today(),
+              date: momentOf(),
               language: i18n.global.locale.value,
             }),
           ),
@@ -229,6 +245,7 @@ export const useEpisodesStore = defineStore('episodes', () => {
     const complete = isComplete(details, next);
 
     shows.value[details.id] = next;
+    changedAt.value[details.id] = momentOf();
 
     if (whole === false && complete) {
       void watched.toggle(title);
@@ -262,6 +279,7 @@ export const useEpisodesStore = defineStore('episodes', () => {
 
     if (!same) {
       shows.value[details.id] = seasons;
+      changedAt.value[details.id] = momentOf();
     }
 
     const [episodes, show] = await Promise.all([
@@ -294,6 +312,7 @@ export const useEpisodesStore = defineStore('episodes', () => {
 
   return {
     shows,
+    changedAt,
     loaded,
     error,
     load,

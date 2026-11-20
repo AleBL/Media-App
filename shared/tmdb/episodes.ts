@@ -1,15 +1,16 @@
 import type { WatchedEpisodes } from '../api';
 
 // The episodes watched of a show go in its comment, in the user's private
-// list of episodes (watched.ts): the day of the last change, then each
-// season and its episodes as ranges, the seasons in order.
+// list of episodes (watched.ts): the day and time of the last change, then
+// each season and its episodes as ranges, the seasons in order.
 //
-//   2026-11-20;1:1-7,9;2:1-13;0:1
+//   2026-11-20T21:05;1:1-7,9;2:1-13;0:1
 //
 // Short for a show watched in order (all of The Simpsons in about 300
 // characters) and readable on the TMDB website, where the list shows it.
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** A day, with the time of the change or without it. */
+const CHANGED = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/;
 const SEASON = /^(\d{1,4}):(\d{1,5}(?:-\d{1,5})?(?:,\d{1,5}(?:-\d{1,5})?)*)$/;
 
 /** Far above any season TMDB has; a number past it is not an episode. */
@@ -99,7 +100,7 @@ export function decodeSeasons(text: string): WatchedEpisodes | null {
   return seasons;
 }
 
-/** The comment of a show: the day, then its seasons. */
+/** The comment of a show: when it changed, then its seasons. */
 export function encodeProgress(date: string, seasons: WatchedEpisodes) {
   return `${date};${encodeSeasons(seasons)}`;
 }
@@ -115,9 +116,9 @@ export function decodeProgress(
     return null;
   }
 
-  const [day, ...parts] = comment.split(';');
+  const [changed, ...parts] = comment.split(';');
 
-  if (!DAY.test(day)) {
+  if (!CHANGED.test(changed)) {
     return null;
   }
 
@@ -136,5 +137,5 @@ export function decodeProgress(
     }
   }
 
-  return Object.keys(seasons).length ? { changedAt: day, seasons } : null;
+  return Object.keys(seasons).length ? { changedAt: changed, seasons } : null;
 }

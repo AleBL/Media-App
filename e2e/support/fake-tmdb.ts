@@ -1265,6 +1265,21 @@ export async function startFakeTmdb() {
         : null;
     },
     /**
+     * What the list of episodes watched has, such as
+     * { "tv:9001": "2026-11-20;1:1-3" }; null while there is no such list.
+     */
+    episodes: () => {
+      const list = [...userLists.values()].find(({ description }) =>
+        description.includes('moviledger:episodes'),
+      );
+
+      return list
+        ? Object.fromEntries(
+            [...list.items].map(([title, { comment }]) => [title, comment]),
+          )
+        : null;
+    },
+    /**
      * What the user does on the TMDB website: deletes every list of theirs,
      * which TMDB goes on listing for a while (`stillListed`).
      */

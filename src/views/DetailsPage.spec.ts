@@ -6,10 +6,12 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 import type { MediaDetails, MediaType } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import appRouter from '@/router';
+import { useSessionStore } from '@/stores/session';
 import {
   BREAKING_BAD as WITH_SEASONS,
   installFakeApi,
   MATRIX,
+  SIGNED_IN,
 } from '@/test/fakeApi';
 import DetailsPage from '@/views/DetailsPage.vue';
 
@@ -350,6 +352,42 @@ describe('DetailsPage', () => {
     expect(wrapper.text()).toContain(
       'Next episode: S6 E1 · Return, January 15, 2027',
     );
+  });
+
+  it('shows how much of the show and of each season the user watched', async () => {
+    useSessionStore().state = SIGNED_IN;
+    api.tmdb.details.mockResolvedValue({ ok: true, data: WITH_SEASONS });
+    api.watched.progress.mockResolvedValue({
+      ok: true,
+      data: [
+        {
+          id: 1396,
+          seasons: { 1: [1, 2, 3, 4, 5, 6, 7], 2: [1, 2], 0: [1] },
+          changedAt: '2026-11-19',
+        },
+      ],
+    });
+
+    await open('/tv/1396', 'tv', 1396);
+
+    const seasons = wrapper.get('section[aria-labelledby="seasons-title"]');
+    // the specials apart
+    expect(seasons.text()).toContain('9 of 20 episodes watched');
+    expect(
+      seasons.findAll('li').map((season) => season.text().split('episodes')[1]),
+    ).toEqual(['7 of 7 watched', '2 of 13 watched', '1 of 9 watched']);
+  });
+
+  it('shows no progress of a show the user did not start', async () => {
+    useSessionStore().state = SIGNED_IN;
+    api.tmdb.details.mockResolvedValue({ ok: true, data: WITH_SEASONS });
+
+    await open('/tv/1396', 'tv', 1396);
+
+    expect(api.watched.progress).toHaveBeenCalledOnce();
+    expect(
+      wrapper.get('section[aria-labelledby="seasons-title"]').text(),
+    ).not.toContain('watched');
   });
 
   it('has no seasons for a movie', async () => {

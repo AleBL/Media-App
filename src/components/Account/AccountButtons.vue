@@ -5,6 +5,8 @@
   import AppToggleButton from '@/components/ui/AppToggleButton.vue';
   import TitleRating from '@/components/Account/TitleRating.vue';
   import { useAccountStore } from '@/stores/account';
+  import { useDetailsStore } from '@/stores/details';
+  import { useEpisodesStore } from '@/stores/episodes';
   import { useSessionStore } from '@/stores/session';
   import { useWatchedStore } from '@/stores/watched';
   import { noticeListChange } from '@/util/listNotices';
@@ -16,6 +18,8 @@
   const session = useSessionStore();
   const account = useAccountStore();
   const watched = useWatchedStore();
+  const details = useDetailsStore();
+  const episodes = useEpisodesStore();
 
   const title = computed(() => ({ type: props.type, id: props.id }));
   const states = computed(() => account.statesOf(title.value));
@@ -40,6 +44,11 @@
 
       if (signedIn === undefined) {
         return;
+      }
+
+      // The episodes of a show, which its button marks with it.
+      if (props.type === 'tv') {
+        void episodes.load();
       }
 
       const answers = await Promise.all([
@@ -72,16 +81,40 @@
     }
   }
 
+  // A show and its episodes go together: marked with every episode out, and
+  // unmarked with none. Without its episodes (not read yet, or they could
+  // not be), the show alone.
+  const show = computed(() =>
+    props.type === 'tv' &&
+    details.details?.type === 'tv' &&
+    details.details.id === props.id
+      ? details.details
+      : null,
+  );
+
   async function toggleWatched() {
     failed.value = null;
     saving.value = 'watched';
 
-    const answer = await watched.toggle(title.value);
+    const tv = show.value;
+
+    // Clicked before its episodes came: they are waited for.
+    if (tv) {
+      await episodes.load();
+    }
+
+    const before = tv ? episodes.snapshot(tv) : undefined;
+    const together = tv && before && before.whole !== undefined;
+    const answer = together
+      ? await episodes.markShow(tv, !before.whole)
+      : await watched.toggle(title.value);
 
     saving.value = null;
 
     if (answer?.ok) {
-      noticeListChange(t, 'watched', !!seen.value, () => toggleWatched());
+      noticeListChange(t, 'watched', !!seen.value, () =>
+        together ? void episodes.restore(tv, before) : toggleWatched(),
+      );
     } else if (answer && !told(answer.error.code)) {
       failed.value = 'save';
     }

@@ -76,11 +76,12 @@ test.describe('seasons of a show', () => {
     await expect(second).toContainText('T1 E2 · Episode 2 [pt-BR]');
     await expect(second).toContainText('Episode 2, told in en-US.');
     await expect(second).toContainText('O TMDB só tem esta sinopse em inglês.');
-    expect(
-      tmdb.requests
-        .filter(({ path }) => path === '/3/tv/9001/season/1')
-        .map(({ language }) => language),
-    ).toEqual(['en', 'pt-BR', 'en-US']);
+    // the language and English go together, in either order
+    const [first, ...again] = tmdb.requests
+      .filter(({ path }) => path === '/3/tv/9001/season/1')
+      .map(({ language }) => language);
+    expect(first).toBe('en');
+    expect(again.sort()).toEqual(['en-US', 'pt-BR']);
   });
 
   test('says when TMDB does not have the season, leading to the show', async ({

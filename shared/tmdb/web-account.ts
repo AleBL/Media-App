@@ -1,10 +1,12 @@
 import type { TmdbErrorCode } from '../api';
 import { createTmdbClient } from './client';
+import { decodeSeasons, MAX_PROGRESS_LENGTH } from './episodes';
 import { isSessionExpired } from './login';
 import { HTTP_STATUS, toFailure } from './proxy';
 import {
   parseAccountListRequest,
   parseMarkRequest,
+  parseProgressRequest,
   parseRateRequest,
   parseTitleRequest,
   parseWatchedListRequest,
@@ -13,6 +15,7 @@ import {
 import { createWatched, requireUserAccess } from './watched';
 import {
   clearAccess,
+  episodesListCache,
   httpContext,
   readAccess,
   watchedListCache,
@@ -22,7 +25,13 @@ import {
 export type WebAccountOptions = Omit<WebAuthOptions, 'website'>;
 
 /** Resources that change something at TMDB: POST only. */
-const CHANGE_RESOURCES = new Set(['mark', 'rate', 'unrate', 'watched-mark']);
+const CHANGE_RESOURCES = new Set([
+  'mark',
+  'rate',
+  'unrate',
+  'watched-mark',
+  'watched-save-progress',
+]);
 
 function toBoolean(value: string | null) {
   return value === 'true' ? true : value === 'false' ? false : null;
@@ -41,6 +50,8 @@ function toBoolean(value: string | null) {
  *   GET  ?resource=watched-state&type=movie&id=603
  *   POST ?resource=watched-mark&type=movie&id=603&value=true&date=2026-11-16&language=en
  *   GET  ?resource=watched-list&page=1&language=en
+ *   GET  ?resource=watched-progress
+ *   POST ?resource=watched-save-progress&id=1396&seasons=1:1-7,9;2:1&date=2026-11-20&language=en
  */
 export function createWebAccount(options: WebAccountOptions) {
   const credential = options.credential?.trim() || null;
@@ -202,6 +213,40 @@ export function createWebAccount(options: WebAccountOptions) {
                 ),
               })
             : failWith('invalid-request');
+        }
+
+        case 'watched-progress':
+          return http.json({
+            ok: true,
+            data: await watched.progress(
+              requireUserAccess(readAccess(http)),
+              episodesListCache(http),
+            ),
+          });
+
+        case 'watched-save-progress': {
+          // The seasons as in the comment (episodes.ts), read only when they
+          // could be one.
+          const text = params.get('seasons') ?? '';
+          const parsed = parseProgressRequest({
+            id: title.id,
+            seasons:
+              text.length <= MAX_PROGRESS_LENGTH ? decodeSeasons(text) : null,
+            date: params.get('date'),
+            language: params.get('language'),
+          });
+
+          if (!parsed) {
+            return failWith('invalid-request');
+          }
+
+          await watched.saveProgress(
+            requireUserAccess(readAccess(http)),
+            episodesListCache(http),
+            parsed,
+          );
+
+          return http.json({ ok: true, data: null });
         }
 
         default:

@@ -15,6 +15,7 @@ import {
   type Paged,
   type PersonDetails,
   type PersonRequest,
+  type ProgressRequest,
   type RateRequest,
   type SeasonDetails,
   type SeasonRequest,
@@ -22,6 +23,7 @@ import {
   type SearchItem,
   type SearchRequest,
   type SessionState,
+  type ShowProgress,
   type TitleRequest,
   type TitleStates,
   type TmdbFailure,
@@ -41,6 +43,7 @@ import {
   parseListRequest,
   parseMarkRequest,
   parsePersonRequest,
+  parseProgressRequest,
   parseSeasonRequest,
   parseRateRequest,
   parseSearchRequest,
@@ -95,6 +98,8 @@ export interface IpcServices {
     state(request: TitleRequest): Promise<boolean>;
     mark(request: WatchedRequest): Promise<null>;
     list(request: WatchedListRequest): Promise<Paged<MediaItem>>;
+    progress(): Promise<ShowProgress[]>;
+    saveProgress(request: ProgressRequest): Promise<null>;
   };
   credentials: {
     status(): CredentialStatus;
@@ -293,6 +298,20 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
 
     return request
       ? toResult(() => services.watched.list(request))
+      : invalidRequest();
+  });
+
+  ipc.handle(IPC.watchedProgress, (event) =>
+    isTrusted(event)
+      ? toResult(() => services.watched.progress())
+      : invalidRequest(),
+  );
+
+  ipc.handle(IPC.watchedSaveProgress, (event, value) => {
+    const request = isTrusted(event) ? parseProgressRequest(value) : null;
+
+    return request
+      ? toResult(() => services.watched.saveProgress(request))
       : invalidRequest();
   });
 

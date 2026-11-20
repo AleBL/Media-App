@@ -276,7 +276,8 @@
     "seasonsPrevious": "Previous seasons",
     "seasonsNext": "More seasons",
     "nextEpisode": "Next episode: {episode}, {date}",
-    "nextEpisodeSoon": "Next episode: {episode}, date to be announced"
+    "nextEpisodeSoon": "Next episode: {episode}, date to be announced",
+    "episodesWatched": "{watched} of {out} episodes watched"
   },
 
   "season": {
@@ -296,7 +297,19 @@
     "previous": "Previous season",
     "next": "Next season",
     "choose": "Season",
-    "seasonsOf": "Seasons of {show}"
+    "seasonsOf": "Seasons of {show}",
+    "progress": "{watched} of {out} watched",
+    "markSeason": "Mark season watched",
+    "unmarkSeason": "Unmark season",
+    "markedSeason": "Episodes of {season} marked as watched.",
+    "unmarkedSeason": "Episodes of {season} unmarked.",
+    "watched": "Watched",
+    "watchedEpisode": "Watched: {episode}",
+    "upTo": "Up to here",
+    "upToLabel": "Mark every episode up to {episode} as watched",
+    "markedUpTo": "Episodes up to {episode} marked as watched.",
+    "signInToMark": "Sign in to mark the episodes you watched",
+    "progressFailed": "The episodes you watched could not be loaded."
   },
 
   "person": {

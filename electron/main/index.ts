@@ -185,6 +185,7 @@ app.whenReady().then(async () => {
   });
   const watched = createWatched(tmdb);
   const listCache = createMemoryListCache();
+  const episodesListCache = createMemoryListCache();
 
   let previousStatus: SessionState['status'] = 'anonymous';
   const auth = createAuthService({
@@ -278,6 +279,20 @@ app.whenReady().then(async () => {
 
           return watched.list(user, listCache(user), request);
         }),
+      progress: () =>
+        auth.withAccess((access) => {
+          const user = requireUserAccess(access);
+
+          return watched.progress(user, episodesListCache(user));
+        }),
+      saveProgress: (request) =>
+        auth
+          .withAccess((access) => {
+            const user = requireUserAccess(access);
+
+            return watched.saveProgress(user, episodesListCache(user), request);
+          })
+          .then(() => null),
     },
     credentials,
     auth,

@@ -1,28 +1,55 @@
 import type {
   MediaItem,
   Paged,
+  ProgressRequest,
+  ShowProgress,
   TitleRequest,
   WatchedListRequest,
   WatchedRequest,
 } from '../api';
 import { TmdbError, type Access, type TmdbClient } from './client';
+import { decodeProgress, encodeProgress, encodeSeasons } from './episodes';
 
 // TMDB has no "watched", so the titles go in a private v4 list of the user,
 // created on the first mark and found again by its description. The date
 // goes in each title's comment.
+//
+// The episodes watched go in a second one, of the shows that have any, each
+// with its episodes in the comment (episodes.ts): the first list goes on
+// meaning "watched all of it", and every show in progress is one short
+// list to read.
 
 // From the name the app had before (Media App): the lists already made at
 // TMDB carry it, and a new marker would start an empty list beside them.
 export const WATCHED_MARKER = 'media-app:watched';
+export const EPISODES_MARKER = 'moviledger:episodes';
 
-const LIST_NAMES: Record<string, string> = {
-  en: 'Watched',
-  pt: 'Assistidos',
-  es: 'Vistos',
+interface ListKind {
+  /** In the description, where the list is found by. */
+  marker: string;
+  /** By language, for a list made by the app. */
+  names: Record<string, string>;
+}
+
+const WATCHED_LIST: ListKind = {
+  marker: WATCHED_MARKER,
+  names: { en: 'Watched', pt: 'Assistidos', es: 'Vistos' },
+};
+
+const EPISODES_LIST: ListKind = {
+  marker: EPISODES_MARKER,
+  names: {
+    en: 'MoviLedger: episodes',
+    pt: 'MoviLedger: episódios',
+    es: 'MoviLedger: episodios',
+  },
 };
 
 /** How many pages of the user's lists are searched. */
 export const MAX_LIST_PAGES = 5;
+
+/** How many pages of the list of episodes are read: 500 shows. */
+export const MAX_PROGRESS_PAGES = 25;
 
 /**
  * TMDB keeps listing a deleted list for a while, so more than one found list
@@ -80,13 +107,16 @@ type ListClient = Pick<
   | 'updateList'
   | 'listItemStatus'
   | 'addToList'
+  | 'addItem'
+  | 'commentOn'
   | 'removeFromList'
   | 'listItems'
+  | 'listComments'
 >;
 
-const listInfo = (language: string) => ({
-  name: LIST_NAMES[language.slice(0, 2)] ?? LIST_NAMES.en,
-  description: `MoviLedger (${WATCHED_MARKER})`,
+const listInfo = (kind: ListKind, language: string) => ({
+  name: kind.names[language.slice(0, 2)] ?? kind.names.en,
+  description: `MoviLedger (${kind.marker})`,
 });
 
 interface WithListOptions<T> {
@@ -94,10 +124,16 @@ interface WithListOptions<T> {
   fallback: T;
   /** Creates the list, named in this language, when there is none. */
   createInLanguage?: string;
+  /** The list of watched titles, unless it says otherwise. */
+  kind?: ListKind;
 }
 
 export function createWatched(tmdb: ListClient) {
-  async function findList(access: UserAccess, deletedIds: Set<number>) {
+  async function findList(
+    access: UserAccess,
+    deletedIds: Set<number>,
+    kind: ListKind,
+  ) {
     for (let page = 1; page <= MAX_LIST_PAGES; page += 1) {
       const { lists, totalPages } = await tmdb.userLists(
         access.accessToken,
@@ -106,7 +142,7 @@ export function createWatched(tmdb: ListClient) {
       );
       const found = lists.find(
         (list) =>
-          !deletedIds.has(list.id) && list.description.includes(WATCHED_MARKER),
+          !deletedIds.has(list.id) && list.description.includes(kind.marker),
       );
 
       if (found) {
@@ -125,6 +161,7 @@ export function createWatched(tmdb: ListClient) {
     access: UserAccess,
     cache: ListCache,
     deletedIds: Set<number>,
+    kind: ListKind,
     createInLanguage?: string,
   ): Promise<{ id: number; created: boolean } | undefined> {
     const cachedId = cache.get();
@@ -133,14 +170,14 @@ export function createWatched(tmdb: ListClient) {
       return { id: cachedId, created: false };
     }
 
-    const foundId = await findList(access, deletedIds);
+    const foundId = await findList(access, deletedIds, kind);
     const list =
       foundId !== undefined
         ? { id: foundId, created: false }
         : createInLanguage
           ? {
               id: await tmdb.createList(access.accessToken, {
-                ...listInfo(createInLanguage),
+                ...listInfo(kind, createInLanguage),
                 language: createInLanguage,
               }),
               created: true,
@@ -162,12 +199,18 @@ export function createWatched(tmdb: ListClient) {
     access: UserAccess,
     cache: ListCache,
     action: (listId: number) => Promise<T>,
-    { fallback, createInLanguage }: WithListOptions<T>,
+    { fallback, createInLanguage, kind = WATCHED_LIST }: WithListOptions<T>,
   ): Promise<T> {
     const deletedIds = new Set<number>();
 
     for (let tries = 1; ; tries += 1) {
-      const list = await getList(access, cache, deletedIds, createInLanguage);
+      const list = await getList(
+        access,
+        cache,
+        deletedIds,
+        kind,
+        createInLanguage,
+      );
 
       if (!list) {
         return fallback;
@@ -181,7 +224,11 @@ export function createWatched(tmdb: ListClient) {
         // (2026-11-16).
         if (list.created && createInLanguage) {
           await tmdb
-            .updateList(access.accessToken, list.id, listInfo(createInLanguage))
+            .updateList(
+              access.accessToken,
+              list.id,
+              listInfo(kind, createInLanguage),
+            )
             .catch(() => {});
         }
 
@@ -211,6 +258,64 @@ export function createWatched(tmdb: ListClient) {
 
       throw error;
     }
+  }
+
+  /** Every show of the list of episodes, up to MAX_PROGRESS_PAGES pages. */
+  async function readProgress(
+    access: UserAccess,
+    listId: number,
+  ): Promise<ShowProgress[]> {
+    const first = await tmdb.listComments(access.accessToken, listId, 1);
+    const last = Math.min(first.totalPages, MAX_PROGRESS_PAGES);
+    const rest = await Promise.all(
+      Array.from({ length: Math.max(0, last - 1) }, (_, index) =>
+        tmdb.listComments(access.accessToken, listId, index + 2),
+      ),
+    );
+    // A show can move to the next page while they are read: once each.
+    const shows = new Map<number, ShowProgress>();
+
+    for (const { type, id, comment } of [first, ...rest].flatMap(
+      (page) => page.items,
+    )) {
+      const progress =
+        type === 'tv' && !shows.has(id) ? decodeProgress(comment) : null;
+
+      if (progress) {
+        shows.set(id, { id, ...progress });
+      }
+    }
+
+    return [...shows.values()];
+  }
+
+  /** In the list with its episodes in the comment, or out of it with none. */
+  async function writeProgress(
+    access: UserAccess,
+    listId: number,
+    { id, seasons, date }: ProgressRequest,
+  ) {
+    const show = { type: 'tv', id } as const;
+    const listed = await tmdb.listItemStatus(access.accessToken, listId, show);
+
+    if (!encodeSeasons(seasons)) {
+      if (listed) {
+        await tmdb.removeFromList(access.accessToken, listId, show);
+      }
+
+      return;
+    }
+
+    if (!listed) {
+      await tmdb.addItem(access.accessToken, listId, show);
+    }
+
+    await tmdb.commentOn(
+      access.accessToken,
+      listId,
+      show,
+      encodeProgress(date, seasons),
+    );
   }
 
   return {
@@ -259,6 +364,37 @@ export function createWatched(tmdb: ListClient) {
           (listId) =>
             tmdb.listItems(access.accessToken, listId, page, language),
           { fallback: { ...EMPTY_PAGE, page } },
+        ),
+      ),
+
+    /** `cache` remembers the list of episodes, not the watched one. */
+    progress: (access: UserAccess, cache: ListCache) =>
+      mapRevokedToken(() =>
+        withList(access, cache, (listId) => readProgress(access, listId), {
+          fallback: [] as ShowProgress[],
+          kind: EPISODES_LIST,
+        }),
+      ),
+
+    /** `cache` remembers the list of episodes, not the watched one. */
+    saveProgress: (
+      access: UserAccess,
+      cache: ListCache,
+      request: ProgressRequest,
+    ) =>
+      mapRevokedToken(() =>
+        withList(
+          access,
+          cache,
+          (listId) => writeProgress(access, listId, request),
+          {
+            fallback: undefined,
+            kind: EPISODES_LIST,
+            // Made for the first episode, never to take one out.
+            ...(encodeSeasons(request.seasons)
+              ? { createInLanguage: request.language }
+              : {}),
+          },
         ),
       ),
   };

@@ -224,6 +224,11 @@ export interface UserList {
   description: string;
 }
 
+/** A title of a user's list and what the comment beside it says. */
+export interface ListComment extends TitleRequest {
+  comment?: string;
+}
+
 /**
  * v4 tokens (the app's read access token, request tokens) are JWTs; v3 keys
  * and request tokens are plain hex.
@@ -1121,6 +1126,44 @@ export function createTmdbClient(options: TmdbClientOptions) {
     }
   }
 
+  async function addItem(
+    accessToken: string,
+    listId: number,
+    { type, id }: TitleRequest,
+  ): Promise<void> {
+    await request(`/list/${listId}/items`, {
+      method: 'POST',
+      body: { items: [{ media_type: type, media_id: id }] },
+      v4: true,
+      userToken: accessToken,
+    });
+  }
+
+  /**
+   * The comment of a title already in the list. TMDB answers for each title
+   * whether it took it: one it did not is a failure.
+   */
+  async function commentOn(
+    accessToken: string,
+    listId: number,
+    { type, id }: TitleRequest,
+    comment: string,
+  ): Promise<void> {
+    const body = await request<JsonObject>(`/list/${listId}/items`, {
+      method: 'PUT',
+      body: { items: [{ media_type: type, media_id: id, comment }] },
+      v4: true,
+      userToken: accessToken,
+    });
+    const answer = objectArray(body.results).find(
+      (item) => Number(item.media_id) === id,
+    );
+
+    if (body.success === false || answer?.success === false) {
+      throw new TmdbError('server', 200, 'The comment was not taken');
+    }
+  }
+
   return {
     async search(search: SearchRequest): Promise<Paged<SearchItem>> {
       const params: Record<string, string | number> = {
@@ -1623,26 +1666,53 @@ export function createTmdbClient(options: TmdbClientOptions) {
       }
     },
 
+    /** Without a comment: TMDB takes it in a second request (`commentOn`). */
+    addItem,
+
+    commentOn,
+
     /** The comment is a second request: if it fails, the title stays without it. */
     async addToList(
       accessToken: string,
       listId: number,
-      { type, id }: TitleRequest,
+      title: TitleRequest,
       comment: string,
     ): Promise<void> {
-      const item = { media_type: type, media_id: id };
-      const user = { v4: true, userToken: accessToken };
+      await addItem(accessToken, listId, title);
+      await commentOn(accessToken, listId, title, comment).catch(() => {});
+    },
 
-      await request(`/list/${listId}/items`, {
-        method: 'POST',
-        body: { items: [item] },
-        ...user,
-      });
-      await request(`/list/${listId}/items`, {
-        method: 'PUT',
-        body: { items: [{ ...item, comment }] },
-        ...user,
-      }).catch(() => {});
+    /** One page of a list: each title and its comment, if it has one. */
+    async listComments(
+      accessToken: string,
+      listId: number,
+      page: number,
+    ): Promise<{ items: ListComment[]; totalPages: number }> {
+      const body = await request<SearchBody & { comments?: unknown }>(
+        `/list/${listId}`,
+        { params: { page }, v4: true, userToken: accessToken },
+      );
+      const comments: JsonObject =
+        typeof body.comments === 'object' && body.comments !== null
+          ? (body.comments as JsonObject)
+          : {};
+
+      return {
+        items: objectArray(body.results).flatMap((item) => {
+          const { media_type: type, id } = item;
+
+          if ((type !== 'movie' && type !== 'tv') || typeof id !== 'number') {
+            return [];
+          }
+
+          const comment = comments[`${type}:${id}`];
+
+          return [
+            typeof comment === 'string' ? { type, id, comment } : { type, id },
+          ];
+        }),
+        totalPages: body.total_pages ?? 1,
+      };
     },
 
     async removeFromList(

@@ -5,9 +5,10 @@ import type { Result } from '@shared/api';
 import i18n from '@/plugins/i18n';
 import router from '@/router';
 import AccountButtons from '@/components/Account/AccountButtons.vue';
+import { useDetailsStore } from '@/stores/details';
 import { useSessionStore } from '@/stores/session';
 import { useToastsStore } from '@/stores/toasts';
-import { installFakeApi, SIGNED_IN } from '@/test/fakeApi';
+import { BREAKING_BAD, installFakeApi, SIGNED_IN } from '@/test/fakeApi';
 
 describe('AccountButtons', () => {
   let api: ReturnType<typeof installFakeApi>;
@@ -143,6 +144,76 @@ describe('AccountButtons', () => {
 
     expect(button('Watched').attributes('aria-busy')).toBeUndefined();
     expect(button('Watched').find('.pi-check-circle').exists()).toBe(true);
+  });
+
+  describe('of a show', () => {
+    const numbers = (count: number) =>
+      Array.from({ length: count }, (_, index) => index + 1);
+
+    async function mountShow(seasons: Record<number, number[]>, whole = false) {
+      useSessionStore().state = SIGNED_IN;
+      useDetailsStore().details = BREAKING_BAD;
+      api.watched.state.mockResolvedValue({ ok: true, data: whole });
+      api.watched.progress.mockResolvedValue({
+        ok: true,
+        data: [{ id: 1396, seasons, changedAt: '2026-11-19' }],
+      });
+      await router.replace('/tv/1396');
+      wrapper = mount(AccountButtons, {
+        props: { type: 'tv', id: 1396 },
+        global: { plugins: [pinia, i18n, router] },
+      });
+      await flushPromises();
+    }
+
+    it('marks every episode out with the show', async () => {
+      await mountShow({ 2: [1], 0: [3] });
+
+      await button('Watched').trigger('click');
+      await flushPromises();
+
+      expect(api.watched.saveProgress).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 1396,
+          seasons: { 0: [3], 1: numbers(7), 2: numbers(13) },
+        }),
+      );
+      expect(api.watched.mark).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'tv', id: 1396, value: true }),
+      );
+      expect(button('Watched').attributes('aria-pressed')).toBe('true');
+    });
+
+    it('takes every episode away with the show', async () => {
+      await mountShow({ 1: numbers(7), 2: numbers(13) }, true);
+
+      await button('Watched').trigger('click');
+      await flushPromises();
+
+      expect(api.watched.saveProgress).toHaveBeenCalledWith(
+        expect.objectContaining({ seasons: {} }),
+      );
+      expect(api.watched.mark).toHaveBeenCalledWith(
+        expect.objectContaining({ value: false }),
+      );
+    });
+
+    it('goes back to the episodes watched before when undone', async () => {
+      await mountShow({ 2: [1] });
+
+      await button('Watched').trigger('click');
+      await flushPromises();
+      useToastsStore().toasts[0].action!.run();
+      await flushPromises();
+
+      expect(api.watched.saveProgress).toHaveBeenLastCalledWith(
+        expect.objectContaining({ seasons: { 2: [1] } }),
+      );
+      expect(api.watched.mark).toHaveBeenLastCalledWith(
+        expect.objectContaining({ value: false }),
+      );
+      expect(button('Watched').attributes('aria-pressed')).toBe('false');
+    });
   });
 
   it('tells in a notice what changed, with a way to undo it', async () => {

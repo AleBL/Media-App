@@ -47,6 +47,31 @@ test.describe('watched titles on the web version', () => {
     }
   });
 
+  test('marks an episode watched through the site, and reads it back', async ({
+    page,
+    site,
+    tmdb,
+  }) => {
+    await page.goto(site.url);
+    await openPage(page, 'account');
+    await page.getByRole('button', { name: 'Sign in with TMDB' }).click();
+    await expect(page.getByText(`Signed in as ${ACCOUNT.name}`)).toBeVisible();
+
+    await page.goto(`${site.url}#/tv/9001/season/1`);
+    const pilot = page.getByRole('button', { name: 'Watched: S1 E1' });
+    await expect(pilot).toHaveAttribute('aria-pressed', 'false');
+    await pilot.click();
+
+    await expect
+      .poll(() => Object.values(tmdb.episodes() ?? {}))
+      .toEqual([expect.stringMatching(/^\d{4}-\d{2}-\d{2};1:1$/)]);
+
+    await page.reload();
+
+    await expect(pilot).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByText('1 of 8 watched')).toBeVisible();
+  });
+
   test('the page of the watched titles asks to sign in first', async ({
     page,
     site,

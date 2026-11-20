@@ -40,6 +40,9 @@ const api: MediaAppApi = {
     state: (request) => ipcRenderer.invoke(IPC.watchedState, request),
     mark: (request) => ipcRenderer.invoke(IPC.watchedMark, request),
     list: (request) => ipcRenderer.invoke(IPC.watchedList, request),
+    progress: () => ipcRenderer.invoke(IPC.watchedProgress),
+    saveProgress: (request) =>
+      ipcRenderer.invoke(IPC.watchedSaveProgress, request),
   },
   credentials: {
     status: () => ipcRenderer.invoke(IPC.credentialStatus),

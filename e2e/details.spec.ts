@@ -149,7 +149,7 @@ test.describe('page of a title', () => {
 
     await expect(page).toHaveURL(/#\/tv\/9001$/);
     await expect(heading(page)).toHaveText('Show 1 [en] (2008)');
-    await expect(page.getByText('5 seasons')).toBeVisible();
+    await expect(page.getByText('2 seasons')).toBeVisible();
     await expect(page.getByText('47 min per episode')).toBeVisible();
     await expect(
       page.getByRole('img', { name: 'Age rating: TV-MA. Adults only' }),

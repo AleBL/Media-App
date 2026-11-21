@@ -12,15 +12,24 @@ import {
   type MediaList,
   type MediaType,
   type PersonRequest,
+  type ProgressRequest,
   type RateRequest,
+  type SeasonRequest,
   type SearchRequest,
   type SearchType,
   type TitleList,
   type TitleRequest,
+  type WatchedEpisodes,
   type WatchedListRequest,
   type WatchedRequest,
 } from '../api';
 import { TMDB_MAX_PAGES } from './client';
+import {
+  encodeProgress,
+  MAX_EPISODE,
+  MAX_MARKED,
+  MAX_PROGRESS_LENGTH,
+} from './episodes';
 
 // Everything that arrives from the renderer, over IPC in the desktop app or
 // over HTTP on the web, is checked here before it is used: whoever holds the
@@ -276,6 +285,28 @@ export function parseDiscoverFiltersRequest(
     : null;
 }
 
+/** The specials are season 0; no show has anywhere near this many. */
+const MAX_SEASON = 1000;
+
+/** A season of a tv show, by the show and its number. */
+export function parseSeasonRequest(value: unknown): SeasonRequest | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const { id, season, language } = value as Record<string, unknown>;
+  const locale = parseLanguage(language);
+
+  return isId(id) &&
+    typeof season === 'number' &&
+    Number.isInteger(season) &&
+    season >= 0 &&
+    season <= MAX_SEASON &&
+    locale !== null
+    ? { id, season, language: locale }
+    : null;
+}
+
 /** A person, by their id. */
 export function parsePersonRequest(value: unknown): PersonRequest | null {
   if (typeof value !== 'object' || value === null) {
@@ -325,6 +356,80 @@ export function parseWatchedRequest(value: unknown): WatchedRequest | null {
 
   return typeof watched === 'boolean' && isDay(date) && locale
     ? { ...title, value: watched, date, language: locale }
+    : null;
+}
+
+/** Episode numbers by season, each once and in order; null for anything else. */
+function parseWatchedEpisodes(value: unknown): WatchedEpisodes | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return null;
+  }
+
+  const seasons: WatchedEpisodes = {};
+  let marked = 0;
+
+  for (const [key, episodes] of Object.entries(value)) {
+    const season = Number(key);
+
+    if (
+      !/^\d{1,4}$/.test(key) ||
+      season > MAX_SEASON ||
+      !Array.isArray(episodes) ||
+      !episodes.every(
+        (episode) =>
+          Number.isInteger(episode) && episode >= 1 && episode <= MAX_EPISODE,
+      )
+    ) {
+      return null;
+    }
+
+    marked += episodes.length;
+
+    if (marked > MAX_MARKED) {
+      return null;
+    }
+
+    if (episodes.length) {
+      seasons[season] = [...new Set(episodes as number[])].sort(
+        (a, b) => a - b,
+      );
+    }
+  }
+
+  return seasons;
+}
+
+/** A day, or a day and a time of it: YYYY-MM-DDTHH:MM. */
+function isMoment(value: unknown): value is string {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  const [day, time, ...rest] = value.split('T');
+
+  return (
+    isDay(day) &&
+    rest.length === 0 &&
+    (time === undefined || /^([01]\d|2[0-3]):[0-5]\d$/.test(time))
+  );
+}
+
+/** The episodes watched of a show, as long as the comment can hold them. */
+export function parseProgressRequest(value: unknown): ProgressRequest | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const { id, seasons, date, language } = value as Record<string, unknown>;
+  const episodes = parseWatchedEpisodes(seasons);
+  const locale = parseLanguage(language);
+
+  return isId(id) &&
+    episodes &&
+    isMoment(date) &&
+    locale &&
+    encodeProgress(date, episodes).length <= MAX_PROGRESS_LENGTH
+    ? { id, seasons: episodes, date, language: locale }
     : null;
 }
 

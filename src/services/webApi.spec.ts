@@ -284,6 +284,18 @@ describe('web api', () => {
     );
   });
 
+  it('asks the site for a season of a show', async () => {
+    const season = { showId: 1396, number: 0, name: 'Specials', episodes: [] };
+    const fetch = answering({ ok: true, data: season });
+
+    await expect(
+      createWebApi(fetch).tmdb.season({ id: 1396, season: 0, language: 'es' }),
+    ).resolves.toEqual({ ok: true, data: season });
+    expect(fetch.mock.calls[0][0]).toBe(
+      '/api/tmdb?resource=season&id=1396&season=0&language=es',
+    );
+  });
+
   it('asks the site for the page of a person', async () => {
     const person = { id: 6384, name: 'Keanu Reeves', cast: [], crew: [] };
     const fetch = answering({ ok: true, data: person });
@@ -406,6 +418,29 @@ describe('web api', () => {
             'POST',
           ],
           ['/api/account?resource=watched-list&page=2&language=es', undefined],
+        ],
+      );
+    });
+
+    it('reads the episodes watched, and saves those of a show with a POST', async () => {
+      const fetch = answering({ ok: true, data: null });
+      const api = createWebApi(fetch);
+
+      await api.watched.progress();
+      await api.watched.saveProgress({
+        id: 1396,
+        seasons: { 2: [1], 1: [1, 2, 3, 5] },
+        date: '2026-11-20',
+        language: 'pt-BR',
+      });
+
+      expect(fetch.mock.calls.map(([url, init]) => [url, init.method])).toEqual(
+        [
+          ['/api/account?resource=watched-progress', undefined],
+          [
+            '/api/account?resource=watched-save-progress&id=1396&seasons=1%3A1-3%2C5%3B2%3A1&date=2026-11-20&language=pt-BR',
+            'POST',
+          ],
         ],
       );
     });

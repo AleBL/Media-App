@@ -22,6 +22,18 @@ describe('router', () => {
     expect(router.currentRoute.value.name).toBe('home');
   });
 
+  it.each(['/tv/1434/season/3', '/movie/603'])(
+    'goes home from the entry route, even from %s',
+    async (page) => {
+      await router.push(page);
+
+      // The name of the app leads to the entry route.
+      await router.push('/');
+
+      expect(router.currentRoute.value.fullPath).toBe('/home');
+    },
+  );
+
   it('opens the page of a movie or tv show by its type and id', async () => {
     expect(
       router.resolve({ name: 'details', params: { type: 'tv', id: 1396 } })

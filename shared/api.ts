@@ -160,6 +160,13 @@ export interface ListRequest {
   region?: string;
 }
 
+/** A season of a tv show, by the show and its number (0 for the specials). */
+export interface SeasonRequest {
+  id: number;
+  season: number;
+  language: string;
+}
+
 export interface DetailsRequest {
   type: MediaType;
   id: number;
@@ -226,6 +233,28 @@ export interface WatchedListRequest {
   language: string;
 }
 
+/** Episode numbers watched, by season number (0 is the specials). */
+export type WatchedEpisodes = Record<number, number[]>;
+
+/** The episodes watched of one show. */
+export interface ShowProgress {
+  id: number;
+  seasons: WatchedEpisodes;
+  /** The last change: YYYY-MM-DDTHH:MM, or the day alone. */
+  changedAt: string;
+}
+
+export interface ProgressRequest {
+  /** The show. */
+  id: number;
+  /** None takes the show out of the list. */
+  seasons: WatchedEpisodes;
+  /** The user's local day and time, YYYY-MM-DDTHH:MM. */
+  date: string;
+  /** Names the list when it has to be created. */
+  language: string;
+}
+
 export interface CastMember {
   id: number;
   name: string;
@@ -276,6 +305,67 @@ export interface MediaDetails {
   cast: CastMember[];
   watch?: WatchOptions;
   certification?: Certification;
+  /** Tv shows only: their seasons in order, the specials last. */
+  seasonList?: SeasonSummary[];
+  /** Tv shows only: the episode announced next, with its day. */
+  nextEpisode?: EpisodeSummary;
+  /** Tv shows only: the last episode that aired. */
+  lastEpisode?: EpisodeSummary;
+}
+
+/** A season as the page of its show lists it. */
+export interface SeasonSummary {
+  /** 0 for the specials. */
+  number: number;
+  name: string;
+  episodeCount: number;
+  /** YYYY-MM-DD: of its first episode. */
+  airDate?: string;
+  posterPath?: string;
+}
+
+/** An episode by where it is in the show, such as the next one to air. */
+export interface EpisodeSummary {
+  season: number;
+  number: number;
+  name?: string;
+  /** YYYY-MM-DD. */
+  airDate?: string;
+}
+
+export interface Episode {
+  number: number;
+  /** Some have none at TMDB. */
+  name?: string;
+  overview?: string;
+  /**
+   * The language of the synopsis, such as `en`, when TMDB has none in the
+   * language asked for.
+   */
+  overviewLanguage?: string;
+  /** YYYY-MM-DD. */
+  airDate?: string;
+  /** Minutes. */
+  runtime?: number;
+  stillPath?: string;
+  /** Only with votes. */
+  voteAverage?: number;
+  /** The last of its season. */
+  finale?: boolean;
+}
+
+/** A season with its episodes, in order. */
+export interface SeasonDetails {
+  showId: number;
+  number: number;
+  name: string;
+  overview?: string;
+  /** As in Episode. */
+  overviewLanguage?: string;
+  /** YYYY-MM-DD. */
+  airDate?: string;
+  posterPath?: string;
+  episodes: Episode[];
 }
 
 /** Where someone is on the web besides TMDB: ids, and a whole url for the site. */
@@ -434,6 +524,8 @@ export interface MediaAppApi {
     genres(language: string): Promise<Result<Genre[]>>;
     details(request: DetailsRequest): Promise<Result<MediaDetails>>;
     person(request: PersonRequest): Promise<Result<PersonDetails>>;
+    /** A season with its episodes; synopses it lacks come in English. */
+    season(request: SeasonRequest): Promise<Result<SeasonDetails>>;
     discover(request: DiscoverRequest): Promise<Result<Paged<MediaItem>>>;
     discoverFilters(
       request: DiscoverFiltersRequest,
@@ -461,6 +553,13 @@ export interface MediaAppApi {
     state(request: TitleRequest): Promise<Result<boolean>>;
     mark(request: WatchedRequest): Promise<Result<null>>;
     list(request: WatchedListRequest): Promise<Result<Paged<MediaItem>>>;
+    /**
+     * Every show with an episode watched, from a second private list, kept
+     * apart so that the first one goes on meaning "watched all of it".
+     */
+    progress(): Promise<Result<ShowProgress[]>>;
+    /** Replaces the episodes watched of a show; none takes it out. */
+    saveProgress(request: ProgressRequest): Promise<Result<null>>;
   };
   /** A saved key is never sent back to the renderer. */
   credentials: {
@@ -501,6 +600,7 @@ export const IPC = {
   tmdbGenres: 'tmdb:genres',
   tmdbDetails: 'tmdb:details',
   tmdbPerson: 'tmdb:person',
+  tmdbSeason: 'tmdb:season',
   tmdbDiscover: 'tmdb:discover',
   tmdbDiscoverFilters: 'tmdb:discover-filters',
   tmdbList: 'tmdb:list',
@@ -513,6 +613,8 @@ export const IPC = {
   watchedState: 'watched:state',
   watchedMark: 'watched:mark',
   watchedList: 'watched:list',
+  watchedProgress: 'watched:progress',
+  watchedSaveProgress: 'watched:save-progress',
   credentialStatus: 'credentials:status',
   credentialSave: 'credentials:save',
   credentialClear: 'credentials:clear',

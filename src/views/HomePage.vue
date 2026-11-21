@@ -2,6 +2,7 @@
   import { computed, onBeforeMount, ref, watch } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
   import type { MediaType } from '@shared/api';
+  import ContinueRow from '@/components/Home/ContinueRow.vue';
   import HomeRow from '@/components/Home/HomeRow.vue';
   import HomeRowsEditor from '@/components/Home/HomeRowsEditor.vue';
   import AppButton from '@/components/ui/AppButton.vue';
@@ -151,6 +152,9 @@
       <HomeRowsEditor v-if="editing" />
 
       <template v-else>
+        <!-- The shows in progress of the user, before the rows they chose. -->
+        <ContinueRow v-if="kind !== 'movie'" />
+
         <HomeRow
           v-for="row in shown"
           :key="rowId(row)"

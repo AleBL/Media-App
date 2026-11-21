@@ -10,9 +10,11 @@ import {
   parseListRequest,
   parseMarkRequest,
   parsePersonRequest,
+  parseProgressRequest,
   parseRateRequest,
   parseRegion,
   parseSearchRequest,
+  parseSeasonRequest,
   parseTitleRequest,
   parseWatchedListRequest,
   parseWatchedRequest,
@@ -57,6 +59,66 @@ describe('requests about the watched titles', () => {
     ['nothing', null],
   ])('refuses a page with %s', (_case, request) => {
     expect(parseWatchedListRequest(request)).toBeNull();
+  });
+});
+
+describe('requests about the episodes watched', () => {
+  const save = {
+    id: 1396,
+    seasons: { 1: [1, 2, 3], 0: [2] },
+    date: '2026-11-20',
+    language: 'pt-BR',
+  };
+
+  it('accepts them, each episode once and in order', () => {
+    expect(parseProgressRequest({ ...save, value: true })).toEqual(save);
+    expect(
+      parseProgressRequest({ ...save, seasons: { 2: [3, 1, 3], 4: [] } }),
+    ).toEqual({ ...save, seasons: { 2: [1, 3] } });
+  });
+
+  it('accepts the time of the change with the day', () => {
+    expect(
+      parseProgressRequest({ ...save, date: '2026-11-20T21:05' }),
+    ).toMatchObject({ date: '2026-11-20T21:05' });
+  });
+
+  it('accepts no episode at all, which takes the show out', () => {
+    expect(parseProgressRequest({ ...save, seasons: {} })).toEqual({
+      ...save,
+      seasons: {},
+    });
+  });
+
+  it.each([
+    ['a season that is not a number', { x: [1] }],
+    ['a season past any show', { 1001: [1] }],
+    ['an episode 0', { 1: [0] }],
+    ['an episode that is not a number', { 1: ['1'] }],
+    ['an episode past any season', { 1: [10_001] }],
+    ['episodes that are not a list', { 1: 1 }],
+    ['seasons that are a list', [[1]]],
+    ['no seasons', undefined],
+    [
+      'more than the comment can hold',
+      Object.fromEntries(
+        Array.from({ length: 900 }, (_, season) => [season + 1, [1, 3]]),
+      ),
+    ],
+  ])('refuses %s', (_case, seasons) => {
+    expect(parseProgressRequest({ ...save, seasons })).toBeNull();
+  });
+
+  it.each([
+    ['a show without an id', { ...save, id: 0 }],
+    ['a day that does not exist', { ...save, date: '2026-02-30' }],
+    ['a time that does not exist', { ...save, date: '2026-11-20T24:00' }],
+    ['a time with seconds', { ...save, date: '2026-11-20T21:05:09' }],
+    ['two times', { ...save, date: '2026-11-20T21:05T21:06' }],
+    ['a language that is not a locale', { ...save, language: '../x' }],
+    ['nothing', null],
+  ])('refuses a request with %s', (_case, request) => {
+    expect(parseProgressRequest(request)).toBeNull();
   });
 });
 
@@ -366,6 +428,30 @@ describe('parseDetailsRequest', () => {
     ['a region that is not a country', { ...valid, region: 'Brazil' }],
   ])('rejects %s', (_case, request) => {
     expect(parseDetailsRequest(request)).toBeNull();
+  });
+});
+
+describe('parseSeasonRequest', () => {
+  const valid = { id: 1396, season: 2, language: 'pt-BR' };
+
+  it('accepts a season, the specials too, and drops fields it does not know', () => {
+    expect(parseSeasonRequest({ ...valid, path: '/account' })).toEqual(valid);
+    expect(parseSeasonRequest({ ...valid, season: 0 })).toEqual({
+      ...valid,
+      season: 0,
+    });
+  });
+
+  it.each([
+    ['a missing request', undefined],
+    ['an id that is no id', { ...valid, id: 0 }],
+    ['a season sent as text', { ...valid, season: '2' }],
+    ['a negative season', { ...valid, season: -1 }],
+    ['a fractional season', { ...valid, season: 1.5 }],
+    ['a season past any show', { ...valid, season: 1001 }],
+    ['a language that is not a locale', { ...valid, language: 'pt_BR' }],
+  ])('rejects %s', (_case, request) => {
+    expect(parseSeasonRequest(request)).toBeNull();
   });
 });
 

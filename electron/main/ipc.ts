@@ -15,11 +15,15 @@ import {
   type Paged,
   type PersonDetails,
   type PersonRequest,
+  type ProgressRequest,
   type RateRequest,
+  type SeasonDetails,
+  type SeasonRequest,
   type Result,
   type SearchItem,
   type SearchRequest,
   type SessionState,
+  type ShowProgress,
   type TitleRequest,
   type TitleStates,
   type TmdbFailure,
@@ -39,6 +43,8 @@ import {
   parseListRequest,
   parseMarkRequest,
   parsePersonRequest,
+  parseProgressRequest,
+  parseSeasonRequest,
   parseRateRequest,
   parseSearchRequest,
   parseTitleRequest,
@@ -73,6 +79,7 @@ export interface IpcServices {
     search(request: SearchRequest): Promise<Paged<SearchItem>>;
     details(request: DetailsRequest): Promise<MediaDetails>;
     person(request: PersonRequest): Promise<PersonDetails>;
+    season(request: SeasonRequest): Promise<SeasonDetails>;
     discover(request: DiscoverRequest): Promise<Paged<MediaItem>>;
     discoverFilters(request: DiscoverFiltersRequest): Promise<DiscoverFilters>;
     list(request: ListRequest): Promise<MediaItem[]>;
@@ -91,6 +98,8 @@ export interface IpcServices {
     state(request: TitleRequest): Promise<boolean>;
     mark(request: WatchedRequest): Promise<null>;
     list(request: WatchedListRequest): Promise<Paged<MediaItem>>;
+    progress(): Promise<ShowProgress[]>;
+    saveProgress(request: ProgressRequest): Promise<null>;
   };
   credentials: {
     status(): CredentialStatus;
@@ -192,6 +201,14 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
       : invalidRequest();
   });
 
+  ipc.handle(IPC.tmdbSeason, (event, value) => {
+    const request = isTrusted(event) ? parseSeasonRequest(value) : null;
+
+    return request
+      ? toResult(() => services.tmdb.season(request))
+      : invalidRequest();
+  });
+
   ipc.handle(IPC.tmdbDiscover, (event, value) => {
     const request = isTrusted(event) ? parseDiscoverRequest(value) : null;
 
@@ -281,6 +298,20 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
 
     return request
       ? toResult(() => services.watched.list(request))
+      : invalidRequest();
+  });
+
+  ipc.handle(IPC.watchedProgress, (event) =>
+    isTrusted(event)
+      ? toResult(() => services.watched.progress())
+      : invalidRequest(),
+  );
+
+  ipc.handle(IPC.watchedSaveProgress, (event, value) => {
+    const request = isTrusted(event) ? parseProgressRequest(value) : null;
+
+    return request
+      ? toResult(() => services.watched.saveProgress(request))
       : invalidRequest();
   });
 

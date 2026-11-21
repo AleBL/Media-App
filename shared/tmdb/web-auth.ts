@@ -41,6 +41,7 @@ const COOKIES = {
   /** The v4 account id, which the lists need. */
   accountObject: 'media-app-account',
   watchedList: 'media-app-watched-list',
+  episodesList: 'media-app-episodes-list',
   /** Why the last login failed, until the app reads it. */
   failure: 'media-app-login-failure',
 } as const;
@@ -187,22 +188,29 @@ export function clearAccess(http: HttpContext) {
   http.deleteCookie('access');
   http.deleteCookie('accountObject');
   http.deleteCookie('watchedList');
+  http.deleteCookie('episodesList');
 }
 
 /** Not a secret: TMDB only shows the list to its owner. */
-export function watchedListCache(http: HttpContext) {
+function listIdCookie(http: HttpContext, name: 'watchedList' | 'episodesList') {
   return {
     get: () => {
-      const id = Number(http.getCookie('watchedList'));
+      const id = Number(http.getCookie(name));
 
       return Number.isInteger(id) && id > 0 ? id : undefined;
     },
     set: (id: number | undefined) =>
       id === undefined
-        ? http.deleteCookie('watchedList')
-        : http.setCookie('watchedList', String(id), SESSION_SECONDS),
+        ? http.deleteCookie(name)
+        : http.setCookie(name, String(id), SESSION_SECONDS),
   };
 }
+
+export const watchedListCache = (http: HttpContext) =>
+  listIdCookie(http, 'watchedList');
+
+export const episodesListCache = (http: HttpContext) =>
+  listIdCookie(http, 'episodesList');
 
 /**
  * TMDB sign-in for the web version. The site keeps the session in an

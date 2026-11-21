@@ -9,9 +9,11 @@
   import CardGrid from '@/components/Cards/CardGrid.vue';
   import CardGridSkeleton from '@/components/Cards/CardGridSkeleton.vue';
   import CardViewPicker from '@/components/Cards/CardViewPicker.vue';
+  import ContinueCard from '@/components/Home/ContinueCard.vue';
   import { useGenresStore } from '@/stores/genres';
   import { useSessionStore } from '@/stores/session';
   import { useWatchedStore } from '@/stores/watched';
+  import { useInProgress } from '@/util/showProgress';
 
   const { t, locale } = useI18n();
   const route = useRoute();
@@ -19,6 +21,7 @@
   const watched = useWatchedStore();
   const genres = useGenresStore();
   const session = useSessionStore();
+  const progress = useInProgress();
 
   const view = computed(() => watched.view);
   const hasMore = computed(
@@ -59,6 +62,25 @@
       <h1 class="mb-3 text-2xl">{{ t('lists.watched') }}</h1>
     </div>
 
+    <!-- The shows the user is watching, each with its next episode; below,
+         what was watched in full. -->
+    <section
+      v-if="!watched.needsSignIn && progress.list.length"
+      class="page mb-8"
+      aria-labelledby="in-progress-title"
+    >
+      <h2 id="in-progress-title" class="text-xl font-semibold">
+        {{ t('lists.inProgress') }}
+      </h2>
+      <ul
+        class="m-0 mt-3 grid list-none grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-x-4 gap-y-6 p-0"
+      >
+        <li v-for="entry in progress.list" :key="entry.show.id">
+          <ContinueCard :entry="entry" />
+        </li>
+      </ul>
+    </section>
+
     <p v-if="watched.needsSignIn" class="p-5 text-center">
       {{ t('lists.signInAgain') }}
       <RouterLink :to="{ name: 'account' }">
@@ -81,8 +103,11 @@
       <!-- Asked again, in another language: the list stays readable. -->
       <AppLoadingBar v-if="view.loading" class="my-1" />
 
-      <div class="page flex justify-end pt-2">
-        <CardViewPicker name="watched-view" />
+      <div class="page flex items-end justify-between gap-3 pt-2">
+        <h2 v-if="progress.list.length" class="text-xl font-semibold">
+          {{ t('lists.finished') }}
+        </h2>
+        <CardViewPicker name="watched-view" class="ml-auto" />
       </div>
 
       <CardGrid :items="view.results" show-type />
@@ -95,12 +120,18 @@
       />
     </div>
 
-    <AppState v-else-if="view.loaded && !view.loading" icon="pi pi-eye">
+    <AppState
+      v-else-if="view.loaded && !view.loading && !progress.list.length"
+      icon="pi pi-eye"
+    >
       {{ t('lists.emptyWatched') }}
     </AppState>
 
     <!-- The shape of the list until it comes; the text is for screen
          readers. -->
-    <CardGridSkeleton v-else :label="t('lists.loading')" />
+    <CardGridSkeleton
+      v-else-if="!view.loaded || view.loading"
+      :label="t('lists.loading')"
+    />
   </div>
 </template>

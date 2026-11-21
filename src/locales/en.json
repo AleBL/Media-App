@@ -88,7 +88,10 @@
     "addRowHint": "To add a row, choose its filters in Explore and press “On the home page”.",
     "openExplore": "Open Explore",
     "noRows": "No rows here",
-    "noRowsHint": "Add rows from Explore, or restore the default ones."
+    "noRowsHint": "Add rows from Explore, or restore the default ones.",
+    "continueWatching": "Continue watching",
+    "continuePrevious": "Previous shows",
+    "continueNext": "More shows"
   },
 
   "cards": {
@@ -271,7 +274,53 @@
     "allOptions": "See the links on TMDB",
     "cast": "Cast",
     "castPrevious": "Previous people of the cast",
-    "castNext": "More people of the cast"
+    "castNext": "More people of the cast",
+    "seasonsTitle": "Seasons",
+    "seasonsPrevious": "Previous seasons",
+    "seasonsNext": "More seasons",
+    "nextEpisode": "Next episode: {episode}, {date}",
+    "nextEpisodeSoon": "Next episode: {episode}, date to be announced",
+    "episodesWatched": "{watched} of {out} episodes watched"
+  },
+
+  "season": {
+    "number": "Season {n}",
+    "notFound": "This season was not found on TMDB.",
+    "error": "The season could not be loaded. Check your connection and try again.",
+    "toShow": "Go to the show",
+    "backTo": "Back to {show}",
+    "episodes": "Episodes",
+    "noEpisodes": "TMDB has no episodes of this season yet.",
+    "episode": "Episode {n}",
+    "code": "S{season} E{episode}",
+    "finale": "Season finale",
+    "premieres": "Airs {date}",
+    "rating": "Rating",
+    "overviewInEnglish": "TMDB has this synopsis only in English.",
+    "previous": "Previous season",
+    "next": "Next season",
+    "choose": "Season",
+    "seasonsOf": "Seasons of {show}",
+    "progress": "{watched} of {out} watched",
+    "markSeason": "Mark season watched",
+    "unmarkSeason": "Unmark season",
+    "markedSeason": "Episodes of {season} marked as watched.",
+    "unmarkedSeason": "Episodes of {season} unmarked.",
+    "watched": "Watched",
+    "watchedEpisode": "Watched: {episode}",
+    "upTo": "Up to here",
+    "upToLabel": "Mark every episode up to {episode} as watched",
+    "markedUpTo": "Episodes up to {episode} marked as watched.",
+    "signInToMark": "Sign in to mark the episodes you watched",
+    "progressFailed": "The episodes you watched could not be loaded."
+  },
+
+  "continue": {
+    "new": "New",
+    "mark": "Mark {episode} watched",
+    "markLabel": "Mark {episode} of {show} as watched",
+    "marked": "{episode} of {show} marked as watched.",
+    "loadFailed": "Your shows in progress could not be loaded."
   },
 
   "person": {
@@ -347,7 +396,9 @@
     "addedFavorite": "Added to Favorites.",
     "removedFavorite": "Removed from Favorites.",
     "markedWatched": "Marked as watched.",
-    "unmarkedWatched": "No longer marked as watched."
+    "unmarkedWatched": "No longer marked as watched.",
+    "inProgress": "In progress",
+    "finished": "Finished"
   },
 
   "account": {

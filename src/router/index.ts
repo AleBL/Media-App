@@ -17,6 +17,7 @@ declare module 'vue-router' {
 import DetailsPage from '@/views/DetailsPage.vue';
 import DiscoverPage from '@/views/DiscoverPage.vue';
 import PersonPage from '@/views/PersonPage.vue';
+import SeasonPage from '@/views/SeasonPage.vue';
 import SearchPage from '@/views/Search/SearchPage.vue';
 import SettingsPage from '@/views/SettingsPage.vue';
 import WatchedPage from '@/views/WatchedPage.vue';
@@ -25,7 +26,9 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'entry',
-    redirect: 'home',
+    // By its name: a bare 'home' is a path relative to the page the user
+    // is on, which made /movie/603 go to /movie/home.
+    redirect: { name: 'home' },
   },
   {
     path: '/home',
@@ -93,6 +96,16 @@ const routes: RouteRecordRaw[] = [
     props: (route) => ({
       type: route.params.type as MediaType,
       id: Number(route.params.id),
+    }),
+  },
+  {
+    // A season of a tv show with its episodes, such as /tv/1396/season/2.
+    path: '/tv/:id(\\d+)/season/:season(\\d+)',
+    name: 'season',
+    component: SeasonPage,
+    props: (route) => ({
+      id: Number(route.params.id),
+      season: Number(route.params.season),
     }),
   },
   {

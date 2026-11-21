@@ -3,6 +3,7 @@
   import { useRoute, useRouter } from 'vue-router';
   import { storeToRefs } from 'pinia';
   import type { Episode, WatchedEpisodes } from '@shared/api';
+  import SeasonSwitcher from '@/components/Details/SeasonSwitcher.vue';
   import AppButton from '@/components/ui/AppButton.vue';
   import AppImage from '@/components/ui/AppImage.vue';
   import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
@@ -19,7 +20,6 @@
   import { today, useWatchedStore } from '@/stores/watched';
   import { accessProblem } from '@/util/access';
   import { posterUrl, stillUrl } from '@/util/images';
-  import { seasonPage } from '@/util/media';
   import { airedCounts, upTo, watchedOf, withEpisodes } from '@/util/progress';
   import { useShowProgress } from '@/util/showProgress';
 
@@ -101,26 +101,8 @@
     }
   }
 
-  // The seasons of the show in its order, the specials last, for the one
-  // before and the one after.
+  // The seasons of the show in its order, the specials last.
   const seasons = computed(() => showDetails.value?.seasonList ?? []);
-  const position = computed(() =>
-    seasons.value.findIndex((one) => one.number === props.season),
-  );
-  const previousSeason = computed(() =>
-    position.value > 0 ? seasons.value[position.value - 1] : null,
-  );
-  const nextSeason = computed(() =>
-    position.value !== -1 && position.value < seasons.value.length - 1
-      ? seasons.value[position.value + 1]
-      : null,
-  );
-
-  function choose(event: Event) {
-    const number = Number((event.target as HTMLSelectElement).value);
-
-    void router.push(seasonPage(props.id, number));
-  }
 
   // A day as TMDB sends it (YYYY-MM-DD), written the way of the language,
   // read as UTC on both ends so no timezone moves it to another day.
@@ -479,47 +461,14 @@
               </RouterLink>
             </p>
 
-            <!-- The other seasons of the show: the one before, the one
-                 after, and any of them. -->
-            <nav
+            <SeasonSwitcher
               v-if="seasons.length > 1"
-              class="mt-6 flex flex-wrap items-center gap-2"
-              :aria-label="t('season.seasonsOf', { show: showDetails?.title })"
-            >
-              <AppButton
-                v-if="previousSeason"
-                severity="secondary"
-                size="sm"
-                icon="pi pi-chevron-left"
-                :label="t('season.previous')"
-                :to="seasonPage(id, previousSeason.number)"
-              />
-              <label for="season-choice" class="sr-only">
-                {{ t('season.choose') }}
-              </label>
-              <select
-                id="season-choice"
-                class="field h-8 py-0"
-                :value="props.season"
-                @change="choose"
-              >
-                <option
-                  v-for="one in seasons"
-                  :key="one.number"
-                  :value="one.number"
-                >
-                  {{ one.name || t('season.number', { n: one.number }) }}
-                </option>
-              </select>
-              <AppButton
-                v-if="nextSeason"
-                severity="secondary"
-                size="sm"
-                icon="pi pi-chevron-right"
-                :label="t('season.next')"
-                :to="seasonPage(id, nextSeason.number)"
-              />
-            </nav>
+              class="mt-6"
+              :show-id="id"
+              :season="season"
+              :seasons="seasons"
+              :show="showDetails?.title"
+            />
           </div>
         </div>
       </div>

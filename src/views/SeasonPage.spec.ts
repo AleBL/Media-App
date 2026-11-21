@@ -116,25 +116,17 @@ describe('SeasonPage', () => {
     expect(episodes()[0].text()).toContain('Airs January 15, 2027');
   });
 
-  it('leads to the season before and after, the specials last, and to any other', async () => {
+  // The menu of every season is in SeasonSwitcher.spec.
+  it('leads to the season before and after, the specials last', async () => {
     await open(2);
 
     expect(link('Previous season')!.attributes('href')).toBe(
       '/tv/1396/season/1',
     );
     expect(link('Next season')!.attributes('href')).toBe('/tv/1396/season/0');
-    const choice = wrapper.get('select');
-    expect(choice.findAll('option').map((option) => option.text())).toEqual([
-      'Season 1',
-      'Season 2',
-      'Specials',
-    ]);
-    expect((choice.element as HTMLSelectElement).value).toBe('2');
-
-    await choice.setValue('0');
-    await flushPromises();
-
-    expect(router.currentRoute.value.path).toBe('/tv/1396/season/0');
+    expect(
+      wrapper.get('nav[aria-label="Seasons of Breaking Bad"] button').text(),
+    ).toBe('Season 2');
   });
 
   it('asks for its show only when it is not there yet', async () => {

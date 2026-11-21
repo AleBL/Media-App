@@ -50,7 +50,9 @@ test.describe('seasons of a show', () => {
     await expect(page).toHaveURL(/#\/tv\/9001\/season\/2$/);
     await expect(heading(page)).toHaveText('Season 2 [en]');
 
-    await page.getByLabel('Season', { exact: true }).selectOption('0');
+    // Any season, from the menu of the current one.
+    await page.getByRole('button', { name: 'Season 2 [en]' }).click();
+    await page.getByRole('menuitemradio', { name: /^Specials \[en\]/ }).click();
     await expect(page).toHaveURL(/#\/tv\/9001\/season\/0$/);
 
     await page.getByRole('button', { name: 'Back to Show 1 [en]' }).click();

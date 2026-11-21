@@ -26,7 +26,9 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'entry',
-    redirect: 'home',
+    // By its name: a bare 'home' is a path relative to the page the user
+    // is on, which made /movie/603 go to /movie/home.
+    redirect: { name: 'home' },
   },
   {
     path: '/home',

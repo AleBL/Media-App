@@ -246,6 +246,62 @@ describe('web account', () => {
     );
   });
 
+  describe('recommendations', () => {
+    const USER = 'u.s.r';
+    const OBJECT = '5f0c4a1b2c3d4e5f6a7b8c9d';
+    const v4 = {
+      '__Host-media-app-access': USER,
+      '__Host-media-app-account': OBJECT,
+    };
+    const RECOMMENDED = `GET /4/account/${OBJECT}/tv/recommendations`;
+    const QUERY = 'resource=recommendations&type=tv&language=pt-BR';
+
+    it('reads what TMDB recommends to the account, with the access token of the user', async () => {
+      const fetch = tmdbWith({
+        [RECOMMENDED]: [
+          200,
+          {
+            page: 1,
+            results: [{ id: 1396, media_type: 'tv', name: 'Breaking Bad' }],
+            total_pages: 1,
+            total_results: 1,
+          },
+        ],
+      });
+      const { body } = await visit(QUERY, { cookies: v4, fetch });
+
+      expect(body).toMatchObject({
+        ok: true,
+        data: [{ id: 1396, media_type: 'tv', name: 'Breaking Bad' }],
+      });
+      expect(asked(fetch)).toEqual([RECOMMENDED]);
+      expect(new URL(fetch.mock.calls[0][0]).searchParams.get('language')).toBe(
+        'pt-BR',
+      );
+      expect(fetch.mock.calls[0][1].headers.Authorization).toBe(
+        `Bearer ${USER}`,
+      );
+    });
+
+    it('asks to sign in again without the access token of the user', async () => {
+      const { response, body, fetch } = await visit(QUERY);
+
+      expect(response.status).toBe(403);
+      expect(body).toEqual({ ok: false, error: { code: 'sign-in-again' } });
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('refuses a type that is not one, without asking TMDB', async () => {
+      const { response, fetch } = await visit(
+        'resource=recommendations&type=person&language=en',
+        { cookies: v4 },
+      );
+
+      expect(response.status).toBe(400);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  });
+
   describe('watched titles', () => {
     const USER = 'u.s.r';
     const OBJECT = '5f0c4a1b2c3d4e5f6a7b8c9d';

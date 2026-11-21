@@ -29,6 +29,7 @@ import {
   type SeasonRequest,
   type SeasonSummary,
   type RateRequest,
+  type RecommendationsRequest,
   type SearchItem,
   type SearchRequest,
   type TitleRequest,
@@ -1569,6 +1570,23 @@ export function createTmdbClient(options: TmdbClientOptions) {
     },
 
     deleteSession,
+
+    /**
+     * The first page of what TMDB recommends to the account, with the
+     * user's token. TMDB does not say how it chooses them.
+     */
+    async recommendations(
+      accessToken: string,
+      accountObjectId: string,
+      { type, language }: RecommendationsRequest,
+    ): Promise<MediaItem[]> {
+      const body = await request<SearchBody>(
+        `/account/${encodeURIComponent(accountObjectId)}/${type}/recommendations`,
+        { params: { page: 1, language }, v4: true, userToken: accessToken },
+      );
+
+      return (body.results ?? []).flatMap((item) => toTitles(item, type));
+    },
 
     async userLists(
       accessToken: string,

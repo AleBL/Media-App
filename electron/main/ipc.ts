@@ -17,6 +17,7 @@ import {
   type PersonRequest,
   type ProgressRequest,
   type RateRequest,
+  type RecommendationsRequest,
   type SeasonDetails,
   type SeasonRequest,
   type Result,
@@ -46,6 +47,7 @@ import {
   parseProgressRequest,
   parseSeasonRequest,
   parseRateRequest,
+  parseRecommendationsRequest,
   parseSearchRequest,
   parseTitleRequest,
   parseWatchedListRequest,
@@ -92,6 +94,8 @@ export interface IpcServices {
     mark(request: MarkRequest): Promise<null>;
     rate(request: RateRequest): Promise<null>;
     list(request: AccountListRequest): Promise<Paged<MediaItem>>;
+    /** Also needs the access token of the user: `sign-in-again`. */
+    recommendations(request: RecommendationsRequest): Promise<MediaItem[]>;
   };
   /** With the access token of the user; `sign-in-again` without it. */
   watched: {
@@ -274,6 +278,16 @@ export function registerIpc(ipc: IpcRegistry, services: IpcServices) {
 
     return request
       ? toResult(() => services.account.list(request))
+      : invalidRequest();
+  });
+
+  ipc.handle(IPC.accountRecommendations, (event, value) => {
+    const request = isTrusted(event)
+      ? parseRecommendationsRequest(value)
+      : null;
+
+    return request
+      ? toResult(() => services.account.recommendations(request))
       : invalidRequest();
   });
 

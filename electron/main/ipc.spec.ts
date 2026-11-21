@@ -125,6 +125,9 @@ describe('ipc handlers', () => {
           totalPages: 1,
           totalResults: 1,
         })),
+        recommendations: vi.fn(async () => [
+          { id: 604, media_type: 'movie' as const },
+        ]),
       },
       watched: {
         state: vi.fn(async () => true),
@@ -389,6 +392,43 @@ describe('ipc handlers', () => {
       );
     });
 
+    it('reads what TMDB recommends to the account', async () => {
+      const request = { type: 'tv', language: 'pt-BR' };
+
+      await expect(
+        call(IPC.accountRecommendations, fromApp, request),
+      ).resolves.toEqual({
+        ok: true,
+        data: [{ id: 604, media_type: 'movie' }],
+      });
+      expect(services.account.recommendations).toHaveBeenCalledWith(request);
+    });
+
+    it('says when the recommendations need signing in again', async () => {
+      vi.mocked(services.account.recommendations).mockRejectedValue(
+        new TmdbError('sign-in-again'),
+      );
+
+      await expect(
+        call(IPC.accountRecommendations, fromApp, {
+          type: 'movie',
+          language: 'en',
+        }),
+      ).resolves.toMatchObject({ ok: false, error: { code: 'sign-in-again' } });
+    });
+
+    it.each([
+      [IPC.accountRecommendations, { type: 'person', language: 'en' }],
+      [IPC.accountRecommendations, { type: 'movie', language: 'english' }],
+      [IPC.accountRecommendations, null],
+    ])('rejects a malformed request on %s', async (channel, request) => {
+      await expect(call(channel, fromApp, request)).resolves.toEqual({
+        ok: false,
+        error: { code: 'invalid-request' },
+      });
+      expect(services.account.recommendations).not.toHaveBeenCalled();
+    });
+
     it.each([
       [IPC.accountStates, { ...title, id: -1 }],
       [IPC.accountMark, { ...mark, value: 'yes' }],
@@ -415,6 +455,7 @@ describe('ipc handlers', () => {
         [IPC.accountMark, mark],
         [IPC.accountRate, rate],
         [IPC.accountList, page],
+        [IPC.accountRecommendations, { type: 'movie', language: 'en' }],
       ] as const) {
         await expect(call(channel, fromElsewhere, request)).resolves.toEqual({
           ok: false,
@@ -423,6 +464,7 @@ describe('ipc handlers', () => {
       }
       expect(services.account.mark).not.toHaveBeenCalled();
       expect(services.account.rate).not.toHaveBeenCalled();
+      expect(services.account.recommendations).not.toHaveBeenCalled();
     });
   });
 

@@ -387,6 +387,7 @@ describe('filters of a discovery', () => {
           { id: 18, name: 'Drama' },
           { id: 18, name: 'Drama again' },
           { name: 'Without an id' },
+          { id: 10762, name: 'Kids' },
         ],
       },
       '/watch/providers/tv': {
@@ -417,7 +418,10 @@ describe('filters of a discovery', () => {
     await expect(
       client.discoverFilters({ type: 'tv', language: 'pt-BR', region: 'BR' }),
     ).resolves.toEqual({
-      genres: [{ id: 18, name: 'Drama' }],
+      genres: [
+        { id: 18, name: 'Drama' },
+        { id: 10762, name: 'Infantil' },
+      ],
       providers: [
         { id: 8, name: 'Netflix', logoPath: '/8.png' },
         { id: 307, name: 'Globoplay', logoPath: '/307.png' },
@@ -662,7 +666,8 @@ describe('genres', () => {
     await expect(client.genres('pt-BR')).resolves.toEqual([
       { id: 28, name: 'Ação' },
       { id: 18, name: 'Drama' },
-      { id: 10759, name: 'Action & Adventure' },
+      // TMDB has it only in English
+      { id: 10759, name: 'Ação e aventura' },
     ]);
     expect(requestedUrl(0).pathname).toBe('/3/genre/movie/list');
     expect(requestedUrl(1).pathname).toBe('/3/genre/tv/list');
@@ -969,6 +974,30 @@ describe('details', () => {
     expect(requestedUrl().searchParams.get('include_video_language')).toBe(
       'en,en-US,null',
     );
+  });
+
+  it('names in the language the genres of a show TMDB left in English', async () => {
+    const { client } = setup([
+      answer(200, {
+        ...show,
+        genres: [
+          { id: 18, name: 'Drama' },
+          { id: 10765, name: 'Sci-Fi & Fantasy' },
+        ],
+      }),
+    ]);
+
+    const details = await client.details({
+      type: 'tv',
+      id: 1396,
+      language: 'pt-BR',
+      region: 'BR',
+    });
+
+    expect(details.genres).toEqual([
+      { id: 18, name: 'Drama' },
+      { id: 10765, name: 'Ficção científica e fantasia' },
+    ]);
   });
 
   it('lists the seasons of a show in order, the specials last, and its episodes next and last', async () => {

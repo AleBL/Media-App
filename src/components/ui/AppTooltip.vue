@@ -27,10 +27,13 @@
         <slot />
       </TooltipTrigger>
       <TooltipPortal>
+        <!-- In lines when long, 8px or more from the edges of the screen:
+             one line on a phone went past them. -->
         <TooltipContent
           :side="side"
           :side-offset="6"
-          class="z-50 rounded-md bg-surface-900 px-2 py-1 text-xs font-medium text-white shadow-md dark:bg-surface-0 dark:text-surface-900"
+          :collision-padding="8"
+          class="z-50 max-w-[min(20rem,calc(100vw-1rem))] text-balance rounded-md bg-surface-900 px-2 py-1 text-xs font-medium text-white shadow-md dark:bg-surface-0 dark:text-surface-900"
         >
           {{ text }}
         </TooltipContent>

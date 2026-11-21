@@ -328,7 +328,12 @@ describe('DetailsPage', () => {
       ['Season 2', '/tv/1396/season/2'],
       ['Specials', '/tv/1396/season/0'],
     ]);
-    expect(seasons.findAll('li')[0].text()).toContain('2008 · 7 episodes');
+    expect(
+      seasons
+        .findAll('li')[0]
+        .findAll('li')
+        .map((fact) => fact.text()),
+    ).toEqual(['2008', '7 episodes']);
     // ended: no next episode
     expect(seasons.text()).not.toContain('Next episode');
   });
@@ -374,7 +379,11 @@ describe('DetailsPage', () => {
     // the specials apart
     expect(seasons.text()).toContain('9 of 20 episodes watched');
     expect(
-      seasons.findAll('li').map((season) => season.text().split('episodes')[1]),
+      seasons
+        .findAll('li')
+        // each season, not each of its facts
+        .filter((season) => season.find('a').exists())
+        .map((season) => season.text().split('episodes')[1]),
     ).toEqual(['7 of 7 watched', '2 of 13 watched', '1 of 9 watched']);
   });
 

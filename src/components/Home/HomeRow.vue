@@ -4,6 +4,7 @@
   import type { MediaType } from '@shared/api';
   import { toDiscovery } from '@/components/Discover/query';
   import AppButton from '@/components/ui/AppButton.vue';
+  import AppFacts from '@/components/ui/AppFacts.vue';
   import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
   import { useGenresStore } from '@/stores/genres';
   import { useHomeStore, type RowRequest } from '@/stores/home';
@@ -122,12 +123,11 @@
     <div class="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
       <div class="min-w-0">
         <h2 :id="headingId" class="text-xl font-semibold">{{ title }}</h2>
-        <p
-          v-if="details"
+        <AppFacts
+          v-if="details.length"
+          :facts="details"
           class="mt-0.5 text-sm text-surface-500 dark:text-surface-400"
-        >
-          {{ details }}
-        </p>
+        />
       </div>
       <RouterLink
         v-if="seeAll"

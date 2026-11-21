@@ -8,6 +8,7 @@
   import ImdbLink from '@/components/Details/ImdbLink.vue';
   import TrailerDialog from '@/components/Details/TrailerDialog.vue';
   import AppButton from '@/components/ui/AppButton.vue';
+  import AppFacts from '@/components/ui/AppFacts.vue';
   import AppImage from '@/components/ui/AppImage.vue';
   import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
   import AppScrollRow from '@/components/ui/AppScrollRow.vue';
@@ -376,25 +377,18 @@
             {{ details.tagline }}
           </p>
 
-          <ul
+          <AppFacts
             v-if="facts.length || details.certification"
-            class="mt-4 flex list-none flex-wrap items-center gap-x-3 gap-y-1 p-0 text-sm text-surface-600 dark:text-surface-300"
+            :facts="facts"
+            class="mt-4 gap-y-1 text-sm text-surface-600 [--fact-gap:1.75rem] dark:text-surface-300"
           >
-            <li v-if="details.certification" class="flex">
+            <li v-if="details.certification">
               <AgeRating
                 :certification="details.certification"
                 :region="region"
               />
             </li>
-            <li
-              v-for="(fact, index) in facts"
-              :key="fact"
-              class="flex items-center gap-3"
-            >
-              <span v-if="index > 0" aria-hidden="true">·</span>
-              {{ fact }}
-            </li>
-          </ul>
+          </AppFacts>
 
           <p v-if="rating" class="mt-4 flex items-center gap-2">
             <i class="pi pi-star-fill text-yellow-500" aria-hidden="true" />
@@ -536,16 +530,15 @@
                 {{ season.name || t('season.number', { n: season.number }) }}
               </RouterLink>
             </p>
-            <p class="text-xs text-surface-500 dark:text-surface-400">
-              {{
+            <AppFacts
+              :facts="
                 [
                   season.airDate?.slice(0, 4),
                   t('details.episodes', season.episodeCount),
-                ]
-                  .filter(Boolean)
-                  .join(' · ')
-              }}
-            </p>
+                ].filter((fact): fact is string => !!fact)
+              "
+              class="text-xs text-surface-500 dark:text-surface-400"
+            />
             <template v-if="seasonProgress[season.number]">
               <div
                 class="mt-1.5 h-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"

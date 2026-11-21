@@ -19,7 +19,7 @@ describe('the text of a row of the home page', () => {
     expect(rowTitle({ list: 'now-playing' }, t, names)).toBe(
       'Now playing in theaters',
     );
-    expect(rowDetails({ list: 'now-playing' }, t, 'en')).toBe('');
+    expect(rowDetails({ list: 'now-playing' }, t, 'en')).toEqual([]);
   });
 
   it('names a choice by its type, its order and its genres', () => {
@@ -53,15 +53,25 @@ describe('the text of a row of the home page', () => {
         t,
         'en',
       ),
-    ).toBe('1990s · Rating 7+ · Rated up to 14 · Korean · On my services');
-    expect(rowDetails({ query: { from: '2005', to: '2005' } }, t, 'en')).toBe(
-      '2005',
-    );
-    expect(rowDetails({ query: { from: '1995', to: '2004' } }, t, 'en')).toBe(
-      '1995 to 2004',
-    );
-    expect(rowDetails({ query: { from: '2015' } }, t, 'en')).toBe('Since 2015');
-    expect(rowDetails({ query: { to: '1980' } }, t, 'en')).toBe('Until 1980');
+    ).toEqual([
+      '1990s',
+      'Rating 7+',
+      'Rated up to 14',
+      'Korean',
+      'On my services',
+    ]);
+    expect(
+      rowDetails({ query: { from: '2005', to: '2005' } }, t, 'en'),
+    ).toEqual(['2005']);
+    expect(
+      rowDetails({ query: { from: '1995', to: '2004' } }, t, 'en'),
+    ).toEqual(['1995 to 2004']);
+    expect(rowDetails({ query: { from: '2015' } }, t, 'en')).toEqual([
+      'Since 2015',
+    ]);
+    expect(rowDetails({ query: { to: '1980' } }, t, 'en')).toEqual([
+      'Until 1980',
+    ]);
   });
 
   it('speaks the language of the app', () => {
@@ -72,6 +82,6 @@ describe('the text of a row of the home page', () => {
     );
     expect(
       rowDetails({ query: { original: 'ko', mine: '1' } }, t, 'pt-BR'),
-    ).toBe('Coreano · Nos meus serviços');
+    ).toEqual(['Coreano', 'Nos meus serviços']);
   });
 });

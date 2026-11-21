@@ -337,7 +337,12 @@ describe('HomePage', () => {
       page: 1,
     });
     const row = section('Popular TV shows: Drama');
-    expect(row.text()).toContain('Rating 7+ · On my services');
+    expect(
+      row
+        .get('h2 + ul')
+        .findAll('li')
+        .map((fact) => fact.text()),
+    ).toEqual(['Rating 7+', 'On my services']);
     expect(row.text()).toContain('Discovered show');
   });
 

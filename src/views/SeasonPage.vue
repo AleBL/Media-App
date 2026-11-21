@@ -5,6 +5,7 @@
   import type { Episode, WatchedEpisodes } from '@shared/api';
   import SeasonSwitcher from '@/components/Details/SeasonSwitcher.vue';
   import AppButton from '@/components/ui/AppButton.vue';
+  import AppFacts from '@/components/ui/AppFacts.vue';
   import AppImage from '@/components/ui/AppImage.vue';
   import AppLoadingBar from '@/components/ui/AppLoadingBar.vue';
   import AppSkeleton from '@/components/ui/AppSkeleton.vue';
@@ -376,12 +377,11 @@
             <h1 id="season-title" class="mt-1 text-3xl font-semibold">
               {{ current.name || t('season.number', { n: current.number }) }}
             </h1>
-            <p
+            <AppFacts
               v-if="facts.length"
+              :facts="facts"
               class="mt-2 text-sm text-surface-600 dark:text-surface-300"
-            >
-              {{ facts.join(' · ') }}
-            </p>
+            />
 
             <template v-if="current.overview">
               <p

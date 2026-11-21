@@ -93,6 +93,34 @@ describe('genre cache', () => {
     await expect(cache.get('en')).rejects.toThrow('offline');
   });
 
+  it('asks again for a list kept before the app named the genres TMDB has only in English', async () => {
+    const before = { savedAt: now, genres: [{ id: 10762, name: 'Kids' }] };
+    await writeFile(
+      join(directory, 'genres-pt-BR.json'),
+      JSON.stringify(before),
+    );
+    const { cache, fetch } = setup(async () => [
+      { id: 10762, name: 'Infantil' },
+    ]);
+
+    expect(await cache.get('pt-BR')).toEqual([{ id: 10762, name: 'Infantil' }]);
+    expect(await cache.get('pt-BR')).toEqual([{ id: 10762, name: 'Infantil' }]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('still answers with a list kept before, offline', async () => {
+    const before = { savedAt: now, genres: ACAO };
+    await writeFile(
+      join(directory, 'genres-pt-BR.json'),
+      JSON.stringify(before),
+    );
+    const { cache } = setup(async () => {
+      throw new Error('offline');
+    });
+
+    expect(await cache.get('pt-BR')).toEqual(ACAO);
+  });
+
   it('ignores a damaged cache file', async () => {
     await writeFile(join(directory, 'genres-en.json'), '{ not json');
     const { cache, fetch } = setup(async () => ACTION);

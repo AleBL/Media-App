@@ -37,6 +37,7 @@ import {
   type WatchOptions,
   type WatchProvider,
 } from '../api';
+import { genreIn } from './genre-names';
 
 export const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
@@ -549,8 +550,8 @@ function toCertification(
   return undefined;
 }
 
-/** The genres with an id and a name, each once. */
-function toGenres(genres: Partial<Genre>[]): Genre[] {
+/** The genres with an id and a name, each once, named in the language. */
+function toGenres(genres: Partial<Genre>[], language: string): Genre[] {
   const byId = new Map<number, Genre>();
 
   for (const genre of genres) {
@@ -560,7 +561,7 @@ function toGenres(genres: Partial<Genre>[]): Genre[] {
       genre.name &&
       !byId.has(genre.id)
     ) {
-      byId.set(genre.id, { id: genre.id, name: genre.name });
+      byId.set(genre.id, genreIn({ id: genre.id, name: genre.name }, language));
     }
   }
 
@@ -649,7 +650,7 @@ function toDetails(body: DetailsBody, request: DetailsRequest): MediaDetails {
     episodes: movie ? undefined : positiveNumber(body.number_of_episodes),
     genres: objectArray(body.genres).flatMap((genre) =>
       typeof genre.id === 'number' && nonEmptyText(genre.name)
-        ? [{ id: genre.id, name: genre.name as string }]
+        ? [genreIn({ id: genre.id, name: genre.name as string }, language)]
         : [],
     ),
     posterPath: nonEmptyText(body.poster_path),
@@ -1220,7 +1221,10 @@ export function createTmdbClient(options: TmdbClientOptions) {
         request<GenreBody>('/genre/tv/list', { params: { language } }),
       ]);
 
-      return toGenres([...(movie.genres ?? []), ...(tv.genres ?? [])]);
+      return toGenres(
+        [...(movie.genres ?? []), ...(tv.genres ?? [])],
+        language,
+      );
     },
 
     /**
@@ -1310,7 +1314,7 @@ export function createTmdbClient(options: TmdbClientOptions) {
       ]);
 
       return {
-        genres: toGenres(genres.genres ?? []),
+        genres: toGenres(genres.genres ?? [], language),
         providers: toRegionProviders(providers.results, region),
         ageRatings: toAgeRatings(ageRatings, region),
         languages: toLanguages(languages),

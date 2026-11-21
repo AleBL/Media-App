@@ -2,6 +2,7 @@ import { GENRE_WITHOUT_TITLES } from './support/fake-tmdb';
 import {
   cards,
   chooseCountry,
+  chooseLanguage,
   expect,
   heading,
   openPage,
@@ -99,6 +100,19 @@ test.describe('explore', () => {
     await expect(page).toHaveURL(
       /#\/discover\?type=tv&from=2000&to=2009&original=ko&age=14$/,
     );
+  });
+
+  test('names in the language a genre of tv shows TMDB has only in English', async ({
+    page,
+  }) => {
+    await openPage(page, 'discover');
+    await chooseLanguage(page, 'Português (Brasil)');
+    await page.getByRole('radio', { name: 'Séries' }).check();
+
+    const filters = page.getByRole('complementary', { name: 'Filtros' });
+    await expect(
+      filters.getByRole('checkbox', { name: 'Ação e aventura' }),
+    ).toBeVisible();
   });
 
   test('keeps the services of the user, to show only what is on them', async ({

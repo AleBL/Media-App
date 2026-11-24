@@ -91,7 +91,10 @@
     "noRowsHint": "Add rows from Explore, or restore the default ones.",
     "continueWatching": "Continue watching",
     "continuePrevious": "Previous shows",
-    "continueNext": "More shows"
+    "continueNext": "More shows",
+    "forYou": "For you",
+    "forYouSource": "Recommended by TMDB for your account",
+    "forYouFailed": "Your recommendations could not be loaded."
   },
 
   "cards": {

@@ -8,6 +8,7 @@ import {
   parseMarkRequest,
   parseProgressRequest,
   parseRateRequest,
+  parseRecommendationsRequest,
   parseTitleRequest,
   parseWatchedListRequest,
   parseWatchedRequest,
@@ -47,6 +48,7 @@ function toBoolean(value: string | null) {
  *   POST ?resource=mark&list=watchlist&type=movie&id=603&value=true
  *   POST ?resource=rate&type=movie&id=603&value=8.5
  *   POST ?resource=unrate&type=movie&id=603
+ *   GET  ?resource=recommendations&type=movie&language=en
  *   GET  ?resource=watched-state&type=movie&id=603
  *   POST ?resource=watched-mark&type=movie&id=603&value=true&date=2026-11-16&language=en
  *   GET  ?resource=watched-list&page=1&language=en
@@ -158,6 +160,28 @@ export function createWebAccount(options: WebAccountOptions) {
           return http.json({
             ok: true,
             data: await tmdb.accountList(sessionId, account.id, parsed),
+          });
+        }
+
+        case 'recommendations': {
+          const parsed = parseRecommendationsRequest({
+            type: params.get('type'),
+            language: params.get('language'),
+          });
+
+          if (!parsed) {
+            return failWith('invalid-request');
+          }
+
+          const user = requireUserAccess(readAccess(http));
+
+          return http.json({
+            ok: true,
+            data: await tmdb.recommendations(
+              user.accessToken,
+              user.accountObjectId,
+              parsed,
+            ),
           });
         }
 

@@ -24,6 +24,9 @@ export const SEASON_ONE_EPISODES = 8;
 /** A genre of movies that the discovery has no titles of (Documentary). */
 export const GENRE_WITHOUT_TITLES = 99;
 
+/** The numbers of the movies and of the shows TMDB recommends to the account. */
+export const RECOMMENDED = [31, 32, 33];
+
 /** The people of the cast of every title, by id. */
 const PEOPLE: Record<number, string> = { 1: 'Ada Actor', 2: 'Bob Actor' };
 /** The trailer of every title, on YouTube. */
@@ -173,6 +176,30 @@ export async function startFakeTmdb() {
       total_pages: Math.max(1, Math.ceil(all.length / PAGE_SIZE)),
       total_results: all.length,
     });
+    // What TMDB recommends to the account: the same three of each type,
+    // whatever the account has.
+    const recommended =
+      /^\/4\/account\/([^/]+)\/(movie|tv)\/recommendations$/.exec(url.pathname);
+
+    if (recommended) {
+      if (recommended[1] !== ACCOUNT_OBJECT_ID) {
+        return notFound();
+      }
+
+      const make = recommended[2] === 'movie' ? titles.movie : titles.show;
+      const results = RECOMMENDED.map((number) => ({
+        ...make(number),
+        media_type: recommended[2],
+      }));
+
+      return send(200, {
+        page: 1,
+        results,
+        total_pages: 1,
+        total_results: results.length,
+      });
+    }
+
     const owned = /^\/4\/account\/([^/]+)\/lists$/.exec(url.pathname);
 
     if (owned) {

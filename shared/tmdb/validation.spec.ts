@@ -12,6 +12,7 @@ import {
   parsePersonRequest,
   parseProgressRequest,
   parseRateRequest,
+  parseRecommendationsRequest,
   parseRegion,
   parseSearchRequest,
   parseSeasonRequest,
@@ -59,6 +60,24 @@ describe('requests about the watched titles', () => {
     ['nothing', null],
   ])('refuses a page with %s', (_case, request) => {
     expect(parseWatchedListRequest(request)).toBeNull();
+  });
+});
+
+describe('requests of the recommendations of the account', () => {
+  it('accepts them and drops fields they do not know', () => {
+    expect(
+      parseRecommendationsRequest({ type: 'tv', language: 'pt-BR', page: 9 }),
+    ).toEqual({ type: 'tv', language: 'pt-BR' });
+  });
+
+  it.each([
+    ['a person', { type: 'person', language: 'en' }],
+    ['no type', { language: 'en' }],
+    ['a language that is not a locale', { type: 'movie', language: '../x' }],
+    ['no language', { type: 'movie' }],
+    ['nothing', null],
+  ])('refuses one with %s', (_case, request) => {
+    expect(parseRecommendationsRequest(request)).toBeNull();
   });
 });
 

@@ -1844,6 +1844,70 @@ describe('lists of the user (v4)', () => {
     expect(request.authorization).toBe(`Bearer ${USER}`);
   });
 
+  it('reads what TMDB recommends to the account, with the token of the user', async () => {
+    const { client, fetch } = setup([
+      answer(200, {
+        page: 1,
+        results: [
+          {
+            id: 1396,
+            media_type: 'tv',
+            name: 'Breaking Bad',
+            first_air_date: '2008-01-20',
+            poster_path: '/bb.jpg',
+            genre_ids: [18],
+            vote_average: 8.9,
+            overview: 'A teacher turns cook.',
+            popularity: 300,
+          },
+          { id: 31, name: 'Adult', media_type: 'tv', adult: true },
+          { name: 'no id', media_type: 'tv' },
+        ],
+        total_pages: 4,
+        total_results: 80,
+      }),
+    ]);
+
+    await expect(
+      client.recommendations(USER, 'abc/123', {
+        type: 'tv',
+        language: 'pt-BR',
+      }),
+    ).resolves.toEqual([
+      {
+        id: 1396,
+        media_type: 'tv',
+        title: undefined,
+        name: 'Breaking Bad',
+        release_date: undefined,
+        first_air_date: '2008-01-20',
+        poster_path: '/bb.jpg',
+        genre_ids: [18],
+        vote_average: 8.9,
+        overview: 'A teacher turns cook.',
+      },
+    ]);
+
+    const request = asked(fetch);
+    expect(request.url.pathname).toBe(
+      '/4/account/abc%2F123/tv/recommendations',
+    );
+    expect(request.url.searchParams.get('page')).toBe('1');
+    expect(request.url.searchParams.get('language')).toBe('pt-BR');
+    expect(request.url.searchParams.has('api_key')).toBe(false);
+    expect(request.authorization).toBe(`Bearer ${USER}`);
+  });
+
+  it('takes recommendations of a type as titles of that type', async () => {
+    const { client } = setup([
+      answer(200, { results: [{ id: 603, title: 'The Matrix' }] }),
+    ]);
+
+    await expect(
+      client.recommendations(USER, 'abc123', { type: 'movie', language: 'en' }),
+    ).resolves.toMatchObject([{ id: 603, media_type: 'movie' }]);
+  });
+
   it('makes a list, asking for it private', async () => {
     const { client, fetch } = setup([
       answer(201, { success: true, status_code: 1, id: 88 }),

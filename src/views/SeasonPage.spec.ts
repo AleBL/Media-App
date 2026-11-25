@@ -70,7 +70,12 @@ describe('SeasonPage', () => {
     });
     expect(wrapper.get('h1').text()).toBe('Season 1');
     expect(link('Breaking Bad')!.attributes('href')).toBe('/tv/1396');
-    expect(wrapper.text()).toContain('2008 · 3 episodes');
+    expect(
+      wrapper
+        .get('h1 + ul')
+        .findAll('li')
+        .map((fact) => fact.text()),
+    ).toEqual(['2008', '3 episodes']);
     expect(wrapper.text()).toContain(
       'High school chemistry teacher Walter White learns he is ill.',
     );

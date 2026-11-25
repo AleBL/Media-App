@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { computed } from 'vue';
   import AppButton from '@/components/ui/AppButton.vue';
+  import AppFacts from '@/components/ui/AppFacts.vue';
   import AppIconButton from '@/components/ui/AppIconButton.vue';
   import { useGenresStore } from '@/stores/genres';
   import { rowId, useHomeRowsStore, type HomeRow } from '@/stores/homeRows';
@@ -62,12 +63,11 @@
       >
         <div class="min-w-0 flex-1">
           <p class="font-medium">{{ title }}</p>
-          <p
-            v-if="details"
+          <AppFacts
+            v-if="details.length"
+            :facts="details"
             class="text-sm text-surface-500 dark:text-surface-400"
-          >
-            {{ details }}
-          </p>
+          />
         </div>
         <AppIconButton
           icon="pi pi-arrow-up"

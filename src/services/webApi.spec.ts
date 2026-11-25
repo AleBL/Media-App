@@ -480,6 +480,19 @@ describe('web api', () => {
       );
     });
 
+    it('asks the site for what TMDB recommends to the account', async () => {
+      const fetch = answering({ ok: true, data: [] });
+
+      await createWebApi(fetch).account.recommendations({
+        type: 'tv',
+        language: 'pt-BR',
+      });
+
+      expect(fetch.mock.calls[0][0]).toBe(
+        '/api/account?resource=recommendations&type=tv&language=pt-BR',
+      );
+    });
+
     it('hands back that nobody is signed in', async () => {
       const failure = { ok: false, error: { code: 'signed-out' } };
 

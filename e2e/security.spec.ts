@@ -36,7 +36,7 @@ test.describe('renderer isolation', () => {
       credentials: ['clear', 'save', 'status'],
       // and none to get at the session or the access token of the user:
       // they are used in the main process
-      account: ['list', 'mark', 'rate', 'states'],
+      account: ['list', 'mark', 'rate', 'recommendations', 'states'],
       watched: ['list', 'mark', 'progress', 'saveProgress', 'state'],
       updates: ['install', 'onChange', 'state'],
     });

@@ -257,6 +257,16 @@ app.whenReady().then(async () => {
         auth.withSession((sessionId, account) =>
           tmdb.accountList(sessionId, account.id, request),
         ),
+      recommendations: (request) =>
+        auth.withAccess((access) => {
+          const user = requireUserAccess(access);
+
+          return tmdb.recommendations(
+            user.accessToken,
+            user.accountObjectId,
+            request,
+          );
+        }),
     },
     watched: {
       state: (title) =>

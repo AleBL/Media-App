@@ -315,6 +315,37 @@ describe('HomePage', () => {
     expect(headings()).not.toContain('Continue watching');
   });
 
+  it('shows what TMDB recommends after the shows in progress, before the rows', async () => {
+    useSessionStore().state = SIGNED_IN;
+    api.tmdb.details.mockResolvedValue({ ok: true, data: BREAKING_BAD });
+    api.watched.progress.mockResolvedValue({
+      ok: true,
+      data: [{ id: 1396, seasons: { 1: [1] }, changedAt: '2026-11-19' }],
+    });
+    api.account.recommendations.mockImplementation(async ({ type }) => ({
+      ok: true,
+      data:
+        type === 'movie'
+          ? [{ id: 604, media_type: 'movie', title: 'The Matrix Reloaded' }]
+          : [{ id: 60059, media_type: 'tv', name: 'Better Call Saul' }],
+    }));
+
+    await mountPage();
+
+    expect(headings().slice(0, 3)).toEqual([
+      'Continue watching',
+      'For you',
+      'Trending this week',
+    ]);
+    expect(section('For you').text()).toContain('Better Call Saul');
+
+    await wrapper.get('input[name="home-kind"][value="movie"]').setValue(true);
+    await flushPromises();
+
+    expect(section('For you').text()).toContain('The Matrix Reloaded');
+    expect(section('For you').text()).not.toContain('Better Call Saul');
+  });
+
   it('shows a row made in Explore, with its filters', async () => {
     localStorage.setItem(
       'home-rows',
@@ -337,7 +368,12 @@ describe('HomePage', () => {
       page: 1,
     });
     const row = section('Popular TV shows: Drama');
-    expect(row.text()).toContain('Rating 7+ · On my services');
+    expect(
+      row
+        .get('h2 + ul')
+        .findAll('li')
+        .map((fact) => fact.text()),
+    ).toEqual(['Rating 7+', 'On my services']);
     expect(row.text()).toContain('Discovered show');
   });
 

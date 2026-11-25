@@ -14,6 +14,7 @@ import {
   type PersonRequest,
   type ProgressRequest,
   type RateRequest,
+  type RecommendationsRequest,
   type SeasonRequest,
   type SearchRequest,
   type SearchType,
@@ -444,6 +445,19 @@ export function parseWatchedListRequest(
   const locale = parseLanguage(language);
 
   return isPage(page) && locale ? { page, language: locale } : null;
+}
+
+export function parseRecommendationsRequest(
+  value: unknown,
+): RecommendationsRequest | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const { type, language } = value as Record<string, unknown>;
+  const locale = parseLanguage(language);
+
+  return isMediaType(type) && locale ? { type, language: locale } : null;
 }
 
 /** A rating from 0.5 to 10 in steps of 0.5, or `null` to take it away. */

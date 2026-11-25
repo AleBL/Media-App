@@ -6,6 +6,29 @@ import { expect, test } from './fixtures';
 // TMDB with the session in its cookie (api/account.ts), which the page
 // never sees.
 test.describe('watchlist and favorites on the web version', () => {
+  test('shows on the home page what TMDB recommends to the account, through the site', async ({
+    page,
+    site,
+    tmdb,
+  }) => {
+    await page.goto(site.url);
+    await openPage(page, 'account');
+    await page.getByRole('button', { name: 'Sign in with TMDB' }).click();
+    await expect(page.getByText(`Signed in as ${ACCOUNT.name}`)).toBeVisible();
+
+    await openPage(page, 'home');
+
+    const forYou = page.getByRole('region', { name: 'For you', exact: true });
+    await expect(forYou.getByRole('link')).toHaveCount(6);
+    await expect(forYou.getByRole('link').first()).toHaveText('Movie 31 [en]');
+    // asked with the access token of the user, which stayed with the site
+    expect(
+      tmdb.requests
+        .filter(({ path }) => path.endsWith('/recommendations'))
+        .map(({ credential }) => credential),
+    ).toEqual(['account', 'account']);
+  });
+
   test('keeps a title in the watchlist, through the site', async ({
     page,
     site,

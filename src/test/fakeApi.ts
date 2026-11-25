@@ -322,6 +322,10 @@ export function installFakeApi() {
         ok: true,
         data: pageOf() as Paged<MediaItem>,
       })),
+      // Nothing to recommend.
+      recommendations: vi.fn<MediaAppApi['account']['recommendations']>(
+        async () => ({ ok: true, data: [] }),
+      ),
     },
     // Nothing watched yet, and marks that go through.
     watched: {

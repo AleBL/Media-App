@@ -12,7 +12,13 @@ export interface GenreCacheOptions {
   maxAgeMs?: number;
 }
 
-type CachedGenres = { savedAt: number; genres: Genre[] };
+/**
+ * Raised when the lists kept change: from 2 on, the genres TMDB has only in
+ * English are named in the language. An older list is asked again.
+ */
+const VERSION = 2;
+
+type CachedGenres = { savedAt: number; version?: number; genres: Genre[] };
 
 /**
  * Genre names change rarely, so they are asked from TMDB once a week per
@@ -42,7 +48,7 @@ export function createGenreCache(options: GenreCacheOptions) {
       await mkdir(options.directory, { recursive: true });
       await writeFile(
         fileFor(language),
-        JSON.stringify({ savedAt: now(), genres }),
+        JSON.stringify({ savedAt: now(), version: VERSION, genres }),
       );
     } catch {
       // Without the cache the list is simply asked again next time.
@@ -53,7 +59,7 @@ export function createGenreCache(options: GenreCacheOptions) {
     async get(language: string): Promise<Genre[]> {
       const cached = await read(language);
 
-      if (cached && now() - cached.savedAt < maxAgeMs) {
+      if (cached?.version === VERSION && now() - cached.savedAt < maxAgeMs) {
         return cached.genres;
       }
 

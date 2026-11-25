@@ -220,6 +220,12 @@ export interface AccountListRequest {
   language: string;
 }
 
+/** What TMDB recommends to the account, for one type. */
+export interface RecommendationsRequest {
+  type: MediaType;
+  language: string;
+}
+
 export interface WatchedRequest extends TitleRequest {
   value: boolean;
   /** The user's local day, YYYY-MM-DD. */
@@ -544,6 +550,14 @@ export interface MediaAppApi {
     rate(request: RateRequest): Promise<Result<null>>;
     /** Last added (or rated) first. */
     list(request: AccountListRequest): Promise<Result<Paged<MediaItem>>>;
+    /**
+     * The first page of what TMDB recommends to the account (v4), as TMDB
+     * chooses it. Also fails with `sign-in-again`, without the user's
+     * access token.
+     */
+    recommendations(
+      request: RecommendationsRequest,
+    ): Promise<Result<MediaItem[]>>;
   };
   /**
    * Kept in a private v4 list of the user, created on the first mark. Fails
@@ -610,6 +624,7 @@ export const IPC = {
   accountMark: 'account:mark',
   accountRate: 'account:rate',
   accountList: 'account:list',
+  accountRecommendations: 'account:recommendations',
   watchedState: 'watched:state',
   watchedMark: 'watched:mark',
   watchedList: 'watched:list',

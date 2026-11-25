@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { ACCOUNT_OBJECT_ID } from './support/fake-tmdb';
 import {
   cards,
   chooseLanguage,
@@ -7,6 +8,7 @@ import {
   openPage,
   test,
 } from './support/fixtures';
+import { signIn } from './support/login';
 
 /** A row of the home page, by its title. */
 const list = (page: Page, title: string) =>
@@ -71,6 +73,47 @@ test.describe('home page', () => {
     await expect(html).toHaveCSS(
       'scrollbar-color',
       'rgb(203, 213, 225) rgba(0, 0, 0, 0)',
+    );
+  });
+
+  test('shows what TMDB recommends to whoever signed in, without what is in their watchlist', async ({
+    running,
+    tmdb,
+  }) => {
+    const { page } = running;
+    // on the TMDB website, before signing in here
+    tmdb.addToList('watchlist', 'movie:32');
+
+    await expect(list(page, 'Trending this week')).toBeVisible();
+    await expect(list(page, 'For you')).toHaveCount(0);
+
+    await openPage(page, 'account');
+    await signIn(running, tmdb);
+    await openPage(page, 'home');
+
+    const forYou = list(page, 'For you');
+    await expect(forYou).toContainText('Recommended by TMDB for your account');
+    // a movie and a tv show in turn
+    await expect(forYou.getByRole('link')).toHaveText([
+      'Movie 31 [en]',
+      'Show 31 [en]',
+      'Movie 33 [en]',
+      'Show 32 [en]',
+      'Show 33 [en]',
+    ]);
+    expect(
+      tmdb.requests
+        .filter(({ path }) => path.endsWith('/recommendations'))
+        .map(({ path, credential, language }) => [path, credential, language]),
+    ).toEqual(
+      expect.arrayContaining([
+        [
+          `/4/account/${ACCOUNT_OBJECT_ID}/movie/recommendations`,
+          'account',
+          'en',
+        ],
+        [`/4/account/${ACCOUNT_OBJECT_ID}/tv/recommendations`, 'account', 'en'],
+      ]),
     );
   });
 

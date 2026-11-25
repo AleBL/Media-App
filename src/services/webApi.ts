@@ -270,6 +270,8 @@ export function createWebApi(
           { resource: 'list', list, type, page: String(page), language },
           ACCOUNT_PATH,
         ),
+      recommendations: ({ type, language }) =>
+        callSite({ resource: 'recommendations', type, language }, ACCOUNT_PATH),
     },
     watched: {
       state: ({ type, id }) =>

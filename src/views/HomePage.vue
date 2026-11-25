@@ -3,6 +3,7 @@
   import { useRoute, useRouter } from 'vue-router';
   import type { MediaType } from '@shared/api';
   import ContinueRow from '@/components/Home/ContinueRow.vue';
+  import ForYouRow from '@/components/Home/ForYouRow.vue';
   import HomeRow from '@/components/Home/HomeRow.vue';
   import HomeRowsEditor from '@/components/Home/HomeRowsEditor.vue';
   import AppButton from '@/components/ui/AppButton.vue';
@@ -154,6 +155,9 @@
       <template v-else>
         <!-- The shows in progress of the user, before the rows they chose. -->
         <ContinueRow v-if="kind !== 'movie'" />
+
+        <!-- What TMDB recommends to the account, for whoever signed in. -->
+        <ForYouRow :kind="kind" />
 
         <HomeRow
           v-for="row in shown"

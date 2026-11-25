@@ -39,9 +39,13 @@ export function rowTitle(
  * The other filters of a choice, under its title, such as
  * "1990s · Rating 7+ · Up to 14 · Korean · On my services".
  */
-export function rowDetails(row: HomeRow, t: Translate, locale: string) {
+export function rowDetails(
+  row: HomeRow,
+  t: Translate,
+  locale: string,
+): string[] {
   if ('list' in row) {
-    return '';
+    return [];
   }
 
   const choice = choiceOf(row);
@@ -78,5 +82,5 @@ export function rowDetails(row: HomeRow, t: Translate, locale: string) {
     parts.push(t('discover.myServices'));
   }
 
-  return parts.join(' · ');
+  return parts;
 }

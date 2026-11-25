@@ -91,7 +91,10 @@
     "noRowsHint": "Acrescente fileiras pelo Explorar, ou restaure as do padrão.",
     "continueWatching": "Continuar assistindo",
     "continuePrevious": "Séries anteriores",
-    "continueNext": "Mais séries"
+    "continueNext": "Mais séries",
+    "forYou": "Para você",
+    "forYouSource": "Recomendados pelo TMDB para a sua conta",
+    "forYouFailed": "Não foi possível carregar suas recomendações."
   },
 
   "cards": {

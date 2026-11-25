@@ -40,6 +40,11 @@ export default defineConfig({
       'shared/**/*.spec.ts',
     ],
     setupFiles: ['src/test/setup.ts'],
+    // Half the cores: each worker holds the whole app in happy-dom, and
+    // one per core (the default) used 2.9 GB. Run next to another suite
+    // or the E2E, the machine swapped and page tests passed 5 s; with
+    // half, three suites at once passed, and alone it is as fast.
+    maxWorkers: '50%',
     restoreMocks: true,
     // A timezone behind UTC, like most users of the app, so date bugs
     // that only show there (year shifting on January 1st) are caught.

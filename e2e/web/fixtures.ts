@@ -125,6 +125,11 @@ export const test = base.extend<Fixtures>({
     });
 
     await use(received);
+    // Closed first: a response the browser revalidates in the background
+    // (stale-while-revalidate) never hands its body to the page, and
+    // waiting for it held every test for some 30 s. The tests read
+    // `received` before this point.
+    await page.close();
     await Promise.all(pending);
   },
 });
